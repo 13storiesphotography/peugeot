@@ -88,18 +88,23 @@ export function applyCommandToState(
     }
     case "set_charge_limit": {
       const limit = Math.min(100, Math.max(50, request.chargeLimitPercent ?? 80));
+      if (state.mode === "live") {
+        return {
+          ok: false,
+          message:
+            "Das 80%-Limit kann die App am Fahrzeug noch nicht setzen. Bitte in MyPeugeot oder im Auto umschalten — danach hier aktualisieren.",
+          vehicle: state,
+        };
+      }
       const next: Partial<VehicleState> = {
         preferredChargeLimitPercent: limit,
-        ...(state.mode === "demo" || !state.chargeLimitKnown
-          ? { chargeLimitPercent: limit, chargeLimitKnown: state.mode === "demo" }
-          : {}),
+        chargeLimitPercent: limit,
+        chargeLimitKnown: true,
       };
-      const effectiveLimit =
-        next.chargeLimitPercent ?? state.chargeLimitPercent;
       if (state.chargeStatus === "charging" && state.chargePowerKw) {
         next.estimatedFullAt = estimateFullAt(
           state.batteryPercent,
-          effectiveLimit,
+          limit,
           state.batteryCapacityKwh,
           state.chargePowerKw,
         );

@@ -103,20 +103,29 @@ export function ChargePanel({
         <div className="min-w-0">
           <p className="font-semibold">Limit 80%</p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            Schont die Batterie im Alltag
+            {live
+              ? eightyOn
+                ? "Aktiv laut Fahrzeug"
+                : "Aus laut Fahrzeug · Umschalten in MyPeugeot oder im Auto"
+              : "Schont die Batterie im Alltag"}
           </p>
         </div>
         <button
           type="button"
           role="switch"
           aria-checked={eightyOn}
-          disabled={busy}
+          disabled={busy || live}
+          title={
+            live
+              ? "Am Fahrzeug noch nicht aus der App schaltbar"
+              : undefined
+          }
           onClick={() =>
             onCommand("set_charge_limit", {
               chargeLimitPercent: eightyOn ? 100 : 80,
             })
           }
-          className="action-btn relative h-8 w-14 shrink-0 rounded-full transition"
+          className="action-btn relative h-8 w-14 shrink-0 rounded-full transition disabled:opacity-55"
           style={{
             background: eightyOn
               ? "linear-gradient(135deg, #5fe3c0, #3da8a0)"
