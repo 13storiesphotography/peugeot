@@ -10,6 +10,8 @@ import { MFA_GRACE_DAYS } from "@/lib/auth/mfa-policy";
 import { getSettingsBundle } from "@/lib/vehicle/repository";
 
 export const dynamic = "force-dynamic";
+/** Password auto-login runs headless Chromium — needs a long function window. */
+export const maxDuration = 60;
 
 function StatusDot({
   tone,
