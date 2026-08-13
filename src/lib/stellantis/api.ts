@@ -1,6 +1,7 @@
 import type { VehicleState } from "@/lib/types";
 import { estimateFullAt } from "@/lib/vehicle/defaults";
 import { resolveChargePower } from "@/lib/stellantis/charge-power";
+import { parseIsoDurationToMinutes } from "@/lib/stellantis/duration";
 import { extractPaintFromPictures } from "@/lib/stellantis/paint";
 import {
   getAuthorizeUrl,
@@ -244,7 +245,25 @@ export function mapStatusToVehicleState(
   meta: { vehicleId: string; vin: string },
 ): VehicleState {
   const energy0 = dig(status, ["energy", 0]) ?? dig(status, ["energies", 0]);
-  const chargingBlock = dig(energy0, ["charging"]);
+  const chargingPrimary = dig(energy0, ["charging"]);
+  const chargingExt =
+    dig(status, ["energies", 0, "extension", "electric", "charging"]) ??
+    dig(energy0, ["extension", "electric", "charging"]);
+  const chargingBlock = {
+    ...(asRecord(chargingPrimary) ?? {}),
+    ...(asRecord(chargingExt) ?? {}),
+  };
+
+  // Prefer energies[0] battery capacity (Wh) when present.
+  const capacityWh = Number(
+    dig(status, ["energies", 0, "extension", "electric", "battery", "load", "capacity"]) ??
+      dig(status, ["energy", 0, "battery", "load", "capacity"]) ??
+      dig(energy0, ["battery", "load", "capacity"]),
+  );
+  const batteryCapacityKwh =
+    Number.isFinite(capacityWh) && capacityWh > 1000
+      ? Math.round((capacityWh / 1000) * 10) / 10
+      : base.batteryCapacityKwh;
 
   const batteryPercent = Number(
     dig(energy0, ["level"]) ??
@@ -307,8 +326,31 @@ export function mapStatusToVehicleState(
 
   const limitFromApi = Number(
     dig(chargingBlock, ["chargeLimit"]) ??
-      dig(chargingBlock, ["chargingLimit"]),
+      dig(chargingBlock, ["chargingLimit"]) ??
+      dig(chargingBlock, ["chargingStopThreshold"]) ??
+      dig(chargingBlock, ["stopThreshold"]),
   );
+  const chargingModeRaw = dig(chargingBlock, ["chargingMode"]);
+  const chargingTypeRaw = dig(chargingBlock, ["type"]);
+  const chargingMode =
+    typeof chargingModeRaw === "string" ? chargingModeRaw : null;
+  const chargingType =
+    typeof chargingTypeRaw === "string" ? chargingTypeRaw : null;
+
+  // Live status from this car does not include a numeric SoC limit.
+  // "Full" means charge-to-full — do NOT invent an 80% limit.
+  let chargeLimitPercent = base.chargeLimitPercent;
+  let chargeLimitKnown = base.chargeLimitKnown;
+  if (Number.isFinite(limitFromApi) && limitFromApi >= 50 && limitFromApi <= 100) {
+    chargeLimitPercent = Math.round(limitFromApi);
+    chargeLimitKnown = true;
+  } else if (chargingType && /full/i.test(chargingType)) {
+    chargeLimitPercent = 100;
+    chargeLimitKnown = true;
+  } else {
+    // No limit in status payload — keep slider value but mark unverified.
+    chargeLimitKnown = false;
+  }
 
   // PSA `chargingRate` / `charging_rate` is km/h of range gain — never kW.
   const rateRaw = Number(
@@ -360,34 +402,27 @@ export function mapStatusToVehicleState(
   const chargePowerKw = resolvedPower.chargePowerKw;
   const chargeRateKmh = resolvedPower.chargeRateKmh;
 
-  const remainingMin = Number(
+  const remainingMin = parseIsoDurationToMinutes(
     dig(chargingBlock, ["remainingTime"]) ??
       dig(chargingBlock, ["remaining_time"]) ??
       dig(chargingBlock, ["timeToComplete"]),
   );
-  const limit =
-    Number.isFinite(limitFromApi) && limitFromApi >= 50 && limitFromApi <= 100
-      ? Math.round(limitFromApi)
-      : base.chargeLimitPercent;
 
   let estimatedFullAt: string | null = null;
-  if (
-    chargeStatus === "charging" &&
-    Number.isFinite(remainingMin) &&
-    remainingMin > 0
-  ) {
+  if (chargeStatus === "charging" && remainingMin != null && remainingMin > 0) {
     estimatedFullAt = new Date(
       Date.now() + remainingMin * 60_000,
     ).toISOString();
   } else if (
     chargeStatus === "charging" &&
     chargePowerKw &&
-    Number.isFinite(batteryPercent)
+    Number.isFinite(batteryPercent) &&
+    chargeLimitKnown
   ) {
     estimatedFullAt = estimateFullAt(
       batteryPercent,
-      limit,
-      base.batteryCapacityKwh,
+      chargeLimitPercent,
+      batteryCapacityKwh,
       chargePowerKw,
     );
   }
@@ -415,6 +450,7 @@ export function mapStatusToVehicleState(
     batteryPercent: Number.isFinite(batteryPercent)
       ? batteryPercent
       : base.batteryPercent,
+    batteryCapacityKwh,
     rangeKm: Number.isFinite(rangeKm) ? Math.round(rangeKm) : base.rangeKm,
     mileageKm: Number.isFinite(mileageKm)
       ? Math.round(mileageKm)
@@ -422,7 +458,10 @@ export function mapStatusToVehicleState(
     cabinTempC: Number.isFinite(cabinTempC) ? cabinTempC : base.cabinTempC,
     locked,
     chargeStatus,
-    chargeLimitPercent: limit,
+    chargeLimitPercent,
+    chargeLimitKnown,
+    chargingMode,
+    chargingType,
     chargePowerKw,
     chargeRateKmh,
     estimatedFullAt,

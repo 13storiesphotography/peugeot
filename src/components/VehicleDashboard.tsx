@@ -210,7 +210,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
                 {charging
                   ? `Lädt${vehicle.chargePowerKw != null ? ` · ${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW` : ""}${vehicle.chargeRateKmh != null ? ` (${Math.round(vehicle.chargeRateKmh)} km/h)` : ""}`
                   : plugged
-                    ? `Bereit · Limit ${vehicle.chargeLimitPercent}%`
+                    ? vehicle.chargeLimitKnown
+                      ? `Bereit · Limit ${vehicle.chargeLimitPercent}%`
+                      : "Bereit · Limit unbekannt"
                     : "Nicht angeschlossen"}
               </p>
             </div>

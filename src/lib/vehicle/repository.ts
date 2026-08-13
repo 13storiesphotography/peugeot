@@ -166,6 +166,9 @@ async function ensureVehicle(
     vin: existing.vin ?? vehicle.vin,
     chargeRateKmh: vehicle.chargeRateKmh ?? null,
     chargePowerKw: vehicle.chargePowerKw ?? null,
+    chargeLimitKnown: vehicle.chargeLimitKnown ?? false,
+    chargingMode: vehicle.chargingMode ?? null,
+    chargingType: vehicle.chargingType ?? null,
     colorHex: vehicle.colorHex ?? null,
     pictureUrl: vehicle.pictureUrl ?? null,
   };

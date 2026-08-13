@@ -98,8 +98,19 @@ export function applyCommandToState(
         }),
       };
     case "set_charge_limit": {
+      if (state.mode === "live") {
+        return {
+          ok: false,
+          message:
+            "MyPeugeot liefert in der Status-API kein setzbares Ladelimit. Bitte Limit in der Peugeot-App prüfen.",
+          vehicle: state,
+        };
+      }
       const limit = Math.min(100, Math.max(50, request.chargeLimitPercent ?? 80));
-      const next: Partial<VehicleState> = { chargeLimitPercent: limit };
+      const next: Partial<VehicleState> = {
+        chargeLimitPercent: limit,
+        chargeLimitKnown: true,
+      };
       if (state.chargeStatus === "charging" && state.chargePowerKw) {
         next.estimatedFullAt = estimateFullAt(
           state.batteryPercent,
@@ -110,7 +121,7 @@ export function applyCommandToState(
       }
       return {
         ok: true,
-        message: `Ladelimit auf ${limit}% gesetzt.`,
+        message: `Ladelimit auf ${limit}% gesetzt (Demo).`,
         vehicle: touch(state, next),
       };
     }

@@ -40,6 +40,10 @@ export interface VehicleState {
   rangeKm: number;
   chargeStatus: ChargeStatus;
   chargeLimitPercent: number;
+  /** True only when MyPeugeot reported a limit, or user set one locally. */
+  chargeLimitKnown: boolean;
+  chargingMode: string | null;
+  chargingType: string | null;
   chargePowerKw: number | null;
   /** PSA chargingRate — km of range gained per hour (null if unknown). */
   chargeRateKmh: number | null;

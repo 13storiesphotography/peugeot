@@ -30,6 +30,12 @@ const statusLabel: Record<VehicleState["chargeStatus"], string> = {
 export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
   const charging = vehicle.chargeStatus === "charging";
   const plugged = vehicle.chargeStatus !== "idle";
+  const live = vehicle.mode === "live";
+  const limitKnown = vehicle.chargeLimitKnown;
+  const chargingToFull =
+    limitKnown && vehicle.chargeLimitPercent >= 100
+      ? true
+      : /full/i.test(vehicle.chargingType ?? "");
 
   return (
     <section className="animate-rise space-y-6">
@@ -40,7 +46,8 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
           </h2>
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
             {statusLabel[vehicle.chargeStatus]}
-            {vehicle.mode === "live" ? " · Live (MyPeugeot)" : " · Demo"}
+            {vehicle.chargingMode ? ` · ${vehicle.chargingMode}` : ""}
+            {live ? " · Live (MyPeugeot)" : " · Demo"}
           </p>
           {charging && vehicle.chargePowerKw != null ? (
             <p className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums text-[var(--accent-bright)]">
@@ -79,7 +86,7 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
 
       <button
         type="button"
-        disabled={busy || (!plugged && !charging)}
+        disabled={busy || (!plugged && !charging) || live}
         onClick={() => onCommand(charging ? "charge_stop" : "charge_start")}
         className="action-btn w-full rounded-full px-5 py-4 text-sm font-semibold"
         style={{
@@ -88,38 +95,59 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
             : "linear-gradient(135deg, #5fe3c0, #3da8a0)",
           color: charging ? "var(--danger)" : "#031016",
           border: charging ? "1px solid rgba(224,122,106,0.4)" : "none",
+          opacity: live ? 0.55 : 1,
         }}
       >
-        {charging ? "Laden stoppen" : "Laden starten"}
+        {live
+          ? charging
+            ? "Lädt (Steuerung über Peugeot-App)"
+            : "Start nur in Peugeot-App"
+          : charging
+            ? "Laden stoppen"
+            : "Laden starten"}
       </button>
 
       <div>
-        <div className="mb-2 flex items-center justify-between text-sm">
+        <div className="mb-2 flex items-center justify-between gap-3 text-sm">
           <span className="text-[var(--fg-muted)]">Ladelimit</span>
-          <span className="font-semibold tabular-nums">
-            {vehicle.chargeLimitPercent}%
+          <span className="text-right font-semibold tabular-nums">
+            {chargingToFull
+              ? "Voll (100%)"
+              : limitKnown
+                ? `${vehicle.chargeLimitPercent}%`
+                : "Nicht vom Auto gemeldet"}
           </span>
         </div>
-        <input
-          type="range"
-          min={50}
-          max={100}
-          step={5}
-          value={vehicle.chargeLimitPercent}
-          disabled={busy}
-          onChange={(e) =>
-            onCommand("set_charge_limit", {
-              chargeLimitPercent: Number(e.target.value),
-            })
-          }
-          className="w-full accent-[var(--accent-bright)]"
-          aria-label="Ladelimit"
-        />
-        <div className="mt-2 flex justify-between text-xs text-[var(--fg-muted)]">
-          <span>50%</span>
-          <span>Empfohlen 80%</span>
-          <span>100%</span>
-        </div>
+        {!live ? (
+          <>
+            <input
+              type="range"
+              min={50}
+              max={100}
+              step={5}
+              value={vehicle.chargeLimitPercent}
+              disabled={busy}
+              onChange={(e) =>
+                onCommand("set_charge_limit", {
+                  chargeLimitPercent: Number(e.target.value),
+                })
+              }
+              className="w-full accent-[var(--accent-bright)]"
+              aria-label="Ladelimit"
+            />
+            <div className="mt-2 flex justify-between text-xs text-[var(--fg-muted)]">
+              <span>50%</span>
+              <span>Empfohlen 80%</span>
+              <span>100%</span>
+            </div>
+          </>
+        ) : (
+          <p className="rounded-xl border border-[var(--line)] px-3 py-3 text-xs text-[var(--fg-muted)]">
+            {chargingToFull
+              ? "MyPeugeot meldet Lademodus „Full“ — das Auto lädt ohne separates %-Limit bis voll."
+              : "Die Status-API liefert kein Zahlen-Ladelimit. Ein angezeigtes 80%-Default wäre geraten, nicht live."}
+          </p>
+        )}
       </div>
 
       <dl className="grid grid-cols-2 gap-4 text-sm">
