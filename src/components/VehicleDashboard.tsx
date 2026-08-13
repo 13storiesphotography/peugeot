@@ -25,6 +25,18 @@ function formatUpdated(iso: string): string {
   }).format(new Date(iso));
 }
 
+function formatAge(iso: string): string {
+  const mins = Math.max(
+    0,
+    Math.round((Date.now() - new Date(iso).getTime()) / 60_000),
+  );
+  if (mins < 1) return "gerade eben";
+  if (mins === 1) return "vor 1 Min.";
+  if (mins < 60) return `vor ${mins} Min.`;
+  const hours = Math.floor(mins / 60);
+  return hours === 1 ? "vor 1 Std." : `vor ${hours} Std.`;
+}
+
 const TAB_QUERY = "tab";
 
 function readTab(): ControlTab {
@@ -200,10 +212,22 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             type="button"
             onClick={() => void refresh(true)}
             className="mt-1 block text-left text-xs text-[var(--fg-muted)]"
-            title="Jetzt aktualisieren"
+            title="Tippen zum Aktualisieren"
           >
-            Stand {formatUpdated(vehicle.lastUpdatedAt)}
-            {isPending ? "…" : ""}
+            <span className="block">
+              Fahrzeugdaten {formatUpdated(vehicle.lastUpdatedAt)}
+              <span className="text-[var(--fg-muted)]/80">
+                {" "}
+                ({formatAge(vehicle.lastUpdatedAt)})
+              </span>
+            </span>
+            <span className="mt-0.5 block">
+              App-Abruf{" "}
+              {bundle.connection.lastSyncAt
+                ? formatUpdated(bundle.connection.lastSyncAt)
+                : "—"}
+              {isPending ? "…" : ""}
+            </span>
           </button>
         </div>
         <Link
