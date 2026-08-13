@@ -98,25 +98,41 @@ export async function refreshAccessToken(
   url.searchParams.set("grant_type", "refresh_token");
   url.searchParams.set("refresh_token", refreshToken);
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${getBasicToken(countryCode)}`,
-    },
-  });
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${getBasicToken(countryCode)}`,
+        },
+      });
 
-  const data = (await res.json()) as Record<string, unknown>;
-  if (!res.ok || !data.access_token) {
-    throw new Error(formatOAuthErrorPayload(data, "Token-Refresh fehlgeschlagen"));
+      const data = (await res.json()) as Record<string, unknown>;
+      if (!res.ok || !data.access_token) {
+        throw new Error(
+          formatOAuthErrorPayload(data, "Token-Refresh fehlgeschlagen"),
+        );
+      }
+
+      const expiresIn = Number(data.expires_in ?? 3600);
+      return {
+        accessToken: String(data.access_token),
+        refreshToken: String(data.refresh_token ?? refreshToken),
+        expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+      };
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const transient =
+        /error reading a body|connection|network|timed?\s*out|fetch failed|ECONNRESET|socket/i.test(
+          lastError.message,
+        );
+      if (!transient || attempt === 3) throw lastError;
+      await new Promise((r) => setTimeout(r, 800 * attempt));
+    }
   }
-
-  const expiresIn = Number(data.expires_in ?? 3600);
-  return {
-    accessToken: String(data.access_token),
-    refreshToken: String(data.refresh_token ?? refreshToken),
-    expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
-  };
+  throw lastError ?? new Error("Token-Refresh fehlgeschlagen");
 }
 
 /** Normalize Peugeot OAuth error bodies into a stable message. */
@@ -147,13 +163,15 @@ export function humanizePeugeotOAuthError(message: string): string {
   return message || "Peugeot-Anmeldung fehlgeschlagen.";
 }
 
+/** True only for confirmed Peugeot OAuth auth failures (not network blips). */
 export function isPeugeotAuthFailure(message: string): boolean {
   const lower = message.toLowerCase();
   return (
     lower.includes("invalid_grant") ||
     lower.includes("grant invalid") ||
-    lower.includes("abgelaufen") ||
-    lower.includes("neu verbinden")
+    lower.includes("invalid grant") ||
+    (lower.includes("refresh token") && lower.includes("expired")) ||
+    lower.includes("token has expired")
   );
 }
 

@@ -904,7 +904,10 @@ async function ensurePeugeotAccessToken(
   } catch (error) {
     const raw = error instanceof Error ? error.message : String(error);
     const message = humanizePeugeotOAuthError(raw);
-    if (isPeugeotAuthFailure(raw) || isPeugeotAuthFailure(message)) {
+    // Persist reconnect only on confirmed OAuth rejection — never on
+    // transient network / body-read failures (those can leave a still-valid
+    // refresh token, or lose a successful rotation).
+    if (isPeugeotAuthFailure(raw)) {
       await supabase
         .from("peugeot_connections")
         .update({
