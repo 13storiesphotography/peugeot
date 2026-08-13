@@ -8,11 +8,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const KINDS = new Set<VehicleSchedule["kind"]>([
-  "charge",
-  "climate",
-  "battery_preheat",
-]);
+const KINDS = new Set<VehicleSchedule["kind"]>(["charge", "climate"]);
 
 export async function POST(request: Request) {
   const auth = await requireOwner();

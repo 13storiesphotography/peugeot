@@ -5,10 +5,9 @@ import type { VehicleSchedule } from "@/lib/vehicle/repository";
 
 const DAY_LABELS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
-const KIND_LABEL: Record<VehicleSchedule["kind"], string> = {
+const KIND_LABEL: Partial<Record<VehicleSchedule["kind"], string>> = {
   charge: "Laden starten",
   climate: "Vorklima",
-  battery_preheat: "Akku vorwärmen",
 };
 
 interface SchedulePanelProps {
@@ -41,14 +40,18 @@ export function SchedulePanel({
     setLocal(schedules);
   }, [schedules]);
 
-  const visible = useMemo(
-    () => (kinds ? local.filter((item) => kinds.includes(item.kind)) : local),
-    [local, kinds],
-  );
+  const visible = useMemo(() => {
+    const base = kinds
+      ? local.filter((item) => kinds.includes(item.kind))
+      : local;
+    // Battery preheat is not available via Peugeot remotes — hide leftovers.
+    return base.filter((item) => item.kind !== "battery_preheat");
+  }, [local, kinds]);
 
-  const addableKinds = kinds?.length
+  const addableKinds = (kinds?.length
     ? kinds
-    : (["climate", "charge", "battery_preheat"] as VehicleSchedule["kind"][]);
+    : (["climate", "charge"] as VehicleSchedule["kind"][])
+  ).filter((kind) => kind !== "battery_preheat");
 
   const kindCounts = useMemo(() => {
     const counts: Partial<Record<VehicleSchedule["kind"], number>> = {};
@@ -187,7 +190,7 @@ export function SchedulePanel({
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-semibold">
-                {KIND_LABEL[schedule.kind]}
+                {KIND_LABEL[schedule.kind] ?? schedule.kind}
                 {kindOrdinal(schedule)}
               </p>
               <p className="text-xs text-[var(--fg-muted)]">
@@ -312,7 +315,7 @@ export function SchedulePanel({
               color: "var(--accent-bright)",
             }}
           >
-            {creating ? "…" : `+ ${KIND_LABEL[kind]}`}
+            {creating ? "…" : `+ ${KIND_LABEL[kind] ?? kind}`}
           </button>
         ))}
       </div>

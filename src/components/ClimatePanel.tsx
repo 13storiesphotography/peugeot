@@ -79,41 +79,18 @@ export function ClimatePanel({
         </p>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      {onOpenSchedule ? (
         <button
           type="button"
-          disabled={busy || live}
-          onClick={() =>
-            onCommand(
-              vehicle.batteryPreheat
-                ? "battery_preheat_stop"
-                : "battery_preheat_start",
-            )
-          }
-          className={`action-btn ui-surface px-4 py-4 text-left ${
-            vehicle.batteryPreheat ? "ui-surface-active" : ""
-          }`}
-          style={{ opacity: live ? 0.55 : 1 }}
+          onClick={onOpenSchedule}
+          className="action-btn ui-surface w-full px-4 py-4 text-left"
         >
-          <p className="font-semibold">Batterie vorwärmen</p>
+          <p className="font-semibold">Zeitpläne</p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            {vehicle.batteryPreheat ? "Aktiv" : "Aus"}
-            {live ? " · nur Demo" : ""}
+            Vorklima unter Planen
           </p>
         </button>
-        {onOpenSchedule ? (
-          <button
-            type="button"
-            onClick={onOpenSchedule}
-            className="action-btn ui-surface px-4 py-4 text-left"
-          >
-            <p className="font-semibold">Zeitpläne</p>
-            <p className="mt-1 text-xs text-[var(--fg-muted)]">
-              Vorklima unter Planen
-            </p>
-          </button>
-        ) : null}
-      </div>
+      ) : null}
     </section>
   );
 }

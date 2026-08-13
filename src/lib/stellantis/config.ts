@@ -7,7 +7,6 @@ export const peugeotAppConfig = {
     "charge",
     "charge_limit",
     "climate",
-    "battery_preheat",
     "lock",
     "horn",
     "flash",
