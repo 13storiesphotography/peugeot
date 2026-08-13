@@ -72,7 +72,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<ControlTab>("home");
-  const [unlockConfirmOpen, setUnlockConfirmOpen] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<
+    null | "unlock" | "climate_start" | "flash"
+  >(null);
   const refreshInFlight = useRef(false);
   const followUpTimer = useRef<number | null>(null);
 
@@ -293,17 +295,44 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     command: VehicleCommand,
     opts?: { chargeLimitPercent?: number; targetTempC?: number },
   ) => {
-    if (command === "unlock") {
-      setUnlockConfirmOpen(true);
+    if (
+      command === "unlock" ||
+      command === "climate_start" ||
+      command === "flash"
+    ) {
+      setPendingConfirm(command);
       return;
     }
     void executeCommand(command, opts);
   };
 
-  const confirmUnlock = () => {
-    setUnlockConfirmOpen(false);
-    void executeCommand("unlock");
+  const confirmPending = () => {
+    if (!pendingConfirm) return;
+    const command = pendingConfirm;
+    setPendingConfirm(null);
+    void executeCommand(command);
   };
+
+  const confirmCopy =
+    pendingConfirm === "unlock"
+      ? {
+          title: "Wirklich entriegeln?",
+          body: "Die Türen werden entriegelt. Nur bestätigen, wenn du in der Nähe bist.",
+          action: "Entriegeln",
+        }
+      : pendingConfirm === "climate_start"
+        ? {
+            title: "Klima wirklich starten?",
+            body: "Die Klimaanlage schaltet sich ein und verbraucht Strom. Nur bestätigen, wenn das beabsichtigt ist.",
+            action: "Klima starten",
+          }
+        : pendingConfirm === "flash"
+          ? {
+              title: "Fahrzeug wirklich finden?",
+              body: "Lichter blinken — in ruhiger Umgebung oder nachts kann das stören. Nur bestätigen, wenn du das Auto suchen willst.",
+              action: "Finden",
+            }
+          : null;
 
   const climateOn = vehicle.climateStatus !== "off";
 
@@ -494,39 +523,38 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         </div>
       ) : null}
 
-      {unlockConfirmOpen ? (
+      {pendingConfirm && confirmCopy ? (
         <div
           className="fixed inset-0 z-[60] flex items-end justify-center bg-black/55 px-4 pb-28 sm:items-center sm:pb-4"
           role="presentation"
-          onClick={() => setUnlockConfirmOpen(false)}
+          onClick={() => setPendingConfirm(null)}
         >
           <div
             role="alertdialog"
             aria-modal="true"
-            aria-labelledby="unlock-confirm-title"
-            aria-describedby="unlock-confirm-desc"
+            aria-labelledby="action-confirm-title"
+            aria-describedby="action-confirm-desc"
             className="animate-rise w-full max-w-sm rounded-[1.5rem] border border-[var(--line)] p-5 shadow-2xl"
             style={{ background: "rgba(10, 20, 30, 0.97)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <p
-              id="unlock-confirm-title"
+              id="action-confirm-title"
               className="font-[family-name:var(--font-display)] text-xl font-semibold"
             >
-              Wirklich entriegeln?
+              {confirmCopy.title}
             </p>
             <p
-              id="unlock-confirm-desc"
+              id="action-confirm-desc"
               className="mt-2 text-sm text-[var(--fg-muted)]"
             >
-              Die Türen werden geöffnet. Nur bestätigen, wenn du in der Nähe
-              bist.
+              {confirmCopy.body}
             </p>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 type="button"
                 className="action-btn rounded-full border border-[var(--line)] px-4 py-3 text-sm font-semibold"
-                onClick={() => setUnlockConfirmOpen(false)}
+                onClick={() => setPendingConfirm(null)}
               >
                 Abbrechen
               </button>
@@ -538,9 +566,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
                   background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
                   color: "#031016",
                 }}
-                onClick={confirmUnlock}
+                onClick={confirmPending}
               >
-                Entriegeln
+                {confirmCopy.action}
               </button>
             </div>
           </div>
