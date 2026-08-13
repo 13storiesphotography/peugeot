@@ -324,11 +324,14 @@ export function mapStatusToVehicleState(
       : base.locked;
 
   const chargingRaw = String(dig(chargingBlock, ["status"]) ?? "").toLowerCase();
-  let chargeStatus: VehicleState["chargeStatus"] = base.chargeStatus;
+  const pluggedFlag = dig(chargingBlock, ["plugged"]);
+  let chargeStatus: VehicleState["chargeStatus"] = "idle";
+  // Order matters: "Disconnected".includes("connected") is true — check
+  // disconnected/unplugged before connected/plugged.
   if (
     chargingRaw.includes("inprogress") ||
     chargingRaw.includes("in_progress") ||
-    chargingRaw.includes("charging") ||
+    chargingRaw === "charging" ||
     chargingRaw === "charge"
   ) {
     chargeStatus = "charging";
@@ -339,23 +342,50 @@ export function mapStatusToVehicleState(
   ) {
     chargeStatus = "complete";
   } else if (
+    chargingRaw.includes("disconnected") ||
+    chargingRaw.includes("unplugged") ||
+    pluggedFlag === false ||
+    pluggedFlag === "false"
+  ) {
+    chargeStatus = "idle";
+  } else if (
+    chargingRaw === "stopped" ||
     chargingRaw.includes("stopped") ||
-    chargingRaw.includes("connected") ||
+    chargingRaw === "connected" ||
     chargingRaw.includes("plugged") ||
     chargingRaw.includes("pending") ||
-    chargingRaw.includes("delayed")
+    chargingRaw.includes("delayed") ||
+    pluggedFlag === true ||
+    pluggedFlag === "true"
   ) {
     chargeStatus = "plugged";
-  } else {
-    const plugged = dig(chargingBlock, ["plugged"]);
-    if (plugged === true || plugged === "true") chargeStatus = "plugged";
-    else if (plugged === false || plugged === "false") chargeStatus = "idle";
-    else if (
-      chargingRaw.includes("disconnected") ||
-      chargingRaw.includes("unplugged")
-    ) {
-      chargeStatus = "idle";
-    }
+  } else if (!chargingRaw) {
+    // No status string — fall back to last known only if we also lack a plug flag.
+    chargeStatus = base.chargeStatus === "charging" ? "idle" : base.chargeStatus;
+  }
+
+  // Live preconditioning from Peugeot status (API spelling varies).
+  const precondRaw = String(
+    dig(status, ["preconditionning", "airConditioning", "status"]) ??
+      dig(status, ["preconditioning", "airConditioning", "status"]) ??
+      dig(status, ["preconditionning", "air_conditioning", "status"]) ??
+      "",
+  ).toLowerCase();
+  let climateStatus: VehicleState["climateStatus"] = "off";
+  if (
+    precondRaw === "enabled" ||
+    precondRaw.includes("enabled") ||
+    precondRaw.includes("progress") ||
+    precondRaw === "on"
+  ) {
+    const cabin = Number.isFinite(cabinTempC) ? cabinTempC : base.cabinTempC;
+    const target = base.targetTempC;
+    climateStatus =
+      cabin < target - 0.5
+        ? "heating"
+        : cabin > target + 0.5
+          ? "cooling"
+          : "preconditioning";
   }
 
   const limitFromApi = Number(
@@ -541,6 +571,7 @@ export function mapStatusToVehicleState(
       : base.mileageKm,
     cabinTempC: Number.isFinite(cabinTempC) ? cabinTempC : base.cabinTempC,
     locked,
+    climateStatus,
     chargeStatus,
     chargeLimitPercent,
     chargeLimitKnown,

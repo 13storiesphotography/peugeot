@@ -31,7 +31,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
     locked ? "Verriegelt" : "Entriegelt",
   ];
   if (charging) statusParts.push("Lädt");
-  else if (plugged) statusParts.push("Angeschlossen");
+  else if (plugged) statusParts.push("Am Ladekabel");
   if (climateOn) statusParts.push("Klima an");
 
   return (

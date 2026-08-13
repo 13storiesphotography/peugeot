@@ -28,8 +28,8 @@ function formatEta(iso: string | null): string {
 }
 
 const statusLabel: Record<VehicleState["chargeStatus"], string> = {
-  idle: "Nicht angeschlossen",
-  plugged: "Angeschlossen",
+  idle: "Nicht am Ladekabel",
+  plugged: "Am Ladekabel",
   charging: "Lädt",
   complete: "Ziel erreicht",
   error: "Fehler",
