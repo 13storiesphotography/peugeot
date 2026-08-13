@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { createClient } from "@/lib/supabase/server";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
@@ -29,10 +30,11 @@ export default async function SettingsPage() {
           Einstellungen
         </h1>
         <p className="mt-2 text-[var(--fg-muted)]">
-          Fahrzeugprofil und MyPeugeot-Verbindung für deinen E-3008.
+          Hier verbindest du deinen echten Peugeot E-3008 über MyPeugeot.
         </p>
-        <div className="mt-8">
-          <SettingsForm vehicle={bundle.vehicle} connection={bundle.connection} />
+        <div className="mt-8 space-y-6">
+          <PeugeotConnectForm connection={bundle.connection} />
+          <SettingsForm vehicle={bundle.vehicle} />
         </div>
       </div>
     </main>

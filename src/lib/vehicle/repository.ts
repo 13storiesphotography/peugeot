@@ -191,7 +191,7 @@ export async function getVehicleBundle(
   userId: string,
 ): Promise<VehicleBundle> {
   const { vehicleId, vehicle: base } = await ensureVehicle(supabase, userId);
-  const vehicle = tickChargeState(base);
+  let vehicle = tickChargeState(base);
   if (vehicle !== base) {
     await saveState(supabase, userId, vehicleId, vehicle);
   }
@@ -201,7 +201,7 @@ export async function getVehicleBundle(
       supabase
         .from("peugeot_connections")
         .select(
-          "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, last_sync_at",
+          "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, refresh_token, token_expires_at, last_sync_at",
         )
         .eq("user_id", userId)
         .maybeSingle(),
@@ -220,6 +220,67 @@ export async function getVehicleBundle(
 
   const mode: VehicleState["mode"] =
     connection?.connected && connection.access_token ? "live" : "demo";
+
+  // Soft live refresh at most every 2 minutes when connected.
+  const lastSyncMs = connection?.last_sync_at
+    ? new Date(connection.last_sync_at as string).getTime()
+    : 0;
+  const shouldSync =
+    mode === "live" &&
+    connection?.vehicle_api_id &&
+    connection?.access_token &&
+    Date.now() - lastSyncMs > 120_000;
+
+  if (shouldSync) {
+    try {
+      const {
+        fetchVehicleStatus,
+        mapStatusToVehicleState,
+        refreshAccessToken,
+      } = await import("@/lib/stellantis/api");
+      let accessToken = String(connection.access_token);
+      const countryCode = String(connection.country_code ?? "DE");
+      const expiresAt = connection.token_expires_at
+        ? new Date(connection.token_expires_at as string).getTime()
+        : 0;
+      if (
+        connection.refresh_token &&
+        expiresAt &&
+        expiresAt < Date.now() + 60_000
+      ) {
+        const refreshed = await refreshAccessToken(
+          countryCode,
+          String(connection.refresh_token),
+        );
+        accessToken = refreshed.accessToken;
+        await supabase
+          .from("peugeot_connections")
+          .update({
+            access_token: refreshed.accessToken,
+            refresh_token: refreshed.refreshToken,
+            token_expires_at: refreshed.expiresAt,
+          })
+          .eq("user_id", userId);
+      }
+
+      const status = await fetchVehicleStatus(
+        accessToken,
+        countryCode,
+        String(connection.vehicle_api_id),
+      );
+      vehicle = mapStatusToVehicleState(status, { ...vehicle, mode: "live" }, {
+        vehicleId: String(connection.vehicle_api_id),
+        vin: vehicle.vin,
+      });
+      await saveState(supabase, userId, vehicleId, vehicle);
+      await supabase
+        .from("peugeot_connections")
+        .update({ last_sync_at: new Date().toISOString() })
+        .eq("user_id", userId);
+    } catch {
+      // Keep last known state if Stellantis is flaky.
+    }
+  }
 
   return {
     vehicleId,
