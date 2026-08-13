@@ -161,8 +161,8 @@ export function ClimatePanel({
           title="Vorklima planen"
           hint={
             live
-              ? "Mehrere Zeitpläne möglich (z. B. Werktags 7:15, Wochenende 9:00). Speichern in der App — automatisches Starten am Auto folgt mit Remote."
-              : "Mehrere Zeitpläne möglich — z. B. Werktags früh, Wochenende später."
+              ? "Nur in der App gespeichert — startet das Auto noch nicht. Live-Vorklima braucht noch Remote (MQTT + PIN); bis dahin Peugeot-App nutzen."
+              : "Demo: Pläne werden gespeichert und lokal simuliert. Live-Start am Auto folgt mit Remote."
           }
         />
       </div>

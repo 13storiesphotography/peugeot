@@ -303,14 +303,15 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               Planen
             </h2>
             <p className="mt-1 text-sm text-[var(--fg-muted)]">
-              Beliebig viele Pläne für Laden, Vorklima und Akku-Vorwärmung.
-              Zeit und Wochentage je Plan — unter Klima auch direkt editierbar.
+              Pläne werden in der App gespeichert (Zeit, Tage, Zieltemp). Live
+              am Auto starten sie noch nicht — das braucht Remote/MQTT. Bis dahin
+              Vorklima über die Peugeot-App planen oder starten.
             </p>
           </div>
           <SchedulePanel
             schedules={bundle.schedules}
             onChanged={() => void refresh()}
-            hint="Tipp: Für unterschiedliche Routinen einfach mehrere Vorklima-Pläne anlegen (Werktag / Wochenende)."
+            hint="Mehrere Vorklima-Pläne möglich (Werktag / Wochenende) — aktuell nur als Merkliste in dieser App."
           />
         </div>
       ) : null}

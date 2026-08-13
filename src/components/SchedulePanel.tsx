@@ -195,7 +195,7 @@ export function SchedulePanel({
                 {kindOrdinal(schedule)}
               </p>
               <p className="text-xs text-[var(--fg-muted)]">
-                {schedule.enabled ? "Aktiv" : "Pausiert"}
+                {schedule.enabled ? "Gespeichert (App)" : "Pausiert"}
                 {schedule.kind === "climate" &&
                 typeof schedule.payload.targetTempC === "number"
                   ? ` · ${schedule.payload.targetTempC}°`
