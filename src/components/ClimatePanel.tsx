@@ -38,19 +38,17 @@ export function ClimatePanel({
     : "aus";
 
   return (
-    <section className="animate-rise space-y-6">
+    <section className="animate-rise space-y-6 pt-2">
       <SectionHeader title="Klima" hint={`Status · ${statusHint}`} />
 
-      <div className="flex flex-col items-center py-6">
+      <div className="flex flex-col items-center py-4">
         <p className="eyebrow mb-3">Innentemperatur</p>
-        <p className="font-[family-name:var(--font-display)] text-6xl font-semibold tabular-nums leading-none">
+        <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tabular-nums leading-none">
           {cabin}
-          <span className="text-3xl text-[var(--accent-bright)]">°</span>
+          <span className="text-2xl text-[var(--accent-bright)]">°</span>
         </p>
         <p className="mt-3 text-sm text-[var(--fg-muted)]">
-          {live
-            ? "Aktueller Wert vom Fahrzeug"
-            : "Demo-Wert — nach Verbindung vom Auto"}
+          {live ? "Aktueller Wert vom Fahrzeug" : "Demo-Wert"}
         </p>
       </div>
 
@@ -83,12 +81,17 @@ export function ClimatePanel({
         <button
           type="button"
           onClick={onOpenSchedule}
-          className="action-btn ui-surface w-full px-4 py-4 text-left"
+          className="ui-link-row w-full text-left"
         >
-          <p className="font-semibold">Zeitpläne</p>
-          <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            Vorklima unter Planen
-          </p>
+          <div>
+            <p className="eyebrow">Zeitpläne</p>
+            <p className="mt-1 text-sm text-[var(--fg-muted)]">
+              Vorklima unter Planen
+            </p>
+          </div>
+          <span className="text-[var(--fg-muted)]" aria-hidden>
+            ›
+          </span>
         </button>
       ) : null}
     </section>

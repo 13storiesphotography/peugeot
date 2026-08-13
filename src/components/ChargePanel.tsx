@@ -58,16 +58,16 @@ export function ChargePanel({
     : statusLabel[vehicle.chargeStatus];
 
   return (
-    <section className="animate-rise space-y-6">
+    <section className="animate-rise space-y-6 pt-2">
       <SectionHeader title="Laden" hint={statusLine} />
 
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-col items-center py-2">
         <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tabular-nums leading-none">
           {Math.round(vehicle.batteryPercent)}
           <span className="text-2xl text-[var(--accent-bright)]">%</span>
         </p>
         <div
-          className="h-2 w-28 overflow-hidden rounded-full"
+          className="mt-5 h-1.5 w-40 overflow-hidden rounded-full"
           style={{ background: "rgba(143,168,181,0.15)" }}
         >
           <div
@@ -82,9 +82,24 @@ export function ChargePanel({
             }}
           />
         </div>
+        <p className="mt-3 text-sm text-[var(--fg-muted)]">
+          {vehicle.rangeKm} km Reichweite
+        </p>
       </div>
 
-      {charging ? null : (
+      {charging ? (
+        <div className="ui-surface px-4 py-4 text-center">
+          <p className="text-sm font-semibold text-[var(--accent-bright)]">
+            Ladevorgang aktiv
+          </p>
+          <p className="mt-1 text-xs text-[var(--fg-muted)]">
+            Fertig gegen {formatEta(vehicle.estimatedFullAt)}
+            {vehicle.chargePowerKw != null
+              ? ` · ${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
+              : ""}
+          </p>
+        </div>
+      ) : (
         <button
           type="button"
           disabled={busy || !plugged || live}
@@ -95,32 +110,22 @@ export function ChargePanel({
         </button>
       )}
 
-      <dl className="grid grid-cols-2 gap-3 text-sm">
-        <div className="ui-surface px-4 py-4">
-          <dt className="text-[var(--fg-muted)]">Fertig gegen</dt>
-          <dd className="mt-1 font-semibold tabular-nums">
-            {formatEta(vehicle.estimatedFullAt)}
-          </dd>
-        </div>
-        <div className="ui-surface px-4 py-4">
-          <dt className="text-[var(--fg-muted)]">Reichweite</dt>
-          <dd className="mt-1 font-semibold tabular-nums">{vehicle.rangeKm} km</dd>
-        </div>
-        <div className="ui-surface px-4 py-4">
-          <dt className="text-[var(--fg-muted)]">Leistung</dt>
-          <dd className="mt-1 font-semibold tabular-nums">
-            {vehicle.chargePowerKw != null
-              ? `${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
-              : "—"}
-          </dd>
-        </div>
-        <div className="ui-surface px-4 py-4">
-          <dt className="text-[var(--fg-muted)]">Kapazität</dt>
-          <dd className="mt-1 font-semibold tabular-nums">
-            {vehicle.batteryCapacityKwh} kWh
-          </dd>
-        </div>
-      </dl>
+      {!charging ? (
+        <dl className="grid grid-cols-2 gap-3 text-sm">
+          <div className="ui-surface px-4 py-4">
+            <dt className="text-xs text-[var(--fg-muted)]">Fertig gegen</dt>
+            <dd className="mt-1 font-semibold tabular-nums">
+              {formatEta(vehicle.estimatedFullAt)}
+            </dd>
+          </div>
+          <div className="ui-surface px-4 py-4">
+            <dt className="text-xs text-[var(--fg-muted)]">Reichweite</dt>
+            <dd className="mt-1 font-semibold tabular-nums">
+              {vehicle.rangeKm} km
+            </dd>
+          </div>
+        </dl>
+      ) : null}
 
       <ChargeCurve samples={chargeCurve} live={live} />
     </section>

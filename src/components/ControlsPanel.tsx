@@ -33,9 +33,9 @@ export function ControlsPanel({
   const actions: ControlTile[] = [
     {
       id: "flash",
-      label: "Lichter",
+      label: "Finden",
       onClick: () => onCommand("flash"),
-      icon: <IconFlash />,
+      icon: <IconFind />,
     },
     {
       id: "horn",
@@ -53,12 +53,12 @@ export function ControlsPanel({
   ];
 
   return (
-    <section className="animate-rise space-y-6">
+    <section className="animate-rise space-y-6 pt-2">
       <SectionHeader
         title="Steuern"
         hint={
           wakeDisabled
-            ? "Wecken braucht Fernbedienung (Einstellungen)"
+            ? "Wecken braucht Fernbedienung"
             : "Schloss und Signale"
         }
       />
@@ -86,13 +86,13 @@ export function ControlsPanel({
             color: locked ? "var(--accent-bright)" : "var(--warn)",
           }}
         >
-          <IconLock locked={locked} large />
+          <IconLock locked={locked} />
         </span>
         <span className="font-[family-name:var(--font-display)] text-xl font-semibold">
           {locked ? "Entriegeln" : "Verriegeln"}
         </span>
         <span className="text-xs text-[var(--fg-muted)]">
-          {locked ? "Verriegelt" : "Entriegelt"}
+          {locked ? "Aktuell verriegelt" : "Aktuell entriegelt"}
         </span>
       </button>
 
@@ -108,18 +108,10 @@ export function ControlsPanel({
                 : undefined
             }
             onClick={tile.onClick}
-            className="action-btn ui-surface flex flex-col items-center gap-2.5 px-2 py-5 text-center disabled:opacity-55"
+            className="action-btn ui-surface ui-tile disabled:opacity-55"
           >
-            <span
-              className="grid h-12 w-12 place-items-center rounded-full"
-              style={{
-                background: "rgba(0,0,0,0.28)",
-                color: "var(--fg)",
-              }}
-            >
-              {tile.icon}
-            </span>
-            <span className="text-sm font-semibold">{tile.label}</span>
+            <span className="ui-tile-icon">{tile.icon}</span>
+            <span className="ui-tile-label">{tile.label}</span>
           </button>
         ))}
       </div>
@@ -127,10 +119,9 @@ export function ControlsPanel({
   );
 }
 
-function IconLock({ locked, large }: { locked: boolean; large?: boolean }) {
-  const s = large ? 28 : 22;
+function IconLock({ locked }: { locked: boolean }) {
   return locked ? (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect
         x="5"
         y="11"
@@ -148,7 +139,7 @@ function IconLock({ locked, large }: { locked: boolean; large?: boolean }) {
       />
     </svg>
   ) : (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect
         x="5"
         y="11"
@@ -168,12 +159,12 @@ function IconLock({ locked, large }: { locked: boolean; large?: boolean }) {
   );
 }
 
-function IconFlash() {
+function IconFind() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
       <path
-        d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.5 1.5M16.9 16.9l1.5 1.5M18.4 5.6l-1.5 1.5M7.1 16.9l-1.5 1.5"
+        d="M12 3v2M12 19v2M3 12h2M19 12h2"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"

@@ -35,7 +35,7 @@ export function SettingsForm({ vehicle }: { vehicle: ProfileVehicle }) {
             name="nickname"
             defaultValue={vehicle.nickname}
             required
-            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2.5 outline-none focus:border-[var(--accent-bright)]"
+            className="mt-1 ui-field"
           />
         </label>
         <label className="block text-sm">
@@ -43,7 +43,7 @@ export function SettingsForm({ vehicle }: { vehicle: ProfileVehicle }) {
           <input
             name="color"
             defaultValue={vehicle.color}
-            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2.5 outline-none focus:border-[var(--accent-bright)]"
+            className="mt-1 ui-field"
           />
         </label>
         <label className="block text-sm">
@@ -52,7 +52,7 @@ export function SettingsForm({ vehicle }: { vehicle: ProfileVehicle }) {
             name="vin"
             defaultValue={vehicle.vin}
             placeholder="VR3…"
-            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2.5 outline-none focus:border-[var(--accent-bright)]"
+            className="mt-1 ui-field"
           />
         </label>
       </div>

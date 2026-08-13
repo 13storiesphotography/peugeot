@@ -292,8 +292,7 @@ export function SchedulePanel({
               type="button"
               disabled={busyId === schedule.id}
               onClick={() => void remove(schedule.id)}
-              className="action-btn rounded-full px-4 py-2 text-xs font-semibold text-[var(--danger)]"
-              style={{ border: "1px solid rgba(224,122,106,0.35)" }}
+              className="action-btn btn-danger-soft rounded-full px-4 py-2 text-xs font-semibold"
             >
               Löschen
             </button>

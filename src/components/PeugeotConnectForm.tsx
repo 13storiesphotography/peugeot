@@ -104,14 +104,7 @@ export function PeugeotConnectForm({
       </div>
 
       {connection.needsReconnect ? (
-        <div
-          className="mt-4 rounded-xl border px-3 py-3 text-sm"
-          style={{
-            borderColor: "rgba(224,122,106,0.45)",
-            background: "rgba(224,122,106,0.1)",
-          }}
-          role="alert"
-        >
+        <div className="ui-alert mt-4" role="alert">
           <p className="font-semibold text-[var(--danger)]">
             Neu anmelden erforderlich
           </p>
@@ -172,7 +165,7 @@ export function PeugeotConnectForm({
                   name="countryCode"
                   value={countryCode}
                   onChange={(e) => setCountryCode(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2.5 outline-none focus:border-[var(--accent-bright)]"
+                  className="mt-1 ui-field"
                 >
                   <option value="DE">Deutschland</option>
                   <option value="AT">Österreich</option>
@@ -186,7 +179,7 @@ export function PeugeotConnectForm({
                   name="mypeugeotEmail"
                   type="email"
                   defaultValue={connection.mypeugeotEmail ?? ""}
-                  className="mt-1 w-full rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2.5 outline-none focus:border-[var(--accent-bright)]"
+                  className="mt-1 ui-field"
                 />
               </label>
             </div>
@@ -199,7 +192,7 @@ export function PeugeotConnectForm({
                 required
                 rows={2}
                 placeholder="mymap://oauth2redirect/de?code=…"
-                className="mt-1 w-full rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2.5 outline-none focus:border-[var(--accent-bright)]"
+                className="mt-1 ui-field"
               />
             </label>
             <button

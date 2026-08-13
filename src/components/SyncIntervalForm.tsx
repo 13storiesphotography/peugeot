@@ -42,7 +42,7 @@ export function SyncIntervalForm({
           <select
             name="syncIntervalSec"
             defaultValue={syncIntervalSec}
-            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2.5"
+            className="mt-1 ui-field"
           >
             {OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>

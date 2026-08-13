@@ -33,7 +33,7 @@ const TABS: {
   {
     id: "climate",
     label: "Klima",
-    icon: () => (
+    icon: (active) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
         <path
           d="M12 3v18M5.5 6.5l13 11M18.5 6.5l-13 11"
@@ -41,6 +41,15 @@ const TABS: {
           strokeWidth="1.7"
           strokeLinecap="round"
         />
+        {active ? (
+          <circle
+            cx="12"
+            cy="12"
+            r="2.5"
+            fill="currentColor"
+            fillOpacity="0.35"
+          />
+        ) : null}
       </svg>
     ),
   },

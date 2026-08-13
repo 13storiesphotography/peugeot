@@ -19,16 +19,10 @@ import { ControlsPanel } from "@/components/ControlsPanel";
 import { LocationLink } from "@/components/LocationLink";
 import { QuickActions } from "@/components/QuickActions";
 import { SchedulePanel } from "@/components/SchedulePanel";
+import { SectionHeader } from "@/components/SectionHeader";
 import { VehicleHero } from "@/components/VehicleHero";
 import type { VehicleCommand } from "@/lib/types";
 import type { VehicleBundle } from "@/lib/vehicle/repository";
-
-function formatUpdated(iso: string): string {
-  return new Intl.DateTimeFormat("de-DE", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
 
 function ageMinutes(iso: string, nowMs = Date.now()): number {
   return Math.max(
@@ -348,11 +342,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </h1>
           <div className="mt-1.5 flex items-center gap-2">
             <p className="min-w-0 text-xs text-[var(--fg-muted)]">
-              {formatUpdated(vehicle.lastUpdatedAt)}
-              <span className="text-[var(--fg-muted)]/80">
-                {" "}
-                · {formatAge(vehicle.lastUpdatedAt, nowMs)}
-              </span>
+              Stand {formatAge(vehicle.lastUpdatedAt, nowMs)}
             </p>
             <button
               type="button"
@@ -419,14 +409,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       </header>
 
       {bundle.connection.needsReconnect ? (
-        <div
-          className="mb-3 rounded-2xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: "rgba(224,122,106,0.45)",
-            background: "rgba(224,122,106,0.1)",
-          }}
-          role="alert"
-        >
+        <div className="ui-alert mb-3" role="alert">
           <p className="font-semibold text-[var(--danger)]">
             MyPeugeot-Anmeldung abgelaufen
           </p>
@@ -488,14 +471,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
       {tab === "schedule" ? (
         <div className="animate-rise space-y-6 pt-2">
-          <div>
-            <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-              Planen
-            </h2>
-            <p className="mt-1 text-sm text-[var(--fg-muted)]">
-              Laden, Vorklima und Batterie
-            </p>
-          </div>
+          <SectionHeader
+            title="Planen"
+            hint="Laden und Vorklima zeitlich steuern"
+          />
           <SchedulePanel
             schedules={bundle.schedules}
             onChanged={() => void refresh(true, { silent: true })}
@@ -561,11 +540,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               <button
                 type="button"
                 disabled={busy}
-                className="action-btn rounded-full px-4 py-3 text-sm font-semibold"
-                style={{
-                  background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-                  color: "#031016",
-                }}
+                className="action-btn btn-primary rounded-full px-4 py-3 text-sm font-semibold"
                 onClick={confirmPending}
               >
                 {confirmCopy.action}

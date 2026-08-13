@@ -27,6 +27,13 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         ? "rgba(95,227,192,0.35)"
         : hexAlpha(body, 0.28);
 
+  const statusParts: string[] = [
+    locked ? "Verriegelt" : "Entriegelt",
+  ];
+  if (charging) statusParts.push("Lädt");
+  else if (plugged) statusParts.push("Angeschlossen");
+  if (climateOn) statusParts.push("Klima an");
+
   return (
     <div className="relative mx-auto w-full max-w-md overflow-hidden">
       <div
@@ -157,19 +164,31 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         ) : null}
       </div>
 
-      <div className="relative z-[2] -mt-2 flex items-end justify-between gap-4 px-1">
-        <div>
+      <div className="relative z-[2] -mt-1 px-1">
+        <div className="flex items-end justify-between gap-4">
           <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tracking-tight tabular-nums leading-none">
             {Math.round(vehicle.batteryPercent)}
             <span className="text-2xl" style={{ color: accent }}>
               %
             </span>
           </p>
-          <p className="mt-2 text-sm text-[var(--fg-muted)]">
-            {vehicle.rangeKm} km · {locked ? "Verriegelt" : "Entriegelt"}
-            {charging ? (
-              <>
-                {" · "}
+          <div className="pb-1 text-right">
+            <p className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums leading-none">
+              {vehicle.rangeKm}
+              <span className="ml-1 text-sm font-medium text-[var(--fg-muted)]">
+                km
+              </span>
+            </p>
+            <p className="mt-1 text-[11px] tabular-nums text-[var(--fg-muted)]">
+              {vehicle.mileageKm.toLocaleString("de-DE")} km gesamt
+            </p>
+          </div>
+        </div>
+        <p className="mt-2.5 text-sm text-[var(--fg-muted)]">
+          {statusParts.map((part, i) => (
+            <span key={part}>
+              {i > 0 ? " · " : null}
+              {part === "Lädt" ? (
                 <span
                   className="font-semibold"
                   style={{
@@ -180,35 +199,16 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
                   }}
                 >
                   Lädt
+                  {vehicle.chargePowerKw != null
+                    ? ` ${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
+                    : ""}
                 </span>
-              </>
-            ) : plugged ? (
-              " · Angeschlossen"
-            ) : (
-              ""
-            )}
-            {climateOn ? " · Klima an" : ""}
-          </p>
-          {charging && vehicle.chargePowerKw != null ? (
-            <p
-              className="mt-1 text-xs font-semibold tabular-nums"
-              style={{
-                color: speed === "quick" ? "var(--warn)" : "var(--accent-bright)",
-                animation: "soft-breathe 2.4s ease-in-out infinite",
-              }}
-            >
-              {vehicle.chargePowerKw.toLocaleString("de-DE", {
-                maximumFractionDigits: 1,
-              })}{" "}
-              kW
-            </p>
-          ) : null}
-        </div>
-        <div className="text-right text-xs text-[var(--fg-muted)]">
-          <p className="tabular-nums">
-            {vehicle.mileageKm.toLocaleString("de-DE")} km
-          </p>
-        </div>
+              ) : (
+                part
+              )}
+            </span>
+          ))}
+        </p>
       </div>
     </div>
   );
@@ -238,12 +238,9 @@ function ChargeCableOverlay({
       ? "rgba(95,227,192,0.55)"
       : "rgba(143,168,181,0.7)";
 
-  // Rear quarter panel, above / slightly behind the rear wheel arch.
   const portX = 444;
   const portY = 141;
   const floorY = 335;
-  // Nearly vertical drop to the floor, then a soft wave running far past the
-  // hero so the cable exits the right edge of the viewport.
   const cablePath = [
     `M ${portX} ${portY}`,
     `C ${portX + 2} ${portY + 70}, ${portX + 2} ${portY + 140}, ${portX + 6} ${floorY}`,
@@ -334,7 +331,6 @@ function ChargeCableOverlay({
         </>
       ) : null}
 
-      {/* Soft tip where the cable meets the body — no flap / socket chrome */}
       <circle
         cx={portX}
         cy={portY}

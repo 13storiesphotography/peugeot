@@ -70,12 +70,12 @@ export function QuickActions({
           type="button"
           disabled={busy}
           onClick={action.onClick}
-          className={`action-btn ui-surface flex flex-col items-center gap-2.5 px-2 py-4 text-center ${
+          className={`action-btn ui-surface ui-tile ${
             action.active ? "ui-surface-active" : ""
           }`}
         >
           <span
-            className="grid h-11 w-11 place-items-center rounded-full"
+            className="ui-tile-icon"
             style={{
               background: action.active
                 ? "rgba(95,227,192,0.2)"
@@ -85,9 +85,7 @@ export function QuickActions({
           >
             {action.icon}
           </span>
-          <span className="text-[11px] font-semibold leading-tight">
-            {action.label}
-          </span>
+          <span className="ui-tile-label">{action.label}</span>
         </button>
       ))}
     </div>

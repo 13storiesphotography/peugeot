@@ -118,29 +118,29 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 enterKeyHint="next"
-                className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2"
-                placeholder="z. B. 123456"
-                required
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="text-[var(--fg-muted)]">PIN (4 Ziffern)</span>
-              <input
-                name="pin"
-                value={pin}
-                onChange={(e) =>
-                  setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                }
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck={false}
-                className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2"
-                placeholder="••••"
-                required
-              />
+            className="mt-1 ui-field"
+            placeholder="z. B. 123456"
+            required
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="text-[var(--fg-muted)]">PIN (4 Ziffern)</span>
+          <input
+            name="pin"
+            value={pin}
+            onChange={(e) =>
+              setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+            }
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            className="mt-1 ui-field"
+            placeholder="••••"
+            required
+          />
             </label>
             <button
               type="submit"

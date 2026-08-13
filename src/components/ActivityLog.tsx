@@ -15,7 +15,7 @@ export function ActivityLog({ items }: { items: ActivityItem[] }) {
   return (
     <section>
       <p className="eyebrow">Zuletzt</p>
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-2.5 space-y-2">
         {items.map((item) => (
           <li
             key={item.id}

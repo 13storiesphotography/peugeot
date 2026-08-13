@@ -15,13 +15,20 @@ export function LocationLink({ location, className }: Props) {
 
   const body = (
     <>
-      <p className="eyebrow">Standort</p>
-      <p className="mt-1 text-sm font-medium leading-snug">{location.address}</p>
+      <div className="min-w-0">
+        <p className="eyebrow">Standort</p>
+        <p className="mt-1 text-sm font-medium leading-snug">{location.address}</p>
+      </div>
+      {href ? (
+        <span className="shrink-0 text-[var(--fg-muted)]" aria-hidden>
+          ›
+        </span>
+      ) : null}
     </>
   );
 
   if (!href) {
-    return <div className={className ?? "ui-surface px-4 py-4"}>{body}</div>;
+    return <div className={className ?? "ui-link-row"}>{body}</div>;
   }
 
   return (
@@ -29,10 +36,7 @@ export function LocationLink({ location, className }: Props) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={
-        className ??
-        "ui-surface block px-4 py-4 transition hover:border-[var(--accent-bright)]/40"
-      }
+      className={className ?? "ui-link-row transition hover:text-[var(--accent-bright)]"}
       aria-label={`Navigation zu ${location.address}`}
     >
       {body}
