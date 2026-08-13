@@ -3,12 +3,17 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { ActivityLog } from "@/components/ActivityLog";
-import { BatteryRing } from "@/components/BatteryRing";
 import { ChargePanel } from "@/components/ChargePanel";
 import { ClimatePanel } from "@/components/ClimatePanel";
+import {
+  ControlBottomNav,
+  type ControlTab,
+} from "@/components/ControlBottomNav";
+import { ControlsPanel } from "@/components/ControlsPanel";
 import { QuickActions } from "@/components/QuickActions";
 import { SchedulePanel } from "@/components/SchedulePanel";
-import type { CommandResult, VehicleCommand } from "@/lib/types";
+import { VehicleHero } from "@/components/VehicleHero";
+import type { VehicleCommand } from "@/lib/types";
 import type { VehicleBundle } from "@/lib/vehicle/repository";
 
 function formatUpdated(iso: string): string {
@@ -19,11 +24,40 @@ function formatUpdated(iso: string): string {
   }).format(new Date(iso));
 }
 
+const TAB_QUERY = "tab";
+
+function readTab(): ControlTab {
+  if (typeof window === "undefined") return "home";
+  const value = new URLSearchParams(window.location.search).get(TAB_QUERY);
+  if (
+    value === "climate" ||
+    value === "charge" ||
+    value === "controls" ||
+    value === "schedule"
+  ) {
+    return value;
+  }
+  return "home";
+}
+
 export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const [bundle, setBundle] = useState(initial);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<ControlTab>("home");
+
+  useEffect(() => {
+    setTab(readTab());
+  }, []);
+
+  const selectTab = (next: ControlTab) => {
+    setTab(next);
+    const url = new URL(window.location.href);
+    if (next === "home") url.searchParams.delete(TAB_QUERY);
+    else url.searchParams.set(TAB_QUERY, next);
+    window.history.replaceState({}, "", url.toString());
+  };
 
   const vehicle = bundle.vehicle;
 
@@ -43,7 +77,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
   const runCommand = async (
     command: VehicleCommand,
-    chargeLimitPercent?: number,
+    opts?: { chargeLimitPercent?: number; targetTempC?: number },
   ) => {
     setBusy(true);
     setMessage(null);
@@ -51,9 +85,17 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       const res = await fetch("/api/vehicle/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command, chargeLimitPercent }),
+        body: JSON.stringify({
+          command,
+          chargeLimitPercent: opts?.chargeLimitPercent,
+          targetTempC: opts?.targetTempC,
+        }),
       });
-      const data = (await res.json()) as CommandResult;
+      const data = (await res.json()) as {
+        ok: boolean;
+        message: string;
+        vehicle: VehicleBundle["vehicle"];
+      };
       setBundle((prev) => ({
         ...prev,
         vehicle: data.vehicle,
@@ -78,125 +120,143 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   };
 
   const climateOn = vehicle.climateStatus !== "off";
+  const charging = vehicle.chargeStatus === "charging";
+  const plugged = vehicle.chargeStatus !== "idle";
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
-      <header className="animate-rise flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
+    <div className="mx-auto flex w-full max-w-lg flex-col px-4 pb-28 pt-2 sm:max-w-xl sm:px-6">
+      <header className="animate-rise flex items-start justify-between gap-3 py-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[var(--accent-bright)]">
             Peugeot
           </p>
-          <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight sm:text-5xl">
+          <h1 className="mt-1 truncate font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight">
             {vehicle.nickname}
           </h1>
-          <p className="mt-2 max-w-md text-sm text-[var(--fg-muted)] sm:text-base">
-            Deine persönliche Web-Steuerung — Status und Befehle bleiben an
-            deinem Konto.
+          <p className="mt-1 text-xs text-[var(--fg-muted)]">
+            {vehicle.mode === "demo" ? "Demo" : "Live"} · aktualisiert{" "}
+            {formatUpdated(vehicle.lastUpdatedAt)}
+            {isPending ? " · sync…" : ""}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span
-            className="rounded-full border px-3 py-1"
-            style={{
-              borderColor:
-                vehicle.mode === "demo"
-                  ? "rgba(232,184,109,0.45)"
-                  : "rgba(95,227,192,0.45)",
-              color:
-                vehicle.mode === "demo" ? "var(--warn)" : "var(--accent-bright)",
-            }}
-          >
-            {vehicle.mode === "demo" ? "Demo-Modus" : "Live"}
-          </span>
-          <span className="rounded-full border border-[var(--line)] px-3 py-1 text-[var(--fg-muted)]">
-            {vehicle.color}
-          </span>
-          <span className="rounded-full border border-[var(--line)] px-3 py-1 text-[var(--fg-muted)] tabular-nums">
-            {vehicle.mileageKm.toLocaleString("de-DE")} km
-          </span>
-          <Link
-            href="/control/settings"
-            className="rounded-full border border-[var(--line)] px-3 py-1 text-[var(--accent-bright)]"
-          >
-            Einstellungen
-          </Link>
-        </div>
+        <Link
+          href="/control/settings"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)]"
+          aria-label="Einstellungen"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
+            <path
+              d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6 18 18M18 6l-1.4 1.4M7.4 16.6 6 18"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+            />
+          </svg>
+        </Link>
       </header>
 
-      <section className="animate-rise-delay-1 panel relative overflow-hidden rounded-[1.75rem] px-4 py-8 sm:px-8">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-60"
-          style={{
-            background:
-              "linear-gradient(120deg, transparent 20%, rgba(95,227,192,0.06) 50%, transparent 80%)",
-          }}
-        />
-        <div className="relative grid items-center gap-8 lg:grid-cols-[1fr_1.1fr]">
-          <BatteryRing vehicle={vehicle} />
-          <div className="space-y-5">
+      {tab === "home" ? (
+        <div className="animate-rise-delay-1 space-y-6 pt-2">
+          <VehicleHero vehicle={vehicle} />
+          <QuickActions
+            locked={vehicle.locked}
+            climateOn={climateOn}
+            charging={charging}
+            plugged={plugged}
+            busy={busy}
+            onCommand={(command) => void runCommand(command)}
+            onOpenClimate={() => selectTab("climate")}
+          />
+          {message ? (
+            <p
+              role="status"
+              className="rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
+            >
+              {message}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => selectTab("charge")}
+            className="flex w-full items-center justify-between rounded-2xl border border-[var(--line)] px-4 py-3 text-left"
+            style={{ background: "rgba(14,28,40,0.4)" }}
+          >
             <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-[var(--fg-muted)]">
-                Status
+              <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
+                Laden
               </p>
-              <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold">
-                {vehicle.locked ? "Verriegelt" : "Entriegelt"}
-                {vehicle.chargeStatus === "charging"
-                  ? " · lädt"
-                  : vehicle.chargeStatus === "plugged"
-                    ? " · bereit zum Laden"
-                    : ""}
-              </p>
-              <p className="mt-2 text-sm text-[var(--fg-muted)]">
-                Aktualisiert {formatUpdated(vehicle.lastUpdatedAt)}
-                {isPending ? " · sync…" : ""}
-                {bundle.connection.mypeugeotEmail
-                  ? ` · ${bundle.connection.mypeugeotEmail}`
-                  : ""}
+              <p className="mt-1 text-sm font-semibold">
+                {charging
+                  ? `Lädt · Limit ${vehicle.chargeLimitPercent}%`
+                  : plugged
+                    ? `Bereit · Limit ${vehicle.chargeLimitPercent}%`
+                    : "Nicht angeschlossen"}
               </p>
             </div>
-            <QuickActions
-              locked={vehicle.locked}
-              climateOn={climateOn}
-              batteryPreheat={vehicle.batteryPreheat}
-              busy={busy}
-              onCommand={(command) => void runCommand(command)}
-            />
-            {message ? (
-              <p
-                role="status"
-                className="rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
-              >
-                {message}
-              </p>
-            ) : null}
+            <span className="text-[var(--accent-bright)]">→</span>
+          </button>
+          <div className="rounded-2xl border border-[var(--line)] px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
+              Standort
+            </p>
+            <p className="mt-1 text-sm font-medium">{vehicle.location.address}</p>
           </div>
+          <ActivityLog items={bundle.activity.slice(0, 5)} />
         </div>
-      </section>
+      ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {tab === "climate" ? (
+        <ClimatePanel
+          vehicle={vehicle}
+          busy={busy}
+          onCommand={(command, opts) => void runCommand(command, opts)}
+        />
+      ) : null}
+
+      {tab === "charge" ? (
         <ChargePanel
           vehicle={vehicle}
           busy={busy}
-          onCommand={(command, limit) => void runCommand(command, limit)}
+          onCommand={(command, opts) => void runCommand(command, opts)}
         />
-        <ClimatePanel vehicle={vehicle} />
-      </div>
+      ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SchedulePanel schedules={bundle.schedules} onChanged={() => void refresh()} />
-        <ActivityLog items={bundle.activity} />
-      </div>
+      {tab === "controls" ? (
+        <ControlsPanel
+          vehicle={vehicle}
+          busy={busy}
+          onCommand={(command) => void runCommand(command)}
+        />
+      ) : null}
 
-      <footer className="pb-6 text-center text-xs text-[var(--fg-muted)]">
-        VIN {vehicle.vin} ·{" "}
-        {bundle.connection.connected
-          ? "MyPeugeot-Verbindung hinterlegt"
-          : "MyPeugeot noch nicht verbunden"}{" "}
-        ·{" "}
-        <Link href="/control/settings" className="text-[var(--accent-bright)]">
-          Verbindung einrichten
-        </Link>
-      </footer>
+      {tab === "schedule" ? (
+        <div className="animate-rise space-y-4 pt-2">
+          <div>
+            <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+              Planen
+            </h2>
+            <p className="mt-1 text-sm text-[var(--fg-muted)]">
+              Laden und Klima nach deinem Alltag.
+            </p>
+          </div>
+          <SchedulePanel
+            schedules={bundle.schedules}
+            onChanged={() => void refresh()}
+          />
+        </div>
+      ) : null}
+
+      {tab !== "home" && message ? (
+        <p
+          role="status"
+          className="mt-4 rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
+        >
+          {message}
+        </p>
+      ) : null}
+
+      <ControlBottomNav tab={tab} onChange={selectTab} />
     </div>
   );
 }

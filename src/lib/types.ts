@@ -14,7 +14,8 @@ export type VehicleCommand =
   | "battery_preheat_start"
   | "battery_preheat_stop"
   | "wakeup"
-  | "set_charge_limit";
+  | "set_charge_limit"
+  | "set_climate_temp";
 
 export interface VehicleLocation {
   latitude: number;
@@ -50,6 +51,7 @@ export interface VehicleState {
 export interface CommandRequest {
   command: VehicleCommand;
   chargeLimitPercent?: number;
+  targetTempC?: number;
 }
 
 export interface CommandResult {

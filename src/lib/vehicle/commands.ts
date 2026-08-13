@@ -96,21 +96,41 @@ export function applyCommandToState(
         vehicle: touch(state, next),
       };
     }
-    case "climate_start":
+    case "climate_start": {
+      const target = state.targetTempC;
       return {
         ok: true,
-        message: "Vorklimatisierung gestartet (21°C).",
+        message: `Vorklimatisierung gestartet (${target}°C).`,
         vehicle: touch(state, {
-          climateStatus:
-            state.cabinTempC < state.targetTempC ? "heating" : "cooling",
+          climateStatus: state.cabinTempC < target ? "heating" : "cooling",
         }),
       };
+    }
     case "climate_stop":
       return {
         ok: true,
         message: "Vorklimatisierung gestoppt.",
         vehicle: touch(state, { climateStatus: "off" }),
       };
+    case "set_climate_temp": {
+      const target = Math.min(
+        28,
+        Math.max(16, Math.round(request.targetTempC ?? state.targetTempC)),
+      );
+      const climateOn = state.climateStatus !== "off";
+      return {
+        ok: true,
+        message: `Zieltemperatur ${target}°C.`,
+        vehicle: touch(state, {
+          targetTempC: target,
+          climateStatus: climateOn
+            ? state.cabinTempC < target
+              ? "heating"
+              : "cooling"
+            : "off",
+        }),
+      };
+    }
     case "battery_preheat_start":
       return {
         ok: true,

@@ -1,89 +1,151 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { VehicleCommand } from "@/lib/types";
-
-interface Action {
-  id: string;
-  label: string;
-  command: VehicleCommand;
-  active?: boolean;
-  hint?: string;
-}
 
 interface QuickActionsProps {
   locked: boolean;
   climateOn: boolean;
-  batteryPreheat: boolean;
+  charging: boolean;
+  plugged: boolean;
   busy: boolean;
   onCommand: (command: VehicleCommand) => void;
+  onOpenClimate?: () => void;
 }
 
+function IconLock({ locked }: { locked: boolean }) {
+  return locked ? (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  ) : (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8 11V8a4 4 0 0 1 7.5-1.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconClimate() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 3v18M5.5 6.5l13 11M18.5 6.5l-13 11"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconCharge() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M13 2 6 13h5l-1 9 8-12h-5V2Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconFind() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M12 3v2M12 19v2M3 12h2M19 12h2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Tesla-style row of 4 primary actions under the vehicle. */
 export function QuickActions({
   locked,
   climateOn,
-  batteryPreheat,
+  charging,
+  plugged,
   busy,
   onCommand,
+  onOpenClimate,
 }: QuickActionsProps) {
-  const actions: Action[] = [
+  const actions: {
+    id: string;
+    label: string;
+    active?: boolean;
+    icon: ReactNode;
+    onClick: () => void;
+  }[] = [
     {
       id: "lock",
       label: locked ? "Entriegeln" : "Verriegeln",
-      command: locked ? "unlock" : "lock",
       active: locked,
-      hint: locked ? "Geschlossen" : "Offen",
+      icon: <IconLock locked={locked} />,
+      onClick: () => onCommand(locked ? "unlock" : "lock"),
     },
     {
       id: "climate",
-      label: climateOn ? "Klima stoppen" : "Vorklima 21°",
-      command: climateOn ? "climate_stop" : "climate_start",
+      label: climateOn ? "Klima aus" : "Klima",
       active: climateOn,
+      icon: <IconClimate />,
+      onClick: () => {
+        if (climateOn) onCommand("climate_stop");
+        else if (onOpenClimate) onOpenClimate();
+        else onCommand("climate_start");
+      },
     },
     {
-      id: "preheat",
-      label: batteryPreheat ? "Vorwärmung aus" : "Akku vorwärmen",
-      command: batteryPreheat ? "battery_preheat_stop" : "battery_preheat_start",
-      active: batteryPreheat,
-      hint: "E-3008",
+      id: "charge",
+      label: charging ? "Stop" : "Laden",
+      active: charging,
+      icon: <IconCharge />,
+      onClick: () => onCommand(charging ? "charge_stop" : "charge_start"),
     },
     {
       id: "flash",
-      label: "Lichter",
-      command: "flash",
-    },
-    {
-      id: "horn",
-      label: "Hupe",
-      command: "horn",
-    },
-    {
-      id: "wakeup",
-      label: "Aufwecken",
-      command: "wakeup",
+      label: "Finden",
+      icon: <IconFind />,
+      onClick: () => onCommand("flash"),
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-4 gap-2 sm:gap-3">
       {actions.map((action) => (
         <button
           key={action.id}
           type="button"
-          disabled={busy}
-          onClick={() => onCommand(action.command)}
-          className="action-btn panel flex min-h-[88px] flex-col items-start justify-between rounded-2xl px-4 py-3 text-left"
+          disabled={busy || (action.id === "charge" && !plugged && !charging)}
+          onClick={action.onClick}
+          className="action-btn flex flex-col items-center gap-2 rounded-2xl px-1 py-3 text-center"
           style={{
             background: action.active
-              ? "linear-gradient(160deg, rgba(95,227,192,0.16), rgba(14,28,40,0.7))"
-              : undefined,
-            borderColor: action.active ? "rgba(95,227,192,0.4)" : undefined,
+              ? "rgba(95,227,192,0.12)"
+              : "rgba(14,28,40,0.45)",
+            border: `1px solid ${action.active ? "rgba(95,227,192,0.4)" : "var(--line)"}`,
           }}
         >
-          <span className="font-[family-name:var(--font-display)] text-base font-semibold tracking-tight">
-            {action.label}
+          <span
+            className="grid h-10 w-10 place-items-center rounded-full"
+            style={{
+              background: action.active
+                ? "rgba(95,227,192,0.2)"
+                : "rgba(0,0,0,0.25)",
+              color: action.active ? "var(--accent-bright)" : "var(--fg)",
+            }}
+          >
+            {action.icon}
           </span>
-          <span className="text-xs text-[var(--fg-muted)]">
-            {action.hint ?? (action.active ? "Aktiv" : "Tippen")}
+          <span className="text-[11px] font-semibold leading-tight text-[var(--fg)]">
+            {action.label}
           </span>
         </button>
       ))}

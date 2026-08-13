@@ -17,6 +17,7 @@ const ALLOWED: VehicleCommand[] = [
   "battery_preheat_stop",
   "wakeup",
   "set_charge_limit",
+  "set_climate_temp",
 ];
 
 export async function POST(request: Request) {

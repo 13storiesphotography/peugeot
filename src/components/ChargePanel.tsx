@@ -5,7 +5,10 @@ import type { VehicleCommand, VehicleState } from "@/lib/types";
 interface ChargePanelProps {
   vehicle: VehicleState;
   busy: boolean;
-  onCommand: (command: VehicleCommand, chargeLimitPercent?: number) => void;
+  onCommand: (
+    command: VehicleCommand,
+    opts?: { chargeLimitPercent?: number },
+  ) => void;
 }
 
 function formatEta(iso: string | null): string {
@@ -29,10 +32,10 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
   const plugged = vehicle.chargeStatus !== "idle";
 
   return (
-    <section className="panel animate-rise-delay-2 rounded-[1.5rem] p-5 sm:p-6">
+    <section className="animate-rise space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
+          <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Laden
           </h2>
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
@@ -40,27 +43,49 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
             {vehicle.chargePowerKw ? ` · ${vehicle.chargePowerKw} kW` : ""}
           </p>
         </div>
-        <button
-          type="button"
-          disabled={busy || (!plugged && !charging)}
-          onClick={() => onCommand(charging ? "charge_stop" : "charge_start")}
-          className="action-btn rounded-full px-4 py-2 text-sm font-semibold"
-          style={{
-            background: charging
-              ? "rgba(224,122,106,0.16)"
-              : "rgba(95,227,192,0.16)",
-            border: `1px solid ${charging ? "rgba(224,122,106,0.4)" : "rgba(95,227,192,0.4)"}`,
-            color: charging ? "var(--danger)" : "var(--accent-bright)",
-          }}
-        >
-          {charging ? "Stoppen" : "Starten"}
-        </button>
+        <p className="font-[family-name:var(--font-display)] text-4xl font-semibold tabular-nums">
+          {Math.round(vehicle.batteryPercent)}
+          <span className="text-lg text-[var(--accent-bright)]">%</span>
+        </p>
       </div>
 
-      <div className="mt-6">
+      <div
+        className="h-3 overflow-hidden rounded-full"
+        style={{ background: "rgba(143,168,181,0.15)" }}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-700"
+          style={{
+            width: `${Math.min(100, vehicle.batteryPercent)}%`,
+            background: charging
+              ? "linear-gradient(90deg, #3da8a0, #5fe3c0)"
+              : "#3da8a0",
+          }}
+        />
+      </div>
+
+      <button
+        type="button"
+        disabled={busy || (!plugged && !charging)}
+        onClick={() => onCommand(charging ? "charge_stop" : "charge_start")}
+        className="action-btn w-full rounded-full px-5 py-4 text-sm font-semibold"
+        style={{
+          background: charging
+            ? "rgba(224,122,106,0.16)"
+            : "linear-gradient(135deg, #5fe3c0, #3da8a0)",
+          color: charging ? "var(--danger)" : "#031016",
+          border: charging ? "1px solid rgba(224,122,106,0.4)" : "none",
+        }}
+      >
+        {charging ? "Laden stoppen" : "Laden starten"}
+      </button>
+
+      <div>
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="text-[var(--fg-muted)]">Ladelimit</span>
-          <span className="font-semibold tabular-nums">{vehicle.chargeLimitPercent}%</span>
+          <span className="font-semibold tabular-nums">
+            {vehicle.chargeLimitPercent}%
+          </span>
         </div>
         <input
           type="range"
@@ -70,7 +95,9 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
           value={vehicle.chargeLimitPercent}
           disabled={busy}
           onChange={(e) =>
-            onCommand("set_charge_limit", Number(e.target.value))
+            onCommand("set_charge_limit", {
+              chargeLimitPercent: Number(e.target.value),
+            })
           }
           className="w-full accent-[var(--accent-bright)]"
           aria-label="Ladelimit"
@@ -82,17 +109,27 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
         </div>
       </div>
 
-      <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
-        <div>
+      <dl className="grid grid-cols-2 gap-4 text-sm">
+        <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
           <dt className="text-[var(--fg-muted)]">Fertig gegen</dt>
           <dd className="mt-1 font-semibold tabular-nums">
             {formatEta(vehicle.estimatedFullAt)}
           </dd>
         </div>
-        <div>
+        <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
+          <dt className="text-[var(--fg-muted)]">Reichweite</dt>
+          <dd className="mt-1 font-semibold tabular-nums">{vehicle.rangeKm} km</dd>
+        </div>
+        <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
           <dt className="text-[var(--fg-muted)]">Kapazität</dt>
           <dd className="mt-1 font-semibold tabular-nums">
             {vehicle.batteryCapacityKwh} kWh
+          </dd>
+        </div>
+        <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
+          <dt className="text-[var(--fg-muted)]">Leistung</dt>
+          <dd className="mt-1 font-semibold tabular-nums">
+            {vehicle.chargePowerKw ? `${vehicle.chargePowerKw} kW` : "—"}
           </dd>
         </div>
       </dl>

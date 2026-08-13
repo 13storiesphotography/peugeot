@@ -20,12 +20,12 @@ export default async function SettingsPage() {
   return (
     <main className="min-h-full">
       <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        <Link
-          href="/control"
-          className="text-sm text-[var(--accent-bright)] hover:underline"
-        >
-          ← Zurück zur Steuerung
-        </Link>
+          <Link
+            href="/control"
+            className="text-sm text-[var(--accent-bright)] hover:underline"
+          >
+            ← Zurück
+          </Link>
         <h1 className="mt-4 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight">
           Einstellungen
         </h1>

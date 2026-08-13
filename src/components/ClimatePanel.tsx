@@ -1,68 +1,125 @@
 "use client";
 
-import type { VehicleState } from "@/lib/types";
+import type { VehicleCommand, VehicleState } from "@/lib/types";
 
 interface ClimatePanelProps {
   vehicle: VehicleState;
+  busy: boolean;
+  onCommand: (
+    command: VehicleCommand,
+    opts?: { targetTempC?: number },
+  ) => void;
 }
 
-export function ClimatePanel({ vehicle }: ClimatePanelProps) {
+export function ClimatePanel({ vehicle, busy, onCommand }: ClimatePanelProps) {
   const active = vehicle.climateStatus !== "off";
+  const target = vehicle.targetTempC;
+
+  const nudge = (delta: number) => {
+    onCommand("set_climate_temp", { targetTempC: target + delta });
+  };
 
   return (
-    <section className="panel animate-rise-delay-3 rounded-[1.5rem] p-5 sm:p-6">
-      <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
-        Klima & Standort
-      </h2>
-      <p className="mt-1 text-sm text-[var(--fg-muted)]">
-        Kabine und Batterie-Vorwärmung für den E-3008.
-      </p>
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            Kabine
-          </p>
-          <p className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums">
-            {vehicle.cabinTempC}°
-            <span className="ml-1 text-base text-[var(--fg-muted)]">
-              → {vehicle.targetTempC}°
-            </span>
-          </p>
-          <p className="mt-2 text-sm text-[var(--fg-muted)]">
-            {active
-              ? vehicle.climateStatus === "heating"
-                ? "Heizt vor"
-                : vehicle.climateStatus === "cooling"
-                  ? "Kühlt vor"
-                  : "Vorklimatisierung"
-              : "Aus"}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            Batterie
-          </p>
-          <p className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold">
-            {vehicle.batteryPreheat ? "Warm" : "Bereit"}
-          </p>
-          <p className="mt-2 text-sm text-[var(--fg-muted)]">
-            {vehicle.batteryPreheat
-              ? "Vorwärmung aktiv – schnelleres Laden bei Kälte"
-              : "Vorwärmung aus"}
-          </p>
-        </div>
+    <section className="animate-rise space-y-6">
+      <div>
+        <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+          Klima
+        </h2>
+        <p className="mt-1 text-sm text-[var(--fg-muted)]">
+          Zieltemperatur, Vorklima und Batterie-Vorwärmung.
+        </p>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-[var(--line)] px-4 py-4">
-        <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-          Letzter Standort
+      <div className="flex flex-col items-center py-6">
+        <p className="text-xs uppercase tracking-[0.28em] text-[var(--fg-muted)]">
+          Zieltemperatur
         </p>
-        <p className="mt-2 text-base font-medium">{vehicle.location.address}</p>
-        <p className="mt-1 text-xs text-[var(--fg-muted)]">
-          {vehicle.location.latitude.toFixed(4)}, {vehicle.location.longitude.toFixed(4)}
+        <div className="mt-4 flex items-center gap-6">
+          <button
+            type="button"
+            disabled={busy || target <= 16}
+            onClick={() => nudge(-1)}
+            className="action-btn grid h-14 w-14 place-items-center rounded-full border border-[var(--line)] text-2xl font-semibold"
+            aria-label="Kälter"
+          >
+            −
+          </button>
+          <p className="font-[family-name:var(--font-display)] text-7xl font-semibold tabular-nums leading-none">
+            {target}
+            <span className="text-3xl text-[var(--accent-bright)]">°</span>
+          </p>
+          <button
+            type="button"
+            disabled={busy || target >= 28}
+            onClick={() => nudge(1)}
+            className="action-btn grid h-14 w-14 place-items-center rounded-full border border-[var(--line)] text-2xl font-semibold"
+            aria-label="Wärmer"
+          >
+            +
+          </button>
+        </div>
+        <p className="mt-4 text-sm text-[var(--fg-muted)]">
+          Kabine {vehicle.cabinTempC}°
+          {active
+            ? vehicle.climateStatus === "heating"
+              ? " · heizt"
+              : vehicle.climateStatus === "cooling"
+                ? " · kühlt"
+                : " · aktiv"
+            : " · aus"}
         </p>
+      </div>
+
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() =>
+          onCommand(active ? "climate_stop" : "climate_start")
+        }
+        className="action-btn w-full rounded-full px-5 py-4 text-sm font-semibold"
+        style={{
+          background: active
+            ? "rgba(224,122,106,0.16)"
+            : "linear-gradient(135deg, #5fe3c0, #3da8a0)",
+          color: active ? "var(--danger)" : "#031016",
+          border: active ? "1px solid rgba(224,122,106,0.4)" : "none",
+        }}
+      >
+        {active ? "Klima stoppen" : "Klima starten"}
+      </button>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            onCommand(
+              vehicle.batteryPreheat
+                ? "battery_preheat_stop"
+                : "battery_preheat_start",
+            )
+          }
+          className="action-btn rounded-2xl border px-4 py-4 text-left"
+          style={{
+            borderColor: vehicle.batteryPreheat
+              ? "rgba(95,227,192,0.45)"
+              : "var(--line)",
+            background: vehicle.batteryPreheat
+              ? "rgba(95,227,192,0.1)"
+              : "rgba(14,28,40,0.4)",
+          }}
+        >
+          <p className="font-semibold">Batterie vorwärmen</p>
+          <p className="mt-1 text-xs text-[var(--fg-muted)]">
+            {vehicle.batteryPreheat ? "Aktiv — schnelleres Laden" : "Aus"}
+          </p>
+        </button>
+        <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
+            Standort
+          </p>
+          <p className="mt-2 text-sm font-medium">{vehicle.location.address}</p>
+        </div>
       </div>
     </section>
   );

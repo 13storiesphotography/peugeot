@@ -13,20 +13,17 @@ function formatWhen(iso: string): string {
 
 export function ActivityLog({ items }: { items: ActivityItem[] }) {
   return (
-    <section className="panel animate-rise-delay-3 rounded-[1.5rem] p-5 sm:p-6">
-      <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
+    <section>
+      <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--fg-muted)]">
         Aktivität
       </h2>
-      <p className="mt-1 text-sm text-[var(--fg-muted)]">
-        Letzte Befehle an deinen E-3008.
-      </p>
 
       {items.length === 0 ? (
-        <p className="mt-5 text-sm text-[var(--fg-muted)]">
+        <p className="mt-3 text-sm text-[var(--fg-muted)]">
           Noch keine Aktionen — starte Laden oder Klima.
         </p>
       ) : (
-        <ul className="mt-5 space-y-3">
+        <ul className="mt-3 space-y-3">
           {items.map((item) => (
             <li
               key={item.id}
@@ -39,7 +36,11 @@ export function ActivityLog({ items }: { items: ActivityItem[] }) {
                 </p>
               </div>
               <div className="text-right text-xs text-[var(--fg-muted)]">
-                <p className={item.ok ? "text-[var(--accent-bright)]" : "text-[var(--danger)]"}>
+                <p
+                  className={
+                    item.ok ? "text-[var(--accent-bright)]" : "text-[var(--danger)]"
+                  }
+                >
                   {item.ok ? "OK" : "Fehler"}
                 </p>
                 <p className="mt-1 tabular-nums">{formatWhen(item.createdAt)}</p>
