@@ -340,17 +340,26 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           aria-label="Einstellungen"
           title="Einstellungen"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+          >
             <path
-              d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"
+              d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
               stroke="currentColor"
-              strokeWidth="1.7"
-            />
-            <path
-              d="M19.4 13.1a7.7 7.7 0 0 0 .1-1.1 7.7 7.7 0 0 0-.1-1.1l1.8-1.4-1.7-3-2.1.7a7.4 7.4 0 0 0-1.9-1.1L15.2 3h-3.4l-.3 2.2a7.4 7.4 0 0 0-1.9 1.1l-2.1-.7-1.7 3 1.8 1.4a7.7 7.7 0 0 0-.1 1.1c0 .4 0 .7.1 1.1L4.8 14.5l1.7 3 2.1-.7c.6.5 1.2.8 1.9 1.1l.3 2.2h3.4l.3-2.2c.7-.3 1.3-.6 1.9-1.1l2.1.7 1.7-3-1.8-1.4Z"
-              stroke="currentColor"
-              strokeWidth="1.7"
+              strokeWidth="1.75"
+              strokeLinecap="round"
               strokeLinejoin="round"
+            />
+            <circle
+              cx="12"
+              cy="12"
+              r="3"
+              stroke="currentColor"
+              strokeWidth="1.75"
             />
           </svg>
         </Link>
