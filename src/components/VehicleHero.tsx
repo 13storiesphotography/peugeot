@@ -29,7 +29,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         : hexAlpha(body, 0.28);
 
   return (
-    <div className="relative mx-auto w-full max-w-md">
+    <div className="relative mx-auto w-full max-w-md overflow-visible">
       <div
         className="pointer-events-none absolute inset-x-8 top-6 h-40 rounded-full opacity-70"
         style={{
@@ -42,14 +42,14 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         }}
       />
 
-      <div className="relative overflow-visible">
+      <div className="relative mx-auto w-full max-w-sm overflow-visible">
         {vehicle.pictureUrl ? (
           // Official Peugeot 3D asset (includes correct paint).
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={vehicle.pictureUrl}
             alt={`${vehicle.model} ${vehicle.color}`}
-            className="relative z-[1] mx-auto h-auto w-full max-w-sm object-contain drop-shadow-lg"
+            className="relative z-[1] h-auto w-full object-contain drop-shadow-lg"
             style={{ animation: "rise-in 0.7s cubic-bezier(0.22,1,0.36,1) both" }}
           />
         ) : (
@@ -107,27 +107,6 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
               rx="2"
               fill="rgba(200,220,230,0.45)"
             />
-            {plugged ? (
-              <g>
-                <rect
-                  x="448"
-                  y="148"
-                  width="28"
-                  height="22"
-                  rx="3"
-                  fill="#0a1218"
-                  opacity={0.9}
-                />
-                <g transform="rotate(-48 476 150)">
-                  <path
-                    d="M448 148 h28 a3 3 0 0 1 3 3 v16 a3 3 0 0 1 -3 3 h-28 z"
-                    fill={bodyLight}
-                    stroke="rgba(143,168,181,0.4)"
-                    strokeWidth="1"
-                  />
-                </g>
-              </g>
-            ) : null}
             <circle
               cx="180"
               cy="210"
@@ -226,8 +205,9 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
 }
 
 /**
- * Cable enters from the right edge and plugs into the rear driver-side
- * charge port (between rear door handle and taillight), flap open.
+ * Cable only — plugs into the rear driver-side charge port (above the rear
+ * wheel arch), drops to the ground, waves along the floor, then exits right.
+ * Coordinates match the official Peugeot render (600×360).
  */
 function ChargeCableOverlay({
   charging,
@@ -248,33 +228,37 @@ function ChargeCableOverlay({
       ? "rgba(95,227,192,0.55)"
       : "rgba(143,168,181,0.7)";
 
-  // Rear quarter port on left-side profile (nose left → rear right):
-  // between rear door handle and taillights (~448/640 of silhouette).
-  const portX = 278;
-  const portY = 114;
-  // Comes in from the right edge of the hero, soft hanging loop into the flap.
-  const cablePath = `M 400 ${portY + 6} C 368 ${portY + 40}, 342 ${portY + 36}, 318 ${portY + 16} C 306 ${portY + 5}, 296 ${portY + 2}, ${portX + 20} ${portY + 6}`;
+  // Rear quarter panel, above / slightly behind the rear wheel arch.
+  const portX = 444;
+  const portY = 141;
+  const floorY = 335;
+  // Nearly vertical drop to the floor, then a soft wave running far past the
+  // hero so the cable exits the right edge of the viewport.
+  const cablePath = [
+    `M ${portX} ${portY}`,
+    `C ${portX + 2} ${portY + 70}, ${portX + 2} ${portY + 140}, ${portX + 6} ${floorY}`,
+    `C ${portX + 80} ${floorY + 18}, ${portX + 130} ${floorY - 16}, ${portX + 200} ${floorY + 5}`,
+    `C ${portX + 290} ${floorY + 18}, ${portX + 380} ${floorY - 14}, ${portX + 500} ${floorY + 3}`,
+    `C 1400 ${floorY + 14}, 2400 ${floorY - 8}, 4200 ${floorY}`,
+  ].join(" ");
 
   return (
     <svg
-      viewBox="0 0 400 220"
+      viewBox="0 0 600 360"
       className="pointer-events-none absolute inset-0 z-[2] h-full w-full overflow-visible"
+      preserveAspectRatio="xMidYMid meet"
       aria-hidden
     >
       <defs>
-        <linearGradient id="cableSheath" x1="1" y1="0" x2="0" y2="0">
-          <stop offset="0%" stopColor="#243542" />
-          <stop offset="45%" stopColor="#1a2832" />
-          <stop offset="100%" stopColor="#2a3d4a" />
+        <linearGradient id="cableSheath" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#2a3d4a" />
+          <stop offset="55%" stopColor="#1a2832" />
+          <stop offset="100%" stopColor="#243542" />
         </linearGradient>
-        <linearGradient id="energyGrad" x1="1" y1="0" x2="0" y2="0">
-          <stop offset="0%" stopColor={energy} stopOpacity="0" />
-          <stop offset="35%" stopColor={energy} stopOpacity="1" />
-          <stop offset="100%" stopColor={energyBright} stopOpacity="0.15" />
-        </linearGradient>
-        <linearGradient id="flapGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#3a4f5c" />
-          <stop offset="100%" stopColor="#1a2830" />
+        <linearGradient id="energyGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={energyBright} stopOpacity="0.15" />
+          <stop offset="45%" stopColor={energy} stopOpacity="1" />
+          <stop offset="100%" stopColor={energy} stopOpacity="0" />
         </linearGradient>
         <filter id="cableGlow" x="-40%" y="-40%" width="180%" height="180%">
           <feGaussianBlur stdDeviation={quick ? 5 : 3.5} result="blur" />
@@ -283,38 +267,33 @@ function ChargeCableOverlay({
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-        <filter id="portGlow" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation={quick ? 5.5 : 4} result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
       </defs>
 
-      {/* Soft shadow under the hanging loop */}
       <path
         d={cablePath}
         fill="none"
-        stroke="rgba(0,0,0,0.4)"
-        strokeWidth={quick ? 11 : 10}
+        stroke="rgba(0,0,0,0.45)"
+        strokeWidth={quick ? 16 : 14}
         strokeLinecap="round"
+        strokeLinejoin="round"
         opacity="0.35"
-        transform="translate(0 3)"
+        transform="translate(0 4)"
       />
       <path
         d={cablePath}
         fill="none"
         stroke="url(#cableSheath)"
-        strokeWidth={quick ? 8.5 : 7.5}
+        strokeWidth={quick ? 12 : 11}
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
       <path
         d={cablePath}
         fill="none"
         stroke={cableColor}
-        strokeWidth={quick ? 2.6 : 2.1}
+        strokeWidth={quick ? 3.8 : 3.1}
         strokeLinecap="round"
+        strokeLinejoin="round"
         opacity={active ? 0.95 : 0.5}
         filter={active ? "url(#cableGlow)" : undefined}
       />
@@ -325,9 +304,9 @@ function ChargeCableOverlay({
             d={cablePath}
             fill="none"
             stroke="url(#energyGrad)"
-            strokeWidth={quick ? 4 : 3}
+            strokeWidth={quick ? 5.5 : 4.5}
             strokeLinecap="round"
-            strokeDasharray={quick ? "14 10" : "10 18"}
+            strokeDasharray={quick ? "20 14" : "14 24"}
             className={
               quick ? "charging-cable-flow-fast" : "charging-cable-flow"
             }
@@ -336,140 +315,26 @@ function ChargeCableOverlay({
             d={cablePath}
             fill="none"
             stroke={energyBright}
-            strokeWidth="1.4"
+            strokeWidth="2"
             strokeLinecap="round"
-            strokeDasharray={quick ? "6 12" : "4 22"}
+            strokeDasharray={quick ? "8 16" : "6 28"}
             className="charging-cable-flow-fast"
             opacity="0.95"
           />
         </>
       ) : null}
 
-      {/* Open charge flap + CCS inlet on rear quarter */}
-      <g
-        transform={`translate(${portX}, ${portY})`}
-        filter={active ? "url(#portGlow)" : undefined}
-      >
-        {/* Body recess */}
-        <rect
-          x="-2"
-          y="-1"
-          width="22"
-          height="20"
-          rx="3"
-          fill="#0a1218"
-          stroke="rgba(143,168,181,0.35)"
-          strokeWidth="1"
-        />
-        {/* Flap hinged open upward/rear */}
-        <g transform="rotate(-52 18 2)">
-          <path
-            d="M2 1 H20 a2 2 0 0 1 2 2 V16 a2 2 0 0 1 -2 2 H4 a2 2 0 0 1 -2 -2 Z"
-            fill="url(#flapGrad)"
-            stroke="rgba(143,168,181,0.45)"
-            strokeWidth="1"
-          />
-          <path
-            d="M6 5 H16"
-            stroke="rgba(255,255,255,0.12)"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-          />
-        </g>
-        {/* CCS combo socket */}
-        <rect
-          x="3"
-          y="4"
-          width="14"
-          height="12"
-          rx="2"
-          fill="#121c24"
-          stroke={cableColor}
-          strokeWidth="1.2"
-        />
-        <rect
-          x="5"
-          y="6"
-          width="6"
-          height="5"
-          rx="1"
-          fill={active ? energy : "#3a4d58"}
-          opacity={active ? 0.95 : 0.75}
-        />
-        <circle
-          cx="14"
-          cy="12"
-          r="2.2"
-          fill={active ? energyBright : "#2a3a44"}
-          opacity={active ? 0.95 : 0.8}
-        />
-        {/* Plug nose seated in socket */}
-        <rect
-          x="16"
-          y="6"
-          width="12"
-          height="9"
-          rx="2"
-          fill="#0e1820"
-          stroke={cableColor}
-          strokeWidth="1.2"
-        />
-        <rect
-          x="25"
-          y="7.5"
-          width="5"
-          height="6"
-          rx="1"
-          fill={active ? energy : "#3a4d58"}
-          opacity={active ? 0.9 : 0.7}
-        />
-      </g>
-
-      {active ? (
-        <g transform={`translate(${portX + 8}, ${portY + 10})`}>
-          <circle
-            r="9"
-            fill="none"
-            stroke={energy}
-            strokeWidth="1.2"
-            className={quick ? "charge-ring charge-ring-fast" : "charge-ring"}
-          />
-          <circle
-            r="9"
-            fill="none"
-            stroke={energy}
-            strokeWidth="1"
-            className={
-              quick
-                ? "charge-ring charge-ring-fast charge-ring-delay"
-                : "charge-ring charge-ring-delay"
-            }
-          />
-        </g>
-      ) : null}
-
-      {active ? (
-        <g fill={energy} opacity="0.85">
-          <circle
-            cx={portX - 6}
-            cy={portY - 10}
-            r="1.6"
-            className="charge-spark"
-          />
-          <circle
-            cx={portX + 18}
-            cy={portY - 6}
-            r="1.3"
-            className="charge-spark charge-spark-delay"
-          />
-          <circle
-            cx={portX + 4}
-            cy={portY + 22}
-            r="1.1"
-            className="charge-spark charge-spark-delay-2"
-          />
-        </g>
-      ) : null}
+      {/* Soft tip where the cable meets the body — no flap / socket chrome */}
+      <circle
+        cx={portX}
+        cy={portY}
+        r={active ? 6.5 : 5}
+        fill={active ? energy : "#1a2832"}
+        stroke={cableColor}
+        strokeWidth="2"
+        opacity={active ? 0.95 : 0.75}
+        filter={active ? "url(#cableGlow)" : undefined}
+      />
     </svg>
   );
 }
