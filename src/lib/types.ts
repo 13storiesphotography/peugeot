@@ -8,7 +8,6 @@ export type VehicleCommand =
   | "horn"
   | "flash"
   | "charge_start"
-  | "charge_stop"
   | "climate_start"
   | "climate_stop"
   | "battery_preheat_start"

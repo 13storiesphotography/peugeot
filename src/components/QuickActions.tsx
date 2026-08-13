@@ -104,10 +104,12 @@ export function QuickActions({
     },
     {
       id: "charge",
-      label: charging ? "Stop" : "Laden",
+      label: charging ? "Lädt" : "Laden",
       active: charging,
       icon: <IconCharge />,
-      onClick: () => onCommand(charging ? "charge_stop" : "charge_start"),
+      onClick: () => {
+        if (!charging) onCommand("charge_start");
+      },
     },
     {
       id: "flash",
@@ -123,7 +125,10 @@ export function QuickActions({
         <button
           key={action.id}
           type="button"
-          disabled={busy || (action.id === "charge" && !plugged && !charging)}
+          disabled={
+            busy ||
+            (action.id === "charge" && (charging || !plugged))
+          }
           onClick={action.onClick}
           className="action-btn flex flex-col items-center gap-2 rounded-2xl px-1 py-3 text-center"
           style={{

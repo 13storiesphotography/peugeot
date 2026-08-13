@@ -78,25 +78,6 @@ export function applyCommandToState(
         }),
       };
     }
-    case "charge_stop":
-      if (state.mode === "live") {
-        return {
-          ok: false,
-          message:
-            "Live-Stopp noch nicht angebunden — bitte in der Peugeot-App oder am Ladepunkt stoppen.",
-          vehicle: state,
-        };
-      }
-      return {
-        ok: true,
-        message: "Laden gestoppt (Demo).",
-        vehicle: touch(state, {
-          chargeStatus: state.chargeStatus === "idle" ? "idle" : "plugged",
-          chargePowerKw: null,
-          chargeRateKmh: null,
-          estimatedFullAt: null,
-        }),
-      };
     case "set_charge_limit": {
       if (state.mode === "live") {
         return {

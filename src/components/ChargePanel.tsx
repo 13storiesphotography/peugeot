@@ -84,28 +84,32 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
         />
       </div>
 
-      <button
-        type="button"
-        disabled={busy || (!plugged && !charging) || live}
-        onClick={() => onCommand(charging ? "charge_stop" : "charge_start")}
-        className="action-btn w-full rounded-full px-5 py-4 text-sm font-semibold"
-        style={{
-          background: charging
-            ? "rgba(224,122,106,0.16)"
-            : "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-          color: charging ? "var(--danger)" : "#031016",
-          border: charging ? "1px solid rgba(224,122,106,0.4)" : "none",
-          opacity: live ? 0.55 : 1,
-        }}
-      >
-        {live
-          ? charging
-            ? "Lädt (Steuerung über Peugeot-App)"
-            : "Start nur in Peugeot-App"
-          : charging
-            ? "Laden stoppen"
-            : "Laden starten"}
-      </button>
+      {charging ? (
+        <p
+          className="rounded-full px-5 py-4 text-center text-sm font-semibold"
+          style={{
+            background: "rgba(95,227,192,0.12)",
+            border: "1px solid rgba(95,227,192,0.35)",
+            color: "var(--accent-bright)",
+          }}
+        >
+          {live ? "Lädt (Stopp nur in der Peugeot-App)" : "Lädt …"}
+        </p>
+      ) : (
+        <button
+          type="button"
+          disabled={busy || !plugged || live}
+          onClick={() => onCommand("charge_start")}
+          className="action-btn w-full rounded-full px-5 py-4 text-sm font-semibold"
+          style={{
+            background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
+            color: "#031016",
+            opacity: live ? 0.55 : 1,
+          }}
+        >
+          {live ? "Start nur in Peugeot-App" : "Laden starten"}
+        </button>
+      )}
 
       <div>
         <div className="mb-2 flex items-center justify-between gap-3 text-sm">
