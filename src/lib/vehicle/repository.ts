@@ -164,6 +164,8 @@ async function ensureVehicle(
     model: existing.model,
     color: existing.color,
     vin: existing.vin ?? vehicle.vin,
+    chargeRateKmh: vehicle.chargeRateKmh ?? null,
+    chargePowerKw: vehicle.chargePowerKw ?? null,
   };
 
   return { vehicleId: existing.id, vehicle };

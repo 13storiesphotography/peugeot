@@ -37,6 +37,8 @@ export interface VehicleState {
   chargeStatus: ChargeStatus;
   chargeLimitPercent: number;
   chargePowerKw: number | null;
+  /** PSA chargingRate — km of range gained per hour (null if unknown). */
+  chargeRateKmh: number | null;
   estimatedFullAt: string | null;
   locked: boolean;
   climateStatus: ClimateStatus;

@@ -40,9 +40,21 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
           </h2>
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
             {statusLabel[vehicle.chargeStatus]}
-            {vehicle.chargePowerKw ? ` · ${vehicle.chargePowerKw} kW` : ""}
             {vehicle.mode === "live" ? " · Live (MyPeugeot)" : " · Demo"}
           </p>
+          {charging && vehicle.chargePowerKw != null ? (
+            <p className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums text-[var(--accent-bright)]">
+              {vehicle.chargePowerKw.toLocaleString("de-DE", {
+                maximumFractionDigits: 1,
+              })}{" "}
+              kW
+              {vehicle.chargeRateKmh != null ? (
+                <span className="ml-2 text-sm font-normal text-[var(--fg-muted)]">
+                  (API {Math.round(vehicle.chargeRateKmh)} km/h Reichweite)
+                </span>
+              ) : null}
+            </p>
+          ) : null}
         </div>
         <p className="font-[family-name:var(--font-display)] text-4xl font-semibold tabular-nums">
           {Math.round(vehicle.batteryPercent)}
@@ -130,8 +142,15 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
         <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
           <dt className="text-[var(--fg-muted)]">Leistung</dt>
           <dd className="mt-1 font-semibold tabular-nums">
-            {vehicle.chargePowerKw ? `${vehicle.chargePowerKw} kW` : "—"}
+            {vehicle.chargePowerKw != null
+              ? `${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
+              : "—"}
           </dd>
+          {vehicle.chargeRateKmh != null ? (
+            <p className="mt-1 text-xs text-[var(--fg-muted)]">
+              aus {Math.round(vehicle.chargeRateKmh)} km/h Laderate
+            </p>
+          ) : null}
         </div>
       </dl>
     </section>

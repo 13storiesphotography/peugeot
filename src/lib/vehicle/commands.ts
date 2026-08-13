@@ -68,6 +68,7 @@ export function applyCommandToState(
         vehicle: touch(state, {
           chargeStatus: "charging",
           chargePowerKw: power,
+          chargeRateKmh: Math.round(power * 6.3),
           estimatedFullAt: estimateFullAt(
             state.batteryPercent,
             state.chargeLimitPercent,
@@ -92,6 +93,7 @@ export function applyCommandToState(
         vehicle: touch(state, {
           chargeStatus: state.chargeStatus === "idle" ? "idle" : "plugged",
           chargePowerKw: null,
+          chargeRateKmh: null,
           estimatedFullAt: null,
         }),
       };
@@ -202,6 +204,7 @@ export function tickChargeState(
     rangeKm: estimateRange(nextPercent),
     chargeStatus: done ? "complete" : "charging",
     chargePowerKw: done ? null : state.chargePowerKw,
+    chargeRateKmh: done ? null : state.chargeRateKmh,
     estimatedFullAt: done
       ? null
       : estimateFullAt(

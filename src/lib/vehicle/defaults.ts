@@ -17,6 +17,7 @@ export function createDefaultVehicleState(
     chargeStatus: "plugged",
     chargeLimitPercent: 80,
     chargePowerKw: null,
+    chargeRateKmh: null,
     estimatedFullAt: null,
     locked: true,
     climateStatus: "off",

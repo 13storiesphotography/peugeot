@@ -1,5 +1,6 @@
 import type { VehicleState } from "@/lib/types";
 import { estimateFullAt } from "@/lib/vehicle/defaults";
+import { resolveChargePower } from "@/lib/stellantis/charge-power";
 import {
   getAuthorizeUrl,
   getBasicToken,
@@ -265,29 +266,55 @@ export function mapStatusToVehicleState(
       dig(chargingBlock, ["chargingLimit"]),
   );
 
-  // PSA often reports chargingRate as km/h of gained range, not kW.
+  // PSA `chargingRate` / `charging_rate` is km/h of range gain — never kW.
   const rateRaw = Number(
     dig(chargingBlock, ["chargingRate"]) ??
+      dig(chargingBlock, ["charging_rate"]) ??
       dig(chargingBlock, ["chgRate"]) ??
-      dig(chargingBlock, ["rate"]),
+      dig(energy0, ["extension", "electric", "charging", "chargingRate"]) ??
+      dig(energy0, ["extension", "electric", "charging", "charging_rate"]),
+  );
+
+  // Rare: real power fields (prefer over rate conversion).
+  const powerLevelRaw = Number(
+    dig(chargingBlock, ["chargingPowerLevel"]) ??
+      dig(chargingBlock, ["charging_power_level"]) ??
+      dig(energy0, [
+        "extension",
+        "electric",
+        "charging",
+        "chargingPowerLevel",
+      ]) ??
+      dig(energy0, [
+        "extension",
+        "electric",
+        "charging",
+        "charging_power_level",
+      ]),
   );
   const powerRaw = Number(
     dig(chargingBlock, ["instantaneousPower"]) ??
-      dig(chargingBlock, ["power"]) ??
-      dig(chargingBlock, ["chargingPower"]),
+      dig(chargingBlock, ["instantaneous_power"]) ??
+      dig(chargingBlock, ["chargingPower"]) ??
+      dig(chargingBlock, ["charging_power"]) ??
+      (Number.isFinite(powerLevelRaw) ? powerLevelRaw : NaN),
   );
 
-  let chargePowerKw: number | null = null;
-  if (chargeStatus === "charging") {
-    if (Number.isFinite(powerRaw) && powerRaw > 0 && powerRaw < 400) {
-      chargePowerKw = powerRaw > 80 ? powerRaw / 1000 : powerRaw;
-    } else if (Number.isFinite(rateRaw) && rateRaw > 0) {
-      // Convert km/h range gain → rough kW (~6.3 km/kWh for E-3008)
-      chargePowerKw = Math.round((rateRaw / 6.3) * 10) / 10;
-    } else if (base.chargePowerKw && base.chargePowerKw > 0) {
-      chargePowerKw = base.chargePowerKw;
-    }
-  }
+  const resolvedPower =
+    chargeStatus === "charging"
+      ? resolveChargePower({
+          rateKmh: Number.isFinite(rateRaw) ? rateRaw : null,
+          powerKwHint: Number.isFinite(powerRaw) ? powerRaw : null,
+          rangeKm: Number.isFinite(rangeKm) ? rangeKm : base.rangeKm,
+          batteryPercent: Number.isFinite(batteryPercent)
+            ? batteryPercent
+            : base.batteryPercent,
+          batteryCapacityKwh: base.batteryCapacityKwh,
+        })
+      : { chargePowerKw: null, chargeRateKmh: null };
+
+  const chargePowerKw = resolvedPower.chargePowerKw;
+  const chargeRateKmh = resolvedPower.chargeRateKmh;
 
   const remainingMin = Number(
     dig(chargingBlock, ["remainingTime"]) ??
@@ -353,6 +380,7 @@ export function mapStatusToVehicleState(
     chargeStatus,
     chargeLimitPercent: limit,
     chargePowerKw,
+    chargeRateKmh,
     estimatedFullAt,
     lastUpdatedAt: updatedFromApi || new Date().toISOString(),
     location: {
