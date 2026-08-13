@@ -7,6 +7,8 @@ import {
 } from "@/lib/vehicle/repository";
 
 export const dynamic = "force-dynamic";
+/** Climate schedule sync may wake MQTT (~15s). */
+export const maxDuration = 30;
 
 const KINDS = new Set<VehicleSchedule["kind"]>(["charge", "climate"]);
 
@@ -27,14 +29,18 @@ export async function POST(request: Request) {
   }
 
   try {
-    const schedule = await createSchedule(auth.supabase, auth.userId, {
+    const result = await createSchedule(auth.supabase, auth.userId, {
       kind: body.kind as VehicleSchedule["kind"],
       enabled: body.enabled,
       timeLocal: body.timeLocal,
       daysOfWeek: body.daysOfWeek,
       payload: body.payload,
     });
-    return Response.json({ ok: true, schedule });
+    return Response.json({
+      ok: true,
+      schedule: result.schedule,
+      vehicleSyncWarning: result.vehicleSyncWarning ?? null,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Fehler";
     return Response.json({ error: message }, { status: 500 });
@@ -58,13 +64,16 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    await updateSchedule(auth.supabase, auth.userId, body.scheduleId, {
+    const result = await updateSchedule(auth.supabase, auth.userId, body.scheduleId, {
       enabled: body.enabled,
       timeLocal: body.timeLocal,
       daysOfWeek: body.daysOfWeek ?? [1, 2, 3, 4, 5],
       payload: body.payload,
     });
-    return Response.json({ ok: true });
+    return Response.json({
+      ok: true,
+      vehicleSyncWarning: result.vehicleSyncWarning ?? null,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Fehler";
     return Response.json({ error: message }, { status: 500 });
@@ -81,8 +90,15 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    await deleteSchedule(auth.supabase, auth.userId, body.scheduleId);
-    return Response.json({ ok: true });
+    const result = await deleteSchedule(
+      auth.supabase,
+      auth.userId,
+      body.scheduleId,
+    );
+    return Response.json({
+      ok: true,
+      vehicleSyncWarning: result.vehicleSyncWarning ?? null,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Fehler";
     return Response.json({ error: message }, { status: 500 });

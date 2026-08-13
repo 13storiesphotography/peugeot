@@ -476,8 +476,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           vehicle={vehicle}
           busy={busy}
           remoteReady={bundle.connection.remoteReady}
+          schedules={bundle.schedules}
           onCommand={(command) => void runCommand(command)}
-          onOpenSchedule={() => selectTab("schedule")}
+          onSchedulesChanged={() => void refresh(true, { silent: true })}
         />
       ) : null}
 
@@ -498,7 +499,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         <div className="animate-rise space-y-6 pt-2">
           <SectionHeader
             title="Planen"
-            hint="Laden und Vorklima zeitlich steuern"
+            hint="Vorklima-Pläne gehen ans Auto; Laden bleibt App-Notiz"
           />
           <SchedulePanel
             schedules={bundle.schedules}

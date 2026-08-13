@@ -22,6 +22,112 @@ const DEFAULT_PRECONDITIONING_PROGRAM = {
   program4: { day: [0, 0, 0, 0, 0, 0, 0], hour: 34, minute: 7, on: 0 },
 };
 
+export type PrecondProgramSlot = {
+  day: number[];
+  hour: number;
+  minute: number;
+  on: number;
+};
+
+export type PrecondPrograms = {
+  program1: PrecondProgramSlot;
+  program2: PrecondProgramSlot;
+  program3: PrecondProgramSlot;
+  program4: PrecondProgramSlot;
+};
+
+export function emptyPrecondPrograms(): PrecondPrograms {
+  return structuredClone(DEFAULT_PRECONDITIONING_PROGRAM);
+}
+
+/** Map app climate schedules (Mo=1…So=7) onto Peugeot’s 4 program slots. */
+export function climateSchedulesToPrograms(
+  schedules: Array<{
+    enabled: boolean;
+    timeLocal: string;
+    daysOfWeek: number[];
+  }>,
+): PrecondPrograms {
+  const programs = emptyPrecondPrograms();
+  const climate = schedules.slice(0, 4);
+  climate.forEach((schedule, index) => {
+    const [hourRaw, minuteRaw] = schedule.timeLocal.split(":");
+    const hour = Number(hourRaw);
+    const minute = Number(minuteRaw);
+    const day = [0, 0, 0, 0, 0, 0, 0];
+    for (const d of schedule.daysOfWeek) {
+      if (d >= 1 && d <= 7) day[d - 1] = 1;
+    }
+    const key = `program${index + 1}` as keyof PrecondPrograms;
+    const validTime =
+      Number.isFinite(hour) &&
+      Number.isFinite(minute) &&
+      hour >= 0 &&
+      hour <= 23 &&
+      minute >= 0 &&
+      minute <= 59;
+    programs[key] = {
+      day,
+      hour: schedule.enabled && validTime ? hour : 34,
+      minute: schedule.enabled && validTime ? minute : 7,
+      on: schedule.enabled && validTime ? 1 : 0,
+    };
+  });
+  return programs;
+}
+
+/** Read existing Peugeot slots from status so start/stop does not wipe them. */
+export function programsFromVehicleStatus(status: unknown): PrecondPrograms | null {
+  const dig = (obj: unknown, path: Array<string | number>): unknown => {
+    let cur: unknown = obj;
+    for (const key of path) {
+      if (cur == null || typeof cur !== "object") return undefined;
+      cur = Array.isArray(cur)
+        ? cur[key as number]
+        : (cur as Record<string, unknown>)[key as string];
+    }
+    return cur;
+  };
+
+  const raw =
+    dig(status, ["preconditionning", "airConditioning", "programs"]) ??
+    dig(status, ["preconditioning", "airConditioning", "programs"]);
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+
+  const programs = emptyPrecondPrograms();
+  let found = false;
+  for (const program of raw) {
+    if (!program || typeof program !== "object") continue;
+    const rec = program as Record<string, unknown>;
+    const slot = Number(rec.slot);
+    if (!Number.isFinite(slot) || slot < 1 || slot > 4) continue;
+    const occurence = rec.occurence as Record<string, unknown> | undefined;
+    const daysRaw = occurence?.day;
+    const start = typeof rec.start === "string" ? rec.start : "";
+    const day = [0, 0, 0, 0, 0, 0, 0];
+    if (Array.isArray(daysRaw)) {
+      const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      for (let i = 0; i < labels.length; i++) {
+        if (daysRaw.includes(labels[i])) day[i] = 1;
+      }
+    }
+    // Peugeot uses PT7H15M style durations for start-of-day offset.
+    const match = /PT(?:(\d+)H)?(?:(\d+)M)?/i.exec(start);
+    const hour = match?.[1] != null ? Number(match[1]) : 34;
+    const minute = match?.[2] != null ? Number(match[2]) : 7;
+    const enabled = Boolean(rec.enabled);
+    const key = `program${slot}` as keyof PrecondPrograms;
+    programs[key] = {
+      day,
+      hour: enabled && hour <= 23 ? hour : 34,
+      minute: enabled && hour <= 23 ? minute : 7,
+      on: enabled && hour <= 23 ? 1 : 0,
+    };
+    found = true;
+  }
+  return found ? programs : null;
+}
+
 export type RemoteCredentials = {
   accessToken: string;
   refreshToken: string;
@@ -380,6 +486,8 @@ export async function sendThermalPreconditioning(input: {
   vin: string;
   remoteAccessToken: string;
   activate: boolean;
+  /** When omitted, empty/disabled slots are sent — prefer passing app schedules. */
+  programs?: PrecondPrograms;
 }): Promise<void> {
   await publishRemoteCommand({
     customerId: input.customerId,
@@ -388,7 +496,26 @@ export async function sendThermalPreconditioning(input: {
     topicSuffix: "/ThermalPrecond",
     reqParameters: {
       asap: input.activate ? "activate" : "deactivate",
-      programs: DEFAULT_PRECONDITIONING_PROGRAM,
+      programs: input.programs ?? emptyPrecondPrograms(),
+    },
+  });
+}
+
+/** Push schedule slots only (does not start Vorklima now). */
+export async function sendThermalPreconditioningPrograms(input: {
+  customerId: string;
+  vin: string;
+  remoteAccessToken: string;
+  programs: PrecondPrograms;
+}): Promise<void> {
+  await publishRemoteCommand({
+    customerId: input.customerId,
+    vin: input.vin,
+    remoteAccessToken: input.remoteAccessToken,
+    topicSuffix: "/ThermalPrecond",
+    reqParameters: {
+      asap: "deactivate",
+      programs: input.programs,
     },
   });
 }

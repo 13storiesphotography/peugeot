@@ -1108,16 +1108,28 @@ async function runLiveClimateCommand(
   }
 
   try {
-    const { sendThermalPreconditioning } = await import(
-      "@/lib/stellantis/remote"
-    );
+    const {
+      climateSchedulesToPrograms,
+      emptyPrecondPrograms,
+      sendThermalPreconditioning,
+    } = await import("@/lib/stellantis/remote");
     const { touchClimate } = await import("@/lib/vehicle/commands");
+
+    const climateSchedules = await listClimateSchedules(supabase, userId);
+    // Prefer app Klima plans; if none, keep Peugeot slots so start/stop
+    // does not wipe MyPeugeot schedules.
+    const programs =
+      climateSchedules.length > 0
+        ? climateSchedulesToPrograms(climateSchedules)
+        : ((await tryLoadVehiclePrograms(supabase, userId, bundle)) ??
+          emptyPrecondPrograms());
 
     await sendThermalPreconditioning({
       customerId: remote.customerId,
       vin: remote.vin,
       remoteAccessToken: remote.remoteAccessToken,
       activate,
+      programs,
     });
 
     return {
@@ -1133,6 +1145,112 @@ async function runLiveClimateCommand(
           ? error.message
           : "Vorklima-Befehl fehlgeschlagen.",
       vehicle: bundle.vehicle,
+    };
+  }
+}
+
+async function tryLoadVehiclePrograms(
+  supabase: SupabaseClient,
+  userId: string,
+  bundle: VehicleBundle,
+) {
+  if (!bundle.connection.vehicleApiId || !bundle.connection.hasAccessToken) {
+    return null;
+  }
+  try {
+    const { data: connection } = await supabase
+      .from("peugeot_connections")
+      .select(
+        "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta",
+      )
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!connection?.access_token || !connection.vehicle_api_id) return null;
+
+    const accessToken = await ensurePeugeotAccessToken(supabase, userId, {
+      accessToken: String(connection.access_token),
+      refreshToken: connection.refresh_token
+        ? String(connection.refresh_token)
+        : null,
+      tokenExpiresAt: connection.token_expires_at
+        ? String(connection.token_expires_at)
+        : null,
+      countryCode: String(connection.country_code ?? "DE"),
+      oauthMeta: asOAuthMeta(connection.oauth_meta),
+    });
+    const { fetchVehicleStatus } = await import("@/lib/stellantis/api");
+    const { programsFromVehicleStatus } = await import(
+      "@/lib/stellantis/remote"
+    );
+    const status = await fetchVehicleStatus(
+      accessToken,
+      String(connection.country_code ?? "DE"),
+      String(connection.vehicle_api_id),
+    );
+    return programsFromVehicleStatus(status);
+  } catch {
+    return null;
+  }
+}
+
+async function listClimateSchedules(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<VehicleSchedule[]> {
+  const { data, error } = await supabase
+    .from("vehicle_schedules")
+    .select("id, kind, enabled, time_local, days_of_week, payload")
+    .eq("user_id", userId)
+    .eq("kind", "climate")
+    .order("time_local");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapSchedule);
+}
+
+/** Push Klima Zeitpläne to the car’s 4 ThermalPrecond slots (when remote ready). */
+async function syncClimateProgramsToVehicle(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const bundle = await getVehicleBundle(supabase, userId);
+  if (bundle.vehicle.mode !== "live") {
+    return { ok: true };
+  }
+  if (!bundle.connection.remoteReady) {
+    return {
+      ok: false,
+      message:
+        "Zeitplan gespeichert, aber Fernbedienung fehlt — Pläne gehen noch nicht ans Auto.",
+    };
+  }
+
+  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+  if (!remote.ok) {
+    return { ok: false, message: remote.message };
+  }
+
+  try {
+    const {
+      climateSchedulesToPrograms,
+      sendThermalPreconditioningPrograms,
+    } = await import("@/lib/stellantis/remote");
+    const programs = climateSchedulesToPrograms(
+      await listClimateSchedules(supabase, userId),
+    );
+    await sendThermalPreconditioningPrograms({
+      customerId: remote.customerId,
+      vin: remote.vin,
+      remoteAccessToken: remote.remoteAccessToken,
+      programs,
+    });
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Zeitplan gespeichert, Sync ans Auto fehlgeschlagen.",
     };
   }
 }
@@ -1230,7 +1348,14 @@ export async function updateSchedule(
     daysOfWeek: number[];
     payload?: Record<string, unknown>;
   },
-) {
+): Promise<{ vehicleSyncWarning?: string }> {
+  const { data: existing } = await supabase
+    .from("vehicle_schedules")
+    .select("kind")
+    .eq("id", scheduleId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("vehicle_schedules")
     .update({
@@ -1244,6 +1369,12 @@ export async function updateSchedule(
     .eq("user_id", userId);
 
   if (error) throw new Error(error.message);
+
+  if (existing?.kind === "climate") {
+    const sync = await syncClimateProgramsToVehicle(supabase, userId);
+    if (!sync.ok) return { vehicleSyncWarning: sync.message };
+  }
+  return {};
 }
 
 export async function createSchedule(
@@ -1256,14 +1387,14 @@ export async function createSchedule(
     daysOfWeek?: number[];
     payload?: Record<string, unknown>;
   },
-): Promise<VehicleSchedule> {
+): Promise<{ schedule: VehicleSchedule; vehicleSyncWarning?: string }> {
   const { vehicleId } = await ensureVehicle(supabase, userId);
   const defaults: Record<
     VehicleSchedule["kind"],
     { timeLocal: string; payload: Record<string, unknown> }
   > = {
     charge: { timeLocal: "22:00", payload: { chargeLimitPercent: 80 } },
-    climate: { timeLocal: "07:15", payload: { targetTempC: 21 } },
+    climate: { timeLocal: "07:15", payload: {} },
     battery_preheat: { timeLocal: "06:45", payload: {} },
   };
   const preset = defaults[input.kind];
@@ -1283,14 +1414,29 @@ export async function createSchedule(
     .single();
 
   if (error) throw new Error(error.message);
-  return mapSchedule(data);
+  const schedule = mapSchedule(data);
+
+  if (schedule.kind === "climate") {
+    const sync = await syncClimateProgramsToVehicle(supabase, userId);
+    if (!sync.ok) {
+      return { schedule, vehicleSyncWarning: sync.message };
+    }
+  }
+  return { schedule };
 }
 
 export async function deleteSchedule(
   supabase: SupabaseClient,
   userId: string,
   scheduleId: string,
-) {
+): Promise<{ vehicleSyncWarning?: string }> {
+  const { data: existing } = await supabase
+    .from("vehicle_schedules")
+    .select("kind")
+    .eq("id", scheduleId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("vehicle_schedules")
     .delete()
@@ -1298,4 +1444,10 @@ export async function deleteSchedule(
     .eq("user_id", userId);
 
   if (error) throw new Error(error.message);
+
+  if (existing?.kind === "climate") {
+    const sync = await syncClimateProgramsToVehicle(supabase, userId);
+    if (!sync.ok) return { vehicleSyncWarning: sync.message };
+  }
+  return {};
 }

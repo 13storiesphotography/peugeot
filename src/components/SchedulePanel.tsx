@@ -15,8 +15,6 @@ interface SchedulePanelProps {
   onChanged: () => void;
   /** Limit to these kinds (e.g. climate-only under Klima). */
   kinds?: VehicleSchedule["kind"][];
-  /** Seed target °C into new climate schedules. */
-  defaultTargetTempC?: number;
   title?: string;
   hint?: string;
   compact?: boolean;
@@ -26,7 +24,6 @@ export function SchedulePanel({
   schedules,
   onChanged,
   kinds,
-  defaultTargetTempC = 21,
   title,
   hint,
   compact = false,
@@ -35,6 +32,7 @@ export function SchedulePanel({
   const [creating, setCreating] = useState(false);
   const [local, setLocal] = useState(schedules);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setLocal(schedules);
@@ -44,7 +42,6 @@ export function SchedulePanel({
     const base = kinds
       ? local.filter((item) => kinds.includes(item.kind))
       : local;
-    // Battery preheat is not available via Peugeot remotes — hide leftovers.
     return base.filter((item) => item.kind !== "battery_preheat");
   }, [local, kinds]);
 
@@ -70,9 +67,18 @@ export function SchedulePanel({
     return ` ${n}`;
   };
 
+  const applyWarning = (data: { vehicleSyncWarning?: string | null }) => {
+    if (data.vehicleSyncWarning) {
+      setNotice(data.vehicleSyncWarning);
+    } else {
+      setNotice(null);
+    }
+  };
+
   const save = async (schedule: VehicleSchedule) => {
     setBusyId(schedule.id);
     setError(null);
+    setNotice(null);
     try {
       const res = await fetch("/api/vehicle/schedules", {
         method: "PATCH",
@@ -85,7 +91,12 @@ export function SchedulePanel({
           payload: schedule.payload,
         }),
       });
-      if (!res.ok) throw new Error("Speichern fehlgeschlagen");
+      const data = (await res.json()) as {
+        error?: string;
+        vehicleSyncWarning?: string | null;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Speichern fehlgeschlagen");
+      applyWarning(data);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Fehler");
@@ -97,14 +108,20 @@ export function SchedulePanel({
   const remove = async (scheduleId: string) => {
     setBusyId(scheduleId);
     setError(null);
+    setNotice(null);
     try {
       const res = await fetch("/api/vehicle/schedules", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scheduleId }),
       });
-      if (!res.ok) throw new Error("Löschen fehlgeschlagen");
+      const data = (await res.json()) as {
+        error?: string;
+        vehicleSyncWarning?: string | null;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Löschen fehlgeschlagen");
       setLocal((prev) => prev.filter((item) => item.id !== scheduleId));
+      applyWarning(data);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Fehler");
@@ -116,19 +133,21 @@ export function SchedulePanel({
   const add = async (kind: VehicleSchedule["kind"]) => {
     setCreating(true);
     setError(null);
+    setNotice(null);
     try {
       const payload =
-        kind === "climate"
-          ? { targetTempC: defaultTargetTempC }
-          : kind === "charge"
-            ? { chargeLimitPercent: 80 }
-            : {};
+        kind === "charge" ? { chargeLimitPercent: 80 } : {};
       const res = await fetch("/api/vehicle/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kind, enabled: true, payload }),
       });
-      if (!res.ok) throw new Error("Anlegen fehlgeschlagen");
+      const data = (await res.json()) as {
+        error?: string;
+        vehicleSyncWarning?: string | null;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Anlegen fehlgeschlagen");
+      applyWarning(data);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Fehler");
@@ -149,13 +168,6 @@ export function SchedulePanel({
       ? schedule.daysOfWeek.filter((d) => d !== day)
       : [...schedule.daysOfWeek, day].sort((a, b) => a - b);
     update(schedule.id, { daysOfWeek });
-  };
-
-  const setTargetTemp = (schedule: VehicleSchedule, value: number) => {
-    const targetTempC = Math.min(28, Math.max(16, Math.round(value)));
-    update(schedule.id, {
-      payload: { ...schedule.payload, targetTempC },
-    });
   };
 
   return (
@@ -195,10 +207,6 @@ export function SchedulePanel({
               </p>
               <p className="text-xs text-[var(--fg-muted)]">
                 {schedule.enabled ? "Aktiv" : "Pausiert"}
-                {schedule.kind === "climate" &&
-                typeof schedule.payload.targetTempC === "number"
-                  ? ` · ${schedule.payload.targetTempC}°`
-                  : ""}
               </p>
             </div>
             <button
@@ -232,26 +240,6 @@ export function SchedulePanel({
               }
               className="rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2 text-sm"
             />
-            {schedule.kind === "climate" ? (
-              <label className="flex items-center gap-2 text-sm text-[var(--fg-muted)]">
-                Ziel
-                <input
-                  type="number"
-                  min={16}
-                  max={28}
-                  value={
-                    typeof schedule.payload.targetTempC === "number"
-                      ? schedule.payload.targetTempC
-                      : defaultTargetTempC
-                  }
-                  onChange={(e) =>
-                    setTargetTemp(schedule, Number(e.target.value))
-                  }
-                  className="w-16 rounded-xl border border-[var(--line)] bg-black/25 px-2 py-2 text-sm tabular-nums text-[var(--fg)]"
-                />
-                °C
-              </label>
-            ) : null}
             <div className="flex flex-wrap gap-1">
               {DAY_LABELS.map((label, dayIndex) => {
                 const day = dayIndex + 1;
@@ -319,6 +307,9 @@ export function SchedulePanel({
         ))}
       </div>
 
+      {notice ? (
+        <p className="text-sm text-[var(--warn)]">{notice}</p>
+      ) : null}
       {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
     </div>
   );

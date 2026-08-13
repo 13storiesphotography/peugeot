@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { SectionHeader } from "@/components/SectionHeader";
+import { SchedulePanel } from "@/components/SchedulePanel";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
+import type { VehicleSchedule } from "@/lib/vehicle/repository";
 
 interface ClimatePanelProps {
   vehicle: VehicleState;
   busy: boolean;
   remoteReady?: boolean;
+  schedules: VehicleSchedule[];
   onCommand: (command: VehicleCommand) => void;
-  onOpenSchedule?: () => void;
+  onSchedulesChanged: () => void;
 }
 
 function formatTemp(tempC: number): string {
@@ -21,15 +24,15 @@ export function ClimatePanel({
   vehicle,
   busy,
   remoteReady = false,
+  schedules,
   onCommand,
-  onOpenSchedule,
+  onSchedulesChanged,
 }: ClimatePanelProps) {
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
   const climateRemoteOk = !live || remoteReady;
 
   // Peugeot only reports remote preconditioning — not cabin AC while driving.
-  // Never imply "off" when inactive; that reads as wrong on the road.
   const statusHint = active
     ? vehicle.climateStatus === "heating"
       ? "Vorklima · heizt"
@@ -46,10 +49,6 @@ export function ClimatePanel({
         <div className="ui-surface px-4 py-4 text-center">
           <p className="text-sm font-semibold text-[var(--accent-bright)]">
             Vorklima läuft
-          </p>
-          <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            Status kommt von der Fernvorklimatisierung — nicht von der Klima
-            während der Fahrt.
           </p>
         </div>
       ) : null}
@@ -81,26 +80,23 @@ export function ClimatePanel({
 
       <p className="text-center text-xs text-[var(--fg-muted)]">
         Außen {formatTemp(vehicle.outdoorTempC)}
-        {live ? " · Innentemperatur liefert Peugeot nicht" : " · Demo"}
+        {live ? null : " · Demo"}
       </p>
 
-      {onOpenSchedule ? (
-        <button
-          type="button"
-          onClick={onOpenSchedule}
-          className="ui-link-row w-full text-left"
-        >
-          <div>
-            <p className="eyebrow">Zeitpläne</p>
-            <p className="mt-1 text-sm text-[var(--fg-muted)]">
-              Vorklima unter Planen
-            </p>
-          </div>
-          <span className="text-[var(--fg-muted)]" aria-hidden>
-            ›
-          </span>
-        </button>
-      ) : null}
+      <SchedulePanel
+        schedules={schedules}
+        onChanged={onSchedulesChanged}
+        kinds={["climate"]}
+        compact
+        title="Vorklima planen"
+        hint={
+          live
+            ? climateRemoteOk
+              ? "Bis zu 4 Pläne — Speichern schreibt sie ins Auto (wie MyPeugeot)."
+              : "Pläne speichern geht; ans Auto erst nach Fernbedienung-Setup."
+            : "Demo: Pläne nur in der App."
+        }
+      />
     </section>
   );
 }
