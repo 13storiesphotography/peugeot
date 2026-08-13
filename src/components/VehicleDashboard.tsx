@@ -1,11 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { ActivityLog } from "@/components/ActivityLog";
 import { BatteryRing } from "@/components/BatteryRing";
 import { ChargePanel } from "@/components/ChargePanel";
 import { ClimatePanel } from "@/components/ClimatePanel";
 import { QuickActions } from "@/components/QuickActions";
-import type { CommandResult, VehicleCommand, VehicleState } from "@/lib/types";
+import { SchedulePanel } from "@/components/SchedulePanel";
+import type { CommandResult, VehicleCommand } from "@/lib/types";
+import type { VehicleBundle } from "@/lib/vehicle/repository";
 
 function formatUpdated(iso: string): string {
   return new Intl.DateTimeFormat("de-DE", {
@@ -15,17 +19,19 @@ function formatUpdated(iso: string): string {
   }).format(new Date(iso));
 }
 
-export function VehicleDashboard({ initial }: { initial: VehicleState }) {
-  const [vehicle, setVehicle] = useState(initial);
+export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
+  const [bundle, setBundle] = useState(initial);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
 
+  const vehicle = bundle.vehicle;
+
   const refresh = useCallback(async () => {
     const res = await fetch("/api/vehicle", { cache: "no-store" });
     if (!res.ok) return;
-    const data = (await res.json()) as VehicleState;
-    startTransition(() => setVehicle(data));
+    const data = (await res.json()) as VehicleBundle;
+    startTransition(() => setBundle(data));
   }, []);
 
   useEffect(() => {
@@ -48,8 +54,22 @@ export function VehicleDashboard({ initial }: { initial: VehicleState }) {
         body: JSON.stringify({ command, chargeLimitPercent }),
       });
       const data = (await res.json()) as CommandResult;
-      setVehicle(data.vehicle);
+      setBundle((prev) => ({
+        ...prev,
+        vehicle: data.vehicle,
+        activity: [
+          {
+            id: crypto.randomUUID(),
+            command,
+            message: data.message,
+            ok: data.ok,
+            createdAt: new Date().toISOString(),
+          },
+          ...prev.activity,
+        ].slice(0, 12),
+      }));
       setMessage(data.message);
+      void refresh();
     } catch {
       setMessage("Befehl fehlgeschlagen – bitte erneut versuchen.");
     } finally {
@@ -70,8 +90,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleState }) {
             {vehicle.nickname}
           </h1>
           <p className="mt-2 max-w-md text-sm text-[var(--fg-muted)] sm:text-base">
-            Direkte Steuerung für Laden, Klima und Fernbedienung – klarer als
-            die Serien-App, ohne Ballast.
+            Deine persönliche Web-Steuerung — Status und Befehle bleiben an
+            deinem Konto.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -94,6 +114,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleState }) {
           <span className="rounded-full border border-[var(--line)] px-3 py-1 text-[var(--fg-muted)] tabular-nums">
             {vehicle.mileageKm.toLocaleString("de-DE")} km
           </span>
+          <Link
+            href="/control/settings"
+            className="rounded-full border border-[var(--line)] px-3 py-1 text-[var(--accent-bright)]"
+          >
+            Einstellungen
+          </Link>
         </div>
       </header>
 
@@ -123,6 +149,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleState }) {
               <p className="mt-2 text-sm text-[var(--fg-muted)]">
                 Aktualisiert {formatUpdated(vehicle.lastUpdatedAt)}
                 {isPending ? " · sync…" : ""}
+                {bundle.connection.mypeugeotEmail
+                  ? ` · ${bundle.connection.mypeugeotEmail}`
+                  : ""}
               </p>
             </div>
             <QuickActions
@@ -153,9 +182,20 @@ export function VehicleDashboard({ initial }: { initial: VehicleState }) {
         <ClimatePanel vehicle={vehicle} />
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SchedulePanel schedules={bundle.schedules} onChanged={() => void refresh()} />
+        <ActivityLog items={bundle.activity} />
+      </div>
+
       <footer className="pb-6 text-center text-xs text-[var(--fg-muted)]">
-        VIN {vehicle.vin} · MyPeugeot / Stellantis Remote E-Controls kompatibel
-        vorbereitet · Demo ohne Live-Token
+        VIN {vehicle.vin} ·{" "}
+        {bundle.connection.connected
+          ? "MyPeugeot-Verbindung hinterlegt"
+          : "MyPeugeot noch nicht verbunden"}{" "}
+        ·{" "}
+        <Link href="/control/settings" className="text-[var(--accent-bright)]">
+          Verbindung einrichten
+        </Link>
       </footer>
     </div>
   );

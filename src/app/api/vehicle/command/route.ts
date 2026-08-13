@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { createVehicleClient } from "@/lib/stellantis/client";
 import { createClient } from "@/lib/supabase/server";
 import type { CommandRequest, VehicleCommand } from "@/lib/types";
+import { runVehicleCommand } from "@/lib/vehicle/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,8 @@ const ALLOWED: VehicleCommand[] = [
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
-  if (!data?.claims) {
+  const userId = data?.claims?.sub;
+  if (!userId || typeof userId !== "string") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -44,7 +45,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const client = createVehicleClient();
-  const result = await client.sendCommand(body);
-  return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+  try {
+    const result = await runVehicleCommand(supabase, userId, body);
+    return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Fehler";
+    return NextResponse.json({ ok: false, message }, { status: 500 });
+  }
 }

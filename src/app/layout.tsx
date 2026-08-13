@@ -19,6 +19,12 @@ export const metadata: Metadata = {
   description:
     "Klare Fahrzeugsteuerung für den Peugeot E-3008: Batterie, Laden, Klima und Fernbedienung.",
   applicationName: "E-3008 Control",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "E-3008 Control",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {

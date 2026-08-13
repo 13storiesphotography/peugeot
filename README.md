@@ -1,22 +1,26 @@
 # E-3008 Control
 
-Web-Steuerung für den **Peugeot E-3008** — im Browser anmelden, dann Batterie, Laden, Klima und Fernbedienung bedienen.
+Web-Steuerung für den **Peugeot E-3008** — im Browser anmelden, Fahrzeugstatus und Befehle bleiben an deinem Konto.
 
-## Online nutzen
+## Features
 
-1. App öffnen (Vercel-URL)
-2. **Konto anlegen** mit E-Mail + Passwort
-3. Anmelden → Steuerung unter `/control`
+- Login / Konto (Supabase Auth)
+- Persistenter Demo-Status pro Nutzer
+- Laden, Klima, Batterie-Vorwärmung, Verriegeln, Hupe, Lichter
+- Zeitpläne für Laden & Klima
+- Aktivitätslog
+- Einstellungen: Fahrzeugprofil + MyPeugeot-Verbindung (Token optional)
+- Als PWA auf dem Handy speicherbar
 
-## Lokal (nur Entwicklung)
+## Online
+
+Nach Deploy die Vercel-URL öffnen → Konto anlegen → `/control`.
+
+## Lokal
 
 ```bash
 cp .env.example .env.local
-# Supabase-URL und Publishable Key eintragen
+# NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 npm install
 npm run dev
 ```
-
-## Stack
-
-Next.js · Supabase Auth · Stellantis-Client-Stub (Demo-Fahrzeugdaten) · Vercel
