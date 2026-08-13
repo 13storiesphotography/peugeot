@@ -1,5 +1,6 @@
 import type { VehicleState } from "@/lib/types";
 import {
+  coordsMovedSignificantly,
   enrichVehicleLocationAddress,
   isPlaceholderAddress,
 } from "@/lib/geo/reverse-geocode";
@@ -534,13 +535,6 @@ export function mapStatusToVehicleState(
     latitude = Number(coords[1]);
   }
 
-  const updatedFromApi = String(
-    dig(status, ["lastPosition", "properties", "updatedAt"]) ??
-      dig(status, ["updatedAt"]) ??
-      dig(energy0, ["updatedAt"]) ??
-      "",
-  );
-
   const nextLat = Number.isFinite(latitude) ? latitude : base.location.latitude;
   const nextLng = Number.isFinite(longitude)
     ? longitude
@@ -549,6 +543,45 @@ export function mapStatusToVehicleState(
   const address = isPlaceholderAddress(base.location.address)
     ? "Standort wird ermittelt…"
     : base.location.address;
+
+  // Peugeot moved position time to lastPosition.properties.createdAt
+  // (updatedAt was removed). Never fall back to status/energy timestamps —
+  // those refresh on every poll and make a stale pin look brand new.
+  const positionStampRaw = String(
+    dig(status, ["lastPosition", "properties", "createdAt"]) ??
+      dig(status, ["lastPosition", "properties", "updatedAt"]) ??
+      dig(status, ["lastPosition", "createdAt"]) ??
+      dig(status, ["lastPosition", "updatedAt"]) ??
+      "",
+  );
+  const positionStamp =
+    positionStampRaw && !Number.isNaN(Date.parse(positionStampRaw))
+      ? positionStampRaw
+      : "";
+  const positionMoved = coordsMovedSignificantly(
+    base.location,
+    { latitude: nextLat, longitude: nextLng },
+    25,
+  );
+  const locationUpdatedAt = positionStamp
+    ? positionStamp
+    : positionMoved
+      ? new Date().toISOString()
+      : base.location.updatedAt || new Date().toISOString();
+
+  // Overall "Stand" — status/energy freshness, not GPS pin age.
+  const statusStampRaw = String(
+    dig(status, ["updatedAt"]) ??
+      dig(status, ["createdAt"]) ??
+      dig(energy0, ["updatedAt"]) ??
+      dig(energy0, ["createdAt"]) ??
+      positionStamp ??
+      "",
+  );
+  const statusStamp =
+    statusStampRaw && !Number.isNaN(Date.parse(statusStampRaw))
+      ? statusStampRaw
+      : new Date().toISOString();
 
   return {
     ...base,
@@ -575,12 +608,12 @@ export function mapStatusToVehicleState(
     chargePowerKw,
     chargeRateKmh,
     estimatedFullAt,
-    lastUpdatedAt: updatedFromApi || new Date().toISOString(),
+    lastUpdatedAt: statusStamp,
     location: {
       latitude: nextLat,
       longitude: nextLng,
       address,
-      updatedAt: updatedFromApi || new Date().toISOString(),
+      updatedAt: locationUpdatedAt,
     },
   };
 }

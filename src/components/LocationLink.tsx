@@ -18,7 +18,9 @@ function formatLocationAge(iso: string, nowMs: number): string {
   if (mins === 1) return "vor 1 Min.";
   if (mins < 60) return `vor ${mins} Min.`;
   const hours = Math.floor(mins / 60);
-  return hours === 1 ? "vor 1 Std." : `vor ${hours} Std.`;
+  if (hours < 24) return hours === 1 ? "vor 1 Std." : `vor ${hours} Std.`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "vor 1 Tag" : `vor ${days} Tagen`;
 }
 
 export function LocationLink({ location, className }: Props) {
