@@ -32,7 +32,6 @@ export function SchedulePanel({
   const [creating, setCreating] = useState(false);
   const [local, setLocal] = useState(schedules);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setLocal(schedules);
@@ -67,18 +66,9 @@ export function SchedulePanel({
     return ` ${n}`;
   };
 
-  const applyWarning = (data: { vehicleSyncWarning?: string | null }) => {
-    if (data.vehicleSyncWarning) {
-      setNotice(data.vehicleSyncWarning);
-    } else {
-      setNotice(null);
-    }
-  };
-
   const save = async (schedule: VehicleSchedule) => {
     setBusyId(schedule.id);
     setError(null);
-    setNotice(null);
     try {
       const res = await fetch("/api/vehicle/schedules", {
         method: "PATCH",
@@ -91,12 +81,8 @@ export function SchedulePanel({
           payload: schedule.payload,
         }),
       });
-      const data = (await res.json()) as {
-        error?: string;
-        vehicleSyncWarning?: string | null;
-      };
+      const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Speichern fehlgeschlagen");
-      applyWarning(data);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Fehler");
@@ -108,20 +94,15 @@ export function SchedulePanel({
   const remove = async (scheduleId: string) => {
     setBusyId(scheduleId);
     setError(null);
-    setNotice(null);
     try {
       const res = await fetch("/api/vehicle/schedules", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scheduleId }),
       });
-      const data = (await res.json()) as {
-        error?: string;
-        vehicleSyncWarning?: string | null;
-      };
+      const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Löschen fehlgeschlagen");
       setLocal((prev) => prev.filter((item) => item.id !== scheduleId));
-      applyWarning(data);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Fehler");
@@ -133,7 +114,6 @@ export function SchedulePanel({
   const add = async (kind: VehicleSchedule["kind"]) => {
     setCreating(true);
     setError(null);
-    setNotice(null);
     try {
       const payload =
         kind === "charge" ? { chargeLimitPercent: 80 } : {};
@@ -142,12 +122,8 @@ export function SchedulePanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kind, enabled: true, payload }),
       });
-      const data = (await res.json()) as {
-        error?: string;
-        vehicleSyncWarning?: string | null;
-      };
+      const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Anlegen fehlgeschlagen");
-      applyWarning(data);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Fehler");
@@ -307,9 +283,6 @@ export function SchedulePanel({
         ))}
       </div>
 
-      {notice ? (
-        <p className="text-sm text-[var(--warn)]">{notice}</p>
-      ) : null}
       {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
     </div>
   );

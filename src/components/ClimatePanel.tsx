@@ -92,8 +92,8 @@ export function ClimatePanel({
         hint={
           live
             ? climateRemoteOk
-              ? "Bis zu 4 Pläne — Speichern schreibt sie ins Auto (wie MyPeugeot)."
-              : "Pläne speichern geht; ans Auto erst nach Fernbedienung-Setup."
+              ? "Zur geplanten Zeit startet die App Vorklima am Auto (Europa/Berlin). Keine Zieltemperatur — Peugeot steuert selbst."
+              : "Pläne speichern geht; Start am Auto braucht die Fernbedienung."
             : "Demo: Pläne nur in der App."
         }
       />
