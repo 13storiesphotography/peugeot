@@ -8,11 +8,13 @@ interface ClimatePanelProps {
   vehicle: VehicleState;
   busy: boolean;
   remoteReady?: boolean;
-  onCommand: (
-    command: VehicleCommand,
-    opts?: { targetTempC?: number },
-  ) => void;
+  onCommand: (command: VehicleCommand) => void;
   onOpenSchedule?: () => void;
+}
+
+function formatCabinTemp(tempC: number): string {
+  if (!Number.isFinite(tempC)) return "—";
+  return String(Math.round(tempC));
 }
 
 export function ClimatePanel({
@@ -24,12 +26,8 @@ export function ClimatePanel({
 }: ClimatePanelProps) {
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
-  const target = vehicle.targetTempC;
   const climateRemoteOk = !live || remoteReady;
-
-  const nudge = (delta: number) => {
-    onCommand("set_climate_temp", { targetTempC: target + delta });
-  };
+  const cabin = formatCabinTemp(vehicle.cabinTempC);
 
   const statusHint = active
     ? vehicle.climateStatus === "heating"
@@ -41,36 +39,19 @@ export function ClimatePanel({
 
   return (
     <section className="animate-rise space-y-6">
-      <SectionHeader
-        title="Klima"
-        hint={`Kabine ${vehicle.cabinTempC}° · ${statusHint}`}
-      />
+      <SectionHeader title="Klima" hint={`Status · ${statusHint}`} />
 
-      <div className="flex flex-col items-center py-4">
-        <div className="flex items-center gap-6">
-          <button
-            type="button"
-            disabled={busy || target <= 16}
-            onClick={() => nudge(-1)}
-            className="action-btn grid h-14 w-14 place-items-center rounded-full border border-[var(--line)] text-2xl font-semibold"
-            aria-label="Kälter"
-          >
-            −
-          </button>
-          <p className="font-[family-name:var(--font-display)] text-6xl font-semibold tabular-nums leading-none">
-            {target}
-            <span className="text-3xl text-[var(--accent-bright)]">°</span>
-          </p>
-          <button
-            type="button"
-            disabled={busy || target >= 28}
-            onClick={() => nudge(1)}
-            className="action-btn grid h-14 w-14 place-items-center rounded-full border border-[var(--line)] text-2xl font-semibold"
-            aria-label="Wärmer"
-          >
-            +
-          </button>
-        </div>
+      <div className="flex flex-col items-center py-6">
+        <p className="eyebrow mb-3">Innentemperatur</p>
+        <p className="font-[family-name:var(--font-display)] text-6xl font-semibold tabular-nums leading-none">
+          {cabin}
+          <span className="text-3xl text-[var(--accent-bright)]">°</span>
+        </p>
+        <p className="mt-3 text-sm text-[var(--fg-muted)]">
+          {live
+            ? "Aktueller Wert vom Fahrzeug"
+            : "Demo-Wert — nach Verbindung vom Auto"}
+        </p>
       </div>
 
       <button
@@ -117,6 +98,7 @@ export function ClimatePanel({
           <p className="font-semibold">Batterie vorwärmen</p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
             {vehicle.batteryPreheat ? "Aktiv" : "Aus"}
+            {live ? " · nur Demo" : ""}
           </p>
         </button>
         {onOpenSchedule ? (
