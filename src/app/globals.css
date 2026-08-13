@@ -28,20 +28,29 @@
   box-sizing: border-box;
 }
 
+html {
+  background-color: #071018;
+  color-scheme: dark;
+}
+
 html,
 body {
   min-height: 100%;
+  min-height: 100dvh;
 }
 
 body {
   margin: 0;
   color: var(--fg);
-  background:
+  background-color: #071018;
+  background-image:
     radial-gradient(1200px 700px at 80% -10%, rgba(63, 140, 170, 0.22), transparent 55%),
     radial-gradient(900px 600px at 10% 20%, rgba(31, 111, 95, 0.28), transparent 50%),
     linear-gradient(165deg, #08131d 0%, #0a1622 42%, #071018 100%);
-  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
   font-family: var(--font-body), system-ui, sans-serif;
+  overscroll-behavior-y: none;
 }
 
 ::selection {

@@ -21,8 +21,8 @@ export default async function SettingsPage() {
   const mfa = session.mfa;
 
   return (
-    <main className="min-h-full">
-      <div className="mx-auto w-full max-w-lg px-4 py-8 sm:max-w-xl sm:px-6 sm:py-10">
+    <main className="min-h-dvh">
+      <div className="mx-auto w-full max-w-lg px-4 pb-10 pt-[max(2rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6 sm:pb-10">
         <div className="flex items-center justify-between gap-3">
           <Link
             href="/control"

@@ -4,6 +4,7 @@
   "description": "Peugeot E-3008 Web-Steuerung",
   "start_url": "/control",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
   "background_color": "#071018",
   "theme_color": "#071018",
   "lang": "de",

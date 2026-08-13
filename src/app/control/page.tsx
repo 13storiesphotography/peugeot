@@ -17,7 +17,7 @@ export default async function ControlPage() {
     session.mfa.status === "enroll_optional" ? session.mfa.daysLeft : 0;
 
   return (
-    <main className="min-h-full">
+    <main className="min-h-dvh">
       {graceDaysLeft > 0 ? <MfaGraceBanner daysLeft={graceDaysLeft} /> : null}
       <VehicleDashboard initial={bundle} />
     </main>

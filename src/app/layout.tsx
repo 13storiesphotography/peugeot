@@ -37,15 +37,20 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#071018",
+  colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="de" className={`${display.variable} ${body.variable} h-full`}>
-      <body className="min-h-full overflow-x-hidden antialiased">{children}</body>
+    <html
+      lang="de"
+      className={`${display.variable} ${body.variable} h-full`}
+    >
+      <body className="min-h-dvh overflow-x-hidden antialiased">{children}</body>
     </html>
   );
 }
