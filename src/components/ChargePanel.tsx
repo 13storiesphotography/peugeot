@@ -227,8 +227,6 @@ export function ChargePanel({
         </div>
       </div>
 
-      <ChargeCurve samples={chargeCurve} live={live} />
-
       <dl className="grid grid-cols-2 gap-4 text-sm">
         <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
           <dt className="text-[var(--fg-muted)]">Fertig gegen</dt>
@@ -255,6 +253,8 @@ export function ChargePanel({
           </dd>
         </div>
       </dl>
+
+      <ChargeCurve samples={chargeCurve} live={live} />
     </section>
   );
 }
