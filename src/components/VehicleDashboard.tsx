@@ -499,7 +499,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         <div className="animate-rise space-y-6 pt-2">
           <SectionHeader
             title="Planen"
-            hint="Vorklima: App-Pläne starten zur Uhrzeit; Fahrzeug-Pläne nur manuell laden"
+            hint="Vorklima: Speichern sync’t ans Auto; „Laden“ holt MyPeugeot-Pläne"
           />
           <SchedulePanel
             schedules={bundle.schedules}

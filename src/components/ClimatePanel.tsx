@@ -114,7 +114,7 @@ export function ClimatePanel({
         title="Vorklima-Pläne"
         hint={
           live
-            ? "App-Pläne starten zur Uhrzeit. Fahrzeug-Pläne nur per „laden“ übernehmen — Löschen bleibt in der App."
+            ? "Speichern / Löschen geht ans Fahrzeug. „Laden“ holt Pläne aus MyPeugeot."
             : "Demo: Pläne nur in der App."
         }
         onImportFromVehicle={live ? importFromVehicle : undefined}
