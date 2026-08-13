@@ -27,6 +27,8 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
     {} as RemotePinState,
   );
   const [smsMsg, setSmsMsg] = useState<string | null>(null);
+  const [smsCode, setSmsCode] = useState("");
+  const [pin, setPin] = useState("");
   const [smsPending, startSms] = useTransition();
   const notified = useRef(false);
 
@@ -47,15 +49,15 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
             {ready
               ? "Einmal eingerichtet — Klima und Aufwecken laufen ohne erneute PIN."
-              : "Einmalig SMS-Code + MyPeugeot-PIN (4 Ziffern). Danach Klima ohne PIN."}
+              : "Einmalig: SMS-Code aus der Nachricht + deine 4-stellige MyPeugeot-PIN."}
           </p>
         </>
       ) : (
         <div>
           <p className="font-semibold">Klima freischalten</p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            Peugeot verlangt einmalig SMS + deine MyPeugeot-PIN. Danach startet
-            Klima hier ohne erneute PIN — wie in der Original-App.
+            1) SMS anfordern · 2) Code aus der SMS · 3) deine MyPeugeot-PIN (4
+            Ziffern). Danach Klima ohne erneute PIN.
           </p>
         </div>
       )}
@@ -90,24 +92,33 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
         className={`${compact ? "mt-1" : "mt-4"} grid gap-3 sm:grid-cols-2`}
       >
         <label className="block text-sm">
-          <span className="text-[var(--fg-muted)]">SMS-Code</span>
+          <span className="text-[var(--fg-muted)]">SMS-Code (aus der SMS)</span>
           <input
             name="smsCode"
+            value={smsCode}
+            onChange={(e) =>
+              setSmsCode(e.target.value.replace(/[^\d\s-]/g, ""))
+            }
             inputMode="numeric"
             autoComplete="one-time-code"
+            enterKeyHint="next"
             className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2"
-            placeholder="123456"
+            placeholder="z. B. 123456"
             required
           />
         </label>
         <label className="block text-sm">
-          <span className="text-[var(--fg-muted)]">MyPeugeot-PIN</span>
+          <span className="text-[var(--fg-muted)]">MyPeugeot-PIN (4 Ziffern)</span>
           <input
             name="pin"
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
             type="password"
             inputMode="numeric"
             maxLength={4}
-            pattern="\d{4}"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2"
             placeholder="••••"
             required
@@ -115,8 +126,8 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
         </label>
         <button
           type="submit"
-          disabled={pending}
-          className="action-btn btn-primary sm:col-span-2 rounded-full px-5 py-3 text-sm font-semibold"
+          disabled={pending || smsCode.replace(/\D/g, "").length < 4 || pin.length !== 4}
+          className="action-btn btn-primary sm:col-span-2 rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-55"
         >
           {pending
             ? "Richte ein…"

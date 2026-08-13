@@ -104,13 +104,26 @@ export async function activateRemotePinAction(
   _prev: RemotePinState,
   formData: FormData,
 ): Promise<RemotePinState> {
-  const smsCode = String(formData.get("smsCode") ?? "").trim();
-  const pin = String(formData.get("pin") ?? "").trim();
-  if (!/^\d{4,8}$/.test(smsCode)) {
-    return { error: "Bitte den SMS-Code eingeben." };
+  // Strip spaces/dashes — SMS autofill and copy-paste often include them.
+  const smsCode = String(formData.get("smsCode") ?? "").replace(/\D/g, "");
+  const pin = String(formData.get("pin") ?? "").replace(/\D/g, "");
+
+  if (!smsCode) {
+    return {
+      error:
+        "SMS-Code fehlt. Code aus der SMS ins erste Feld eintragen (nicht die PIN).",
+    };
+  }
+  if (!/^\d{4,10}$/.test(smsCode)) {
+    return {
+      error: `SMS-Code ungültig („${smsCode.slice(0, 12)}“). Bitte nur die Ziffern aus der SMS.`,
+    };
   }
   if (!/^\d{4}$/.test(pin)) {
-    return { error: "PIN muss 4 Ziffern haben." };
+    return {
+      error:
+        "MyPeugeot-PIN fehlt oder ist ungültig — bitte deine 4-stellige App-PIN (nicht den SMS-Code).",
+    };
   }
 
   try {
