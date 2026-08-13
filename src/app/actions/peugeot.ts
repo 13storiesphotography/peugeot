@@ -8,6 +8,7 @@ import {
   mapStatusToVehicleState,
 } from "@/lib/stellantis/api";
 import { getAuthorizeUrl } from "@/lib/stellantis/peugeot-config";
+import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
 import { createClient } from "@/lib/supabase/server";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
 
@@ -16,25 +17,6 @@ export type ConnectState = {
   success?: string;
   authorizeUrl?: string;
 };
-
-/** Accept raw code or full mymap:// / https redirect URL. */
-export function extractOAuthCode(input: string): string {
-  const raw = input.trim();
-  if (!raw) return "";
-  if (!raw.includes("://") && !raw.includes("code=")) {
-    return raw;
-  }
-  try {
-    const normalized = raw.replace(/^mymap:/i, "https:");
-    const url = new URL(normalized);
-    const code = url.searchParams.get("code");
-    if (code) return code.trim();
-  } catch {
-    // fall through
-  }
-  const match = raw.match(/[?&#]code=([^&#\s]+)/i);
-  return match?.[1] ? decodeURIComponent(match[1]) : raw;
-}
 
 export async function getPeugeotAuthorizeUrl(
   countryCode: string,
