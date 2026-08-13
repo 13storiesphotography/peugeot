@@ -578,15 +578,16 @@ async function loadVehicleBundle(
         pictureUrl,
       };
       await saveState(supabase, userId, vehicleId, vehicle);
-      try {
-        await replaceClimateSchedulesFromStatus(
-          supabase,
-          userId,
-          vehicleId,
-          status,
-        );
-      } catch {
-        // Vehicle plan import is best-effort.
+      const imported = await replaceClimateSchedulesFromStatus(
+        supabase,
+        userId,
+        vehicleId,
+        status,
+      );
+      if (imported.error) {
+        syncError = syncError
+          ? `${syncError} · Vorklima-Pläne: ${imported.error}`
+          : `Vorklima-Pläne nicht übernommen: ${imported.error}`;
       }
       await supabase
         .from("peugeot_connections")
@@ -1234,19 +1235,32 @@ async function replaceClimateSchedulesFromStatus(
   userId: string,
   vehicleId: string,
   status: unknown,
-): Promise<VehicleSchedule[]> {
+): Promise<{ schedules: VehicleSchedule[]; imported: number; error?: string }> {
   const { climateScheduleDraftsFromStatus } = await import(
     "@/lib/stellantis/remote"
   );
   const drafts = climateScheduleDraftsFromStatus(status);
-  // Only replace when the car reports at least one real program.
-  if (!drafts.length) return listClimateSchedules(supabase, userId);
+  // Keep existing app plans when Peugeot returns no programs (common on
+  // soft/cached status). Manual import surfaces this as a message instead.
+  if (!drafts.length) {
+    return {
+      schedules: await listClimateSchedules(supabase, userId),
+      imported: 0,
+    };
+  }
 
-  await supabase
+  const { error: delError } = await supabase
     .from("vehicle_schedules")
     .delete()
     .eq("user_id", userId)
     .eq("kind", "climate");
+  if (delError) {
+    return {
+      schedules: await listClimateSchedules(supabase, userId),
+      imported: 0,
+      error: delError.message,
+    };
+  }
 
   const rows = drafts.map((draft) => ({
     user_id: userId,
@@ -1265,8 +1279,14 @@ async function replaceClimateSchedulesFromStatus(
     .from("vehicle_schedules")
     .insert(rows)
     .select("id, kind, enabled, time_local, days_of_week, payload");
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(mapSchedule);
+  if (error) {
+    return {
+      schedules: await listClimateSchedules(supabase, userId),
+      imported: 0,
+      error: error.message,
+    };
+  }
+  return { schedules: (data ?? []).map(mapSchedule), imported: drafts.length };
 }
 
 /** Force-pull vehicle status and import Vorklima programs into the app. */
@@ -1274,37 +1294,111 @@ export async function importClimateSchedulesFromVehicle(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<{ schedules: VehicleSchedule[]; imported: number; message: string }> {
-  const bundle = await getVehicleBundle(supabase, userId, { forceSync: true });
-  if (bundle.vehicle.mode !== "live") {
+  const { vehicleId, vehicle } = await ensureVehicle(supabase, userId);
+
+  const { data: connection } = await supabase
+    .from("peugeot_connections")
+    .select(
+      "connected, country_code, vehicle_api_id, access_token, refresh_token, token_expires_at, oauth_meta, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!connection?.connected || !connection.access_token || !connection.vehicle_api_id) {
     return {
-      schedules: bundle.schedules.filter((s) => s.kind === "climate"),
+      schedules: await listClimateSchedules(supabase, userId),
       imported: 0,
-      message: "Nur im Live-Modus verfügbar.",
+      message: "MyPeugeot nicht verbunden.",
     };
   }
 
-  const climate = bundle.schedules.filter((s) => s.kind === "climate");
-  const fromVehicle = climate.filter(
-    (s) => s.payload?.source === "vehicle",
-  ).length;
-
-  if (fromVehicle === 0 && climate.length === 0) {
+  const oauthMeta = asOAuthMeta(connection.oauth_meta);
+  if (oauthMeta.needsReconnect) {
     return {
-      schedules: climate,
+      schedules: await listClimateSchedules(supabase, userId),
+      imported: 0,
+      message: "MyPeugeot-Anmeldung abgelaufen — bitte neu verbinden.",
+    };
+  }
+
+  try {
+    const { fetchVehicleStatus } = await import("@/lib/stellantis/api");
+    const countryCode = String(connection.country_code ?? "DE");
+    const accessToken = await ensurePeugeotAccessToken(supabase, userId, {
+      accessToken: String(connection.access_token),
+      refreshToken: connection.refresh_token
+        ? String(connection.refresh_token)
+        : null,
+      tokenExpiresAt: connection.token_expires_at
+        ? String(connection.token_expires_at)
+        : null,
+      countryCode,
+      oauthMeta,
+    });
+
+    // Wake so Peugeot pushes a fresh preconditioning snapshot when possible.
+    if (connection.remote_ready && vehicle.vin && !/x{4,}/i.test(vehicle.vin)) {
+      try {
+        const bundle = await getVehicleBundle(supabase, userId);
+        const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+        if (remote.ok) {
+          const { sendVehicleWakeup } = await import("@/lib/stellantis/remote");
+          await sendVehicleWakeup({
+            customerId: remote.customerId,
+            vin: remote.vin,
+            remoteAccessToken: remote.remoteAccessToken,
+          });
+          await new Promise((r) => setTimeout(r, 8_000));
+        }
+      } catch {
+        // Wake is best-effort — status may still be current.
+      }
+    }
+
+    const status = await fetchVehicleStatus(
+      accessToken,
+      countryCode,
+      String(connection.vehicle_api_id),
+    );
+
+    const result = await replaceClimateSchedulesFromStatus(
+      supabase,
+      userId,
+      vehicleId,
+      status,
+    );
+
+    await supabase
+      .from("peugeot_connections")
+      .update({ last_sync_at: new Date().toISOString() })
+      .eq("user_id", userId);
+
+    if (result.error && result.imported === 0) {
+      return {
+        schedules: result.schedules,
+        imported: 0,
+        message: result.error,
+      };
+    }
+
+    return {
+      schedules: result.schedules,
+      imported: result.imported,
+      message:
+        result.imported > 0
+          ? `${result.imported} Vorklima-Plan${result.imported === 1 ? "" : "e"} vom Fahrzeug übernommen.`
+          : "Keine Vorklima-Programme vom Fahrzeug.",
+    };
+  } catch (error) {
+    return {
+      schedules: await listClimateSchedules(supabase, userId),
       imported: 0,
       message:
-        "Keine Vorklima-Pläne vom Fahrzeug — in MyPeugeot anlegen und erneut laden.",
+        error instanceof Error
+          ? error.message
+          : "Import vom Fahrzeug fehlgeschlagen.",
     };
   }
-
-  return {
-    schedules: climate,
-    imported: fromVehicle,
-    message:
-      fromVehicle > 0
-        ? `${fromVehicle} Vorklima-Plan${fromVehicle === 1 ? "" : "e"} vom Fahrzeug übernommen.`
-        : "Fahrzeugstatus aktualisiert — keine Programme gefunden.",
-  };
 }
 
 export async function updateVehicleProfile(

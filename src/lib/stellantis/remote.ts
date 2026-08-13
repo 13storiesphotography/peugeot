@@ -91,7 +91,9 @@ export function programsFromVehicleStatus(status: unknown): PrecondPrograms | nu
 
   const raw =
     dig(status, ["preconditionning", "airConditioning", "programs"]) ??
-    dig(status, ["preconditioning", "airConditioning", "programs"]);
+    dig(status, ["preconditioning", "airConditioning", "programs"]) ??
+    dig(status, ["preconditionning", "air_conditioning", "programs"]) ??
+    dig(status, ["preconditioning", "air_conditioning", "programs"]);
   if (!Array.isArray(raw) || raw.length === 0) return null;
 
   const programs = emptyPrecondPrograms();
@@ -156,14 +158,18 @@ export function climateScheduleDraftsFromStatus(
 
   const raw =
     dig(status, ["preconditionning", "airConditioning", "programs"]) ??
-    dig(status, ["preconditioning", "airConditioning", "programs"]);
+    dig(status, ["preconditioning", "airConditioning", "programs"]) ??
+    dig(status, ["preconditionning", "air_conditioning", "programs"]) ??
+    dig(status, ["preconditioning", "air_conditioning", "programs"]);
   if (!Array.isArray(raw) || raw.length === 0) return [];
 
   const drafts: ClimateScheduleDraft[] = [];
   for (const program of raw) {
     if (!program || typeof program !== "object") continue;
     const rec = program as Record<string, unknown>;
-    const slot = Number(rec.slot);
+    let slot = Number(rec.slot);
+    // B2B docs use 0–3; status samples often use 1–4.
+    if (slot === 0) slot = 1;
     if (!Number.isFinite(slot) || slot < 1 || slot > 4) continue;
 
     const occurence =
