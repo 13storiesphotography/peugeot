@@ -32,8 +32,9 @@ export function SyncIntervalForm({
           Aktualisierung
         </h2>
         <p className="mt-1 text-sm text-[var(--fg-muted)]">
-          Intervall für den Stand, solange die App offen ist. Der Refresh-Button
-          weckt zusätzlich das Auto.
+          Wie oft die App den Stand von Peugeot holt, solange sie geöffnet ist.
+          Standort folgt dem Auto oft verzögert — besonders unterwegs; der
+          Refresh-Button weckt zusätzlich.
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-3">
