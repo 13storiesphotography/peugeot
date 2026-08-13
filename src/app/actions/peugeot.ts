@@ -12,6 +12,7 @@ import {
 import { getAuthorizeUrl } from "@/lib/stellantis/peugeot-config";
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
 import { capturePeugeotOAuthCode } from "@/lib/stellantis/oauth-auto-login";
+import { capturePeugeotOAuthCodeRemote } from "@/lib/stellantis/oauth-remote";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
 
@@ -214,13 +215,36 @@ export async function connectPeugeotWithPassword(
   }
 
   try {
-    const captured = await capturePeugeotOAuthCode({
+    // Prefer community OAuth helper (works without mymap:// on iPhone).
+    // Fall back to local Puppeteer when the helper is unreachable; local is
+    // often blocked by Gigya reCAPTCHA on Vercel.
+    let captured = await capturePeugeotOAuthCodeRemote({
       countryCode,
       email,
       password,
     });
+
     if (!captured.ok) {
-      return { error: captured.error };
+      const remoteError = captured.error;
+      const loginRejected = /LOGIN_FAILED|E-Mail oder Passwort|Login abgelehnt/i.test(
+        remoteError,
+      );
+      if (!loginRejected) {
+        const local = await capturePeugeotOAuthCode({
+          countryCode,
+          email,
+          password,
+        });
+        if (local.ok) {
+          captured = local;
+        } else {
+          return {
+            error: `${remoteError} (lokaler Fallback: ${local.error})`,
+          };
+        }
+      } else {
+        return { error: remoteError };
+      }
     }
 
     return await persistPeugeotConnection(supabase, userId, {
