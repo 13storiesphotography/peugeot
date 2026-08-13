@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Syne } from "next/font/google";
+import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
 
 const display = Syne({
@@ -26,17 +27,26 @@ export const metadata: Metadata = {
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "512x512" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
   appleWebApp: {
     capable: true,
-    title: "E-3008 Control",
+    title: "E-3008",
     statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#071018",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#071018" },
+    { color: "#071018" },
+  ],
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
@@ -52,6 +62,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-dvh max-w-[100%] overflow-x-hidden antialiased">
         {children}
+        <PwaRegister />
       </body>
     </html>
   );

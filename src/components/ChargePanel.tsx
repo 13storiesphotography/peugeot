@@ -89,6 +89,9 @@ export function ChargePanel({
             {vehicle.chargePowerKw != null
               ? ` · ${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
               : ""}
+            {vehicle.chargeRateKmh != null && vehicle.chargeRateKmh > 0
+              ? ` · +${Math.round(vehicle.chargeRateKmh)} km/h`
+              : ""}
           </p>
         </div>
       ) : (

@@ -9,6 +9,8 @@ import {
   useTransition,
 } from "react";
 import { ActivityLog } from "@/components/ActivityLog";
+import { ChargeCompleteBanner } from "@/components/ChargeCompleteBanner";
+import { ChargeLiveStrip } from "@/components/ChargeLiveStrip";
 import { ChargePanel } from "@/components/ChargePanel";
 import { ClimatePanel } from "@/components/ClimatePanel";
 import {
@@ -21,6 +23,10 @@ import { QuickActions } from "@/components/QuickActions";
 import { VehicleHero } from "@/components/VehicleHero";
 import type { VehicleCommand } from "@/lib/types";
 import type { VehicleBundle } from "@/lib/vehicle/repository";
+import {
+  loadVehicleBundleCache,
+  saveVehicleBundleCache,
+} from "@/lib/vehicle/offline-cache";
 
 function ageMinutes(iso: string, nowMs = Date.now()): number {
   return Math.max(
@@ -63,14 +69,28 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<ControlTab>("home");
+  const [offline, setOffline] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState<
     null | "unlock" | "climate_start" | "flash"
   >(null);
   const refreshInFlight = useRef(false);
   const followUpTimer = useRef<number | null>(null);
+  const prevChargeStatus = useRef(initial.vehicle.chargeStatus);
 
   useEffect(() => {
     setTab(readTab());
+    saveVehicleBundleCache(initial);
+  }, [initial]);
+
+  useEffect(() => {
+    const syncOnline = () => setOffline(!navigator.onLine);
+    syncOnline();
+    window.addEventListener("online", syncOnline);
+    window.addEventListener("offline", syncOnline);
+    return () => {
+      window.removeEventListener("online", syncOnline);
+      window.removeEventListener("offline", syncOnline);
+    };
   }, []);
 
   useEffect(() => {
@@ -123,18 +143,39 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         const qs = params.toString() ? `?${params}` : "";
         const res = await fetch(`/api/vehicle${qs}`, { cache: "no-store" });
         if (!res.ok) {
+          if (!navigator.onLine) {
+            setOffline(true);
+            const cached = loadVehicleBundleCache();
+            if (cached) {
+              startTransition(() => setBundle(cached.bundle));
+            }
+          }
           if (!opts?.silent) {
             setToast({
-              text: "Aktualisierung fehlgeschlagen.",
+              text: navigator.onLine
+                ? "Aktualisierung fehlgeschlagen."
+                : "Offline — zeige letzten Stand.",
               ok: false,
             });
           }
           return null;
         }
         const data = (await res.json()) as VehicleBundle;
+        setOffline(false);
+        saveVehicleBundleCache(data);
+        const wasCharging = prevChargeStatus.current === "charging";
+        prevChargeStatus.current = data.vehicle.chargeStatus;
         startTransition(() => setBundle(data));
         setNowMs(Date.now());
-        if (data.syncError) {
+        if (
+          wasCharging &&
+          data.vehicle.chargeStatus === "complete"
+        ) {
+          setToast({
+            text: `Laden fertig · ${Math.round(data.vehicle.batteryPercent)}%`,
+            ok: true,
+          });
+        } else if (data.syncError) {
           setToast({ text: data.syncError, ok: false });
         } else if (opts?.feedback) {
           const hard = data.hardRefresh;
@@ -172,6 +213,19 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           }
         }
         return data;
+      } catch {
+        setOffline(true);
+        const cached = loadVehicleBundleCache();
+        if (cached) {
+          startTransition(() => setBundle(cached.bundle));
+        }
+        if (!opts?.silent) {
+          setToast({
+            text: "Offline — zeige letzten Stand.",
+            ok: false,
+          });
+        }
+        return null;
       } finally {
         refreshInFlight.current = false;
         if (!opts?.silent) setRefreshing(false);
@@ -452,9 +506,33 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         </div>
       ) : null}
 
+      {offline ? (
+        <div
+          className="mb-3 rounded-2xl border px-4 py-3 text-sm"
+          style={{
+            borderColor: "rgba(232,184,109,0.35)",
+            background: "rgba(232,184,109,0.1)",
+          }}
+          role="status"
+        >
+          <p className="font-semibold" style={{ color: "var(--warn)" }}>
+            Offline
+          </p>
+          <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
+            Letzter Stand {formatAge(vehicle.lastUpdatedAt, nowMs)} — wird
+            aktualisiert, sobald Netz da ist.
+          </p>
+        </div>
+      ) : null}
+
       {tab === "home" ? (
         <div className="animate-rise-delay-1 space-y-6 pt-2">
           <VehicleHero vehicle={vehicle} />
+          <ChargeCompleteBanner
+            vehicle={vehicle}
+            onOpenCharge={() => selectTab("charge")}
+          />
+          <ChargeLiveStrip vehicle={vehicle} />
           <QuickActions
             locked={vehicle.locked}
             climateOn={climateOn}
