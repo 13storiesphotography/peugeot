@@ -578,6 +578,16 @@ async function loadVehicleBundle(
         pictureUrl,
       };
       await saveState(supabase, userId, vehicleId, vehicle);
+      try {
+        await replaceClimateSchedulesFromStatus(
+          supabase,
+          userId,
+          vehicleId,
+          status,
+        );
+      } catch {
+        // Vehicle plan import is best-effort.
+      }
       await supabase
         .from("peugeot_connections")
         .update({ last_sync_at: new Date().toISOString() })
@@ -592,6 +602,14 @@ async function loadVehicleBundle(
       syncError = message;
     }
   }
+
+  // Schedules may have been refreshed from Peugeot programs during sync.
+  const { data: scheduleRows } = await supabase
+    .from("vehicle_schedules")
+    .select("id, kind, enabled, time_local, days_of_week, payload")
+    .eq("vehicle_id", vehicleId)
+    .order("kind")
+    .order("time_local");
 
   if (
     didUpdateVehicle ||
@@ -627,7 +645,7 @@ async function loadVehicleBundle(
       ),
       needsReconnect: reconnectNeeded,
     },
-    schedules: (schedules ?? []).map(mapSchedule),
+    schedules: (scheduleRows ?? schedules ?? []).map(mapSchedule),
     activity: (activity ?? []).map((row) => ({
       id: row.id,
       command: row.command,
@@ -1205,6 +1223,88 @@ async function listClimateSchedules(
     .order("time_local");
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapSchedule);
+}
+
+/**
+ * Replace app climate schedules with programs from a Peugeot status payload.
+ * Vehicle is source of truth for onboard Vorklima plans.
+ */
+async function replaceClimateSchedulesFromStatus(
+  supabase: SupabaseClient,
+  userId: string,
+  vehicleId: string,
+  status: unknown,
+): Promise<VehicleSchedule[]> {
+  const { climateScheduleDraftsFromStatus } = await import(
+    "@/lib/stellantis/remote"
+  );
+  const drafts = climateScheduleDraftsFromStatus(status);
+  // Only replace when the car reports at least one real program.
+  if (!drafts.length) return listClimateSchedules(supabase, userId);
+
+  await supabase
+    .from("vehicle_schedules")
+    .delete()
+    .eq("user_id", userId)
+    .eq("kind", "climate");
+
+  const rows = drafts.map((draft) => ({
+    user_id: userId,
+    vehicle_id: vehicleId,
+    kind: "climate" as const,
+    enabled: draft.enabled,
+    time_local: draft.timeLocal,
+    days_of_week: draft.daysOfWeek,
+    payload: {
+      source: "vehicle",
+      slot: draft.slot,
+    },
+  }));
+
+  const { data, error } = await supabase
+    .from("vehicle_schedules")
+    .insert(rows)
+    .select("id, kind, enabled, time_local, days_of_week, payload");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapSchedule);
+}
+
+/** Force-pull vehicle status and import Vorklima programs into the app. */
+export async function importClimateSchedulesFromVehicle(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ schedules: VehicleSchedule[]; imported: number; message: string }> {
+  const bundle = await getVehicleBundle(supabase, userId, { forceSync: true });
+  if (bundle.vehicle.mode !== "live") {
+    return {
+      schedules: bundle.schedules.filter((s) => s.kind === "climate"),
+      imported: 0,
+      message: "Nur im Live-Modus verfügbar.",
+    };
+  }
+
+  const climate = bundle.schedules.filter((s) => s.kind === "climate");
+  const fromVehicle = climate.filter(
+    (s) => s.payload?.source === "vehicle",
+  ).length;
+
+  if (fromVehicle === 0 && climate.length === 0) {
+    return {
+      schedules: climate,
+      imported: 0,
+      message:
+        "Keine Vorklima-Pläne vom Fahrzeug — in MyPeugeot anlegen und erneut laden.",
+    };
+  }
+
+  return {
+    schedules: climate,
+    imported: fromVehicle,
+    message:
+      fromVehicle > 0
+        ? `${fromVehicle} Vorklima-Plan${fromVehicle === 1 ? "" : "e"} vom Fahrzeug übernommen.`
+        : "Fahrzeugstatus aktualisiert — keine Programme gefunden.",
+  };
 }
 
 export async function updateVehicleProfile(

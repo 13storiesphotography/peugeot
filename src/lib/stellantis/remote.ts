@@ -101,17 +101,18 @@ export function programsFromVehicleStatus(status: unknown): PrecondPrograms | nu
     const rec = program as Record<string, unknown>;
     const slot = Number(rec.slot);
     if (!Number.isFinite(slot) || slot < 1 || slot > 4) continue;
-    const occurence = rec.occurence as Record<string, unknown> | undefined;
+    const occurence =
+      (rec.occurence as Record<string, unknown> | undefined) ??
+      (rec.occurrence as Record<string, unknown> | undefined);
     const daysRaw = occurence?.day;
-    const start = typeof rec.start === "string" ? rec.start : "";
     const day = [0, 0, 0, 0, 0, 0, 0];
     if (Array.isArray(daysRaw)) {
       const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       for (let i = 0; i < labels.length; i++) {
-        if (daysRaw.includes(labels[i])) day[i] = 1;
+        if (daysRaw.includes(labels[i]) || daysRaw.includes(i + 1)) day[i] = 1;
       }
     }
-    // Peugeot uses PT7H15M style durations for start-of-day offset.
+    const start = typeof rec.start === "string" ? rec.start : "";
     const match = /PT(?:(\d+)H)?(?:(\d+)M)?/i.exec(start);
     const hour = match?.[1] != null ? Number(match[1]) : 34;
     const minute = match?.[2] != null ? Number(match[2]) : 7;
@@ -126,6 +127,82 @@ export function programsFromVehicleStatus(status: unknown): PrecondPrograms | nu
     found = true;
   }
   return found ? programs : null;
+}
+
+export type ClimateScheduleDraft = {
+  enabled: boolean;
+  timeLocal: string;
+  daysOfWeek: number[];
+  slot: number;
+};
+
+/**
+ * Parse MyPeugeot/status preconditioning programs into app schedule drafts.
+ * Days: Mon…Sun → 1…7. Start is ISO-8601 duration from midnight (PT7H15M).
+ */
+export function climateScheduleDraftsFromStatus(
+  status: unknown,
+): ClimateScheduleDraft[] {
+  const dig = (obj: unknown, path: Array<string | number>): unknown => {
+    let cur: unknown = obj;
+    for (const key of path) {
+      if (cur == null || typeof cur !== "object") return undefined;
+      cur = Array.isArray(cur)
+        ? cur[key as number]
+        : (cur as Record<string, unknown>)[key as string];
+    }
+    return cur;
+  };
+
+  const raw =
+    dig(status, ["preconditionning", "airConditioning", "programs"]) ??
+    dig(status, ["preconditioning", "airConditioning", "programs"]);
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+
+  const drafts: ClimateScheduleDraft[] = [];
+  for (const program of raw) {
+    if (!program || typeof program !== "object") continue;
+    const rec = program as Record<string, unknown>;
+    const slot = Number(rec.slot);
+    if (!Number.isFinite(slot) || slot < 1 || slot > 4) continue;
+
+    const occurence =
+      (rec.occurence as Record<string, unknown> | undefined) ??
+      (rec.occurrence as Record<string, unknown> | undefined);
+    const daysRaw = occurence?.day;
+    const daysOfWeek: number[] = [];
+    if (Array.isArray(daysRaw)) {
+      const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      for (let i = 0; i < labels.length; i++) {
+        if (daysRaw.includes(labels[i]) || daysRaw.includes(i + 1)) {
+          daysOfWeek.push(i + 1);
+        }
+      }
+    }
+
+    const start = typeof rec.start === "string" ? rec.start : "";
+    const match = /PT(?:(\d+)H)?(?:(\d+)M)?/i.exec(start);
+    const hour = match?.[1] != null ? Number(match[1]) : NaN;
+    const minute = match?.[2] != null ? Number(match[2]) : 0;
+    if (!Number.isFinite(hour) || hour > 23 || hour < 0) continue;
+
+    const enabled = Boolean(rec.enabled);
+    // Skip unused factory slots (disabled, no days).
+    if (!enabled && daysOfWeek.length === 0) continue;
+
+    drafts.push({
+      slot,
+      enabled,
+      timeLocal: `${String(hour).padStart(2, "0")}:${String(
+        Number.isFinite(minute) ? minute : 0,
+      ).padStart(2, "0")}`,
+      daysOfWeek: daysOfWeek.length ? daysOfWeek : [1, 2, 3, 4, 5],
+    });
+  }
+
+  return drafts.sort(
+    (a, b) => a.slot - b.slot || a.timeLocal.localeCompare(b.timeLocal),
+  );
 }
 
 export type RemoteCredentials = {

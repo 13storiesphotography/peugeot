@@ -499,7 +499,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         <div className="animate-rise space-y-6 pt-2">
           <SectionHeader
             title="Planen"
-            hint="Vorklima startet die App zur Uhrzeit am Auto; Laden bleibt Merkliste"
+            hint="Vorklima-Pläne vom Fahrzeug; App-Pläne startet die App zur Uhrzeit"
           />
           <SchedulePanel
             schedules={bundle.schedules}

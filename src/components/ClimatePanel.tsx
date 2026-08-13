@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SchedulePanel } from "@/components/SchedulePanel";
@@ -31,8 +32,9 @@ export function ClimatePanel({
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
   const climateRemoteOk = !live || remoteReady;
+  const [importBusy, setImportBusy] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
 
-  // Peugeot only reports remote preconditioning — not cabin AC while driving.
   const statusHint = active
     ? vehicle.climateStatus === "heating"
       ? "Vorklima · heizt"
@@ -40,6 +42,27 @@ export function ClimatePanel({
         ? "Vorklima · kühlt"
         : "Vorklima aktiv"
     : "Fernstart für Vorklima";
+
+  const importFromVehicle = async () => {
+    setImportBusy(true);
+    setImportMsg(null);
+    try {
+      const res = await fetch("/api/vehicle/schedules/import-climate", {
+        method: "POST",
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Import fehlgeschlagen");
+      setImportMsg(data.message ?? "Übernommen.");
+      onSchedulesChanged();
+    } catch (err) {
+      setImportMsg(err instanceof Error ? err.message : "Fehler");
+    } finally {
+      setImportBusy(false);
+    }
+  };
 
   return (
     <section className="animate-rise space-y-6 pt-2">
@@ -88,15 +111,19 @@ export function ClimatePanel({
         onChanged={onSchedulesChanged}
         kinds={["climate"]}
         compact
-        title="Vorklima planen"
+        title="Vorklima-Pläne"
         hint={
           live
-            ? climateRemoteOk
-              ? "Zur geplanten Zeit startet die App Vorklima am Auto (Europa/Berlin). Keine Zieltemperatur — Peugeot steuert selbst."
-              : "Pläne speichern geht; Start am Auto braucht die Fernbedienung."
+            ? "Pläne kommen vom Fahrzeug (MyPeugeot). Sync übernimmt sie automatisch — hier manuell nachladen."
             : "Demo: Pläne nur in der App."
         }
+        onImportFromVehicle={live ? importFromVehicle : undefined}
+        importBusy={importBusy}
       />
+
+      {importMsg ? (
+        <p className="text-center text-xs text-[var(--fg-muted)]">{importMsg}</p>
+      ) : null}
     </section>
   );
 }

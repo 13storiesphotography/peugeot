@@ -18,6 +18,9 @@ interface SchedulePanelProps {
   title?: string;
   hint?: string;
   compact?: boolean;
+  /** Pull onboard Peugeot Vorklima programs into the app. */
+  onImportFromVehicle?: () => Promise<void>;
+  importBusy?: boolean;
 }
 
 export function SchedulePanel({
@@ -27,6 +30,8 @@ export function SchedulePanel({
   title,
   hint,
   compact = false,
+  onImportFromVehicle,
+  importBusy = false,
 }: SchedulePanelProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -65,6 +70,9 @@ export function SchedulePanel({
         .findIndex((item) => item.id === schedule.id) + 1;
     return ` ${n}`;
   };
+
+  const isFromVehicle = (schedule: VehicleSchedule) =>
+    schedule.payload?.source === "vehicle";
 
   const save = async (schedule: VehicleSchedule) => {
     setBusyId(schedule.id);
@@ -116,7 +124,7 @@ export function SchedulePanel({
     setError(null);
     try {
       const payload =
-        kind === "charge" ? { chargeLimitPercent: 80 } : {};
+        kind === "charge" ? { chargeLimitPercent: 80 } : { source: "app" };
       const res = await fetch("/api/vehicle/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -167,9 +175,21 @@ export function SchedulePanel({
         </div>
       )}
 
+      {onImportFromVehicle ? (
+        <button
+          type="button"
+          disabled={importBusy}
+          onClick={() => void onImportFromVehicle()}
+          className="action-btn w-full rounded-full border border-[var(--line)] px-4 py-3 text-sm font-semibold"
+        >
+          {importBusy ? "Lade vom Fahrzeug…" : "Pläne vom Fahrzeug laden"}
+        </button>
+      ) : null}
+
       {visible.length === 0 ? (
         <p className="ui-surface px-4 py-5 text-sm text-[var(--fg-muted)]">
-          Noch kein Zeitplan — leg z.&nbsp;B. Mo–Fr morgens Vorklima an.
+          Noch kein Zeitplan — in MyPeugeot anlegen und hier laden, oder neu
+          hinzufügen.
         </p>
       ) : null}
 
@@ -183,6 +203,7 @@ export function SchedulePanel({
               </p>
               <p className="text-xs text-[var(--fg-muted)]">
                 {schedule.enabled ? "Aktiv" : "Pausiert"}
+                {isFromVehicle(schedule) ? " · vom Fahrzeug" : ""}
               </p>
             </div>
             <button
