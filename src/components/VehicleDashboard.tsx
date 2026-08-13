@@ -434,7 +434,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           vehicle={vehicle}
           busy={busy}
           remoteReady={bundle.connection.remoteReady}
-          onCommand={(command, opts) => void runCommand(command, opts)}
+          onCommand={(command) => void runCommand(command)}
           onOpenSchedule={() => selectTab("schedule")}
         />
       ) : null}
