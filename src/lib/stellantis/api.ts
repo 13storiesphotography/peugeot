@@ -1,5 +1,5 @@
 import type { VehicleState } from "@/lib/types";
-import { createDefaultVehicleState } from "@/lib/vehicle/defaults";
+import { estimateFullAt } from "@/lib/vehicle/defaults";
 import {
   getAuthorizeUrl,
   getBasicToken,
@@ -198,92 +198,173 @@ export function mapStatusToVehicleState(
   base: VehicleState,
   meta: { vehicleId: string; vin: string },
 ): VehicleState {
+  const energy0 = dig(status, ["energy", 0]) ?? dig(status, ["energies", 0]);
+  const chargingBlock = dig(energy0, ["charging"]);
+
   const batteryPercent = Number(
-    dig(status, ["energy", 0, "level"]) ??
+    dig(energy0, ["level"]) ??
       dig(status, ["batteries", "main", "level"]) ??
       base.batteryPercent,
   );
-  const rangeKm = Number(
-    dig(status, ["energy", 0, "autonomy"]) ??
-      dig(status, ["energies", 0, "autonomy"]) ??
-      base.rangeKm,
-  );
+  const rangeKm = Number(dig(energy0, ["autonomy"]) ?? base.rangeKm);
   const mileageKm = Number(
     dig(status, ["odometer", "mileage"]) ?? base.mileageKm,
   );
   const cabinTempC = Number(
     dig(status, ["environment", "air", "temp"]) ?? base.cabinTempC,
   );
-  const locked = Boolean(
-    dig(status, ["privacy", "lockStatus"]) === "locked" ||
-      dig(status, ["doorsState", "lockedStates"]) === "locked" ||
-      base.locked,
-  );
 
-  const charging =
-    String(dig(status, ["energy", 0, "charging", "status"]) ?? "").toLowerCase();
+  const lockRaw = String(
+    dig(status, ["privacy", "lockStatus"]) ??
+      dig(status, ["doorsState", "lockedStates"]) ??
+      "",
+  ).toLowerCase();
+  const locked = lockRaw.includes("unlock")
+    ? false
+    : lockRaw.includes("lock")
+      ? true
+      : base.locked;
+
+  const chargingRaw = String(dig(chargingBlock, ["status"]) ?? "").toLowerCase();
   let chargeStatus: VehicleState["chargeStatus"] = base.chargeStatus;
-  if (charging.includes("inprogress") || charging.includes("charging")) {
+  if (
+    chargingRaw.includes("inprogress") ||
+    chargingRaw.includes("in_progress") ||
+    chargingRaw.includes("charging") ||
+    chargingRaw === "charge"
+  ) {
     chargeStatus = "charging";
-  } else if (charging.includes("complete") || charging.includes("finished")) {
+  } else if (
+    chargingRaw.includes("complete") ||
+    chargingRaw.includes("finished") ||
+    chargingRaw.includes("full")
+  ) {
     chargeStatus = "complete";
-  } else if (charging.includes("stopped") || charging.includes("connected")) {
+  } else if (
+    chargingRaw.includes("stopped") ||
+    chargingRaw.includes("connected") ||
+    chargingRaw.includes("plugged") ||
+    chargingRaw.includes("pending") ||
+    chargingRaw.includes("delayed")
+  ) {
     chargeStatus = "plugged";
-  } else if (charging.includes("disconnected") || charging.includes("unplugged")) {
-    chargeStatus = "idle";
+  } else {
+    const plugged = dig(chargingBlock, ["plugged"]);
+    if (plugged === true || plugged === "true") chargeStatus = "plugged";
+    else if (plugged === false || plugged === "false") chargeStatus = "idle";
+    else if (
+      chargingRaw.includes("disconnected") ||
+      chargingRaw.includes("unplugged")
+    ) {
+      chargeStatus = "idle";
+    }
   }
 
-  const lat = Number(
-    dig(status, ["lastPosition", "geometry", "coordinates", 1]) ??
-      dig(status, ["lastPosition", "geometry", "coordinates", 0]) ??
-      base.location.latitude,
-  );
-  const lon = Number(
-    dig(status, ["lastPosition", "geometry", "coordinates", 0]) ??
-      base.location.longitude,
+  const limitFromApi = Number(
+    dig(chargingBlock, ["chargeLimit"]) ??
+      dig(chargingBlock, ["chargingLimit"]),
   );
 
-  // GeoJSON is usually [lon, lat]
+  // PSA often reports chargingRate as km/h of gained range, not kW.
+  const rateRaw = Number(
+    dig(chargingBlock, ["chargingRate"]) ??
+      dig(chargingBlock, ["chgRate"]) ??
+      dig(chargingBlock, ["rate"]),
+  );
+  const powerRaw = Number(
+    dig(chargingBlock, ["instantaneousPower"]) ??
+      dig(chargingBlock, ["power"]) ??
+      dig(chargingBlock, ["chargingPower"]),
+  );
+
+  let chargePowerKw: number | null = null;
+  if (chargeStatus === "charging") {
+    if (Number.isFinite(powerRaw) && powerRaw > 0 && powerRaw < 400) {
+      chargePowerKw = powerRaw > 80 ? powerRaw / 1000 : powerRaw;
+    } else if (Number.isFinite(rateRaw) && rateRaw > 0) {
+      // Convert km/h range gain → rough kW (~6.3 km/kWh for E-3008)
+      chargePowerKw = Math.round((rateRaw / 6.3) * 10) / 10;
+    } else if (base.chargePowerKw && base.chargePowerKw > 0) {
+      chargePowerKw = base.chargePowerKw;
+    }
+  }
+
+  const remainingMin = Number(
+    dig(chargingBlock, ["remainingTime"]) ??
+      dig(chargingBlock, ["remaining_time"]) ??
+      dig(chargingBlock, ["timeToComplete"]),
+  );
+  const limit =
+    Number.isFinite(limitFromApi) && limitFromApi >= 50 && limitFromApi <= 100
+      ? Math.round(limitFromApi)
+      : base.chargeLimitPercent;
+
+  let estimatedFullAt: string | null = null;
+  if (
+    chargeStatus === "charging" &&
+    Number.isFinite(remainingMin) &&
+    remainingMin > 0
+  ) {
+    estimatedFullAt = new Date(
+      Date.now() + remainingMin * 60_000,
+    ).toISOString();
+  } else if (
+    chargeStatus === "charging" &&
+    chargePowerKw &&
+    Number.isFinite(batteryPercent)
+  ) {
+    estimatedFullAt = estimateFullAt(
+      batteryPercent,
+      limit,
+      base.batteryCapacityKwh,
+      chargePowerKw,
+    );
+  }
+
   const coords = dig(status, ["lastPosition", "geometry", "coordinates"]);
   let latitude = base.location.latitude;
   let longitude = base.location.longitude;
   if (Array.isArray(coords) && coords.length >= 2) {
     longitude = Number(coords[0]);
     latitude = Number(coords[1]);
-  } else if (Number.isFinite(lat) && Number.isFinite(lon)) {
-    latitude = lat;
-    longitude = lon;
   }
 
+  const updatedFromApi = String(
+    dig(status, ["lastPosition", "properties", "updatedAt"]) ??
+      dig(status, ["updatedAt"]) ??
+      dig(energy0, ["updatedAt"]) ??
+      "",
+  );
+
   return {
-    ...createDefaultVehicleState({
-      ...base,
-      id: meta.vehicleId,
-      vin: meta.vin,
-      mode: "live",
-      batteryPercent: Number.isFinite(batteryPercent)
-        ? batteryPercent
-        : base.batteryPercent,
-      rangeKm: Number.isFinite(rangeKm) ? Math.round(rangeKm) : base.rangeKm,
-      mileageKm: Number.isFinite(mileageKm)
-        ? Math.round(mileageKm)
-        : base.mileageKm,
-      cabinTempC: Number.isFinite(cabinTempC) ? cabinTempC : base.cabinTempC,
-      locked,
-      chargeStatus,
-      chargePowerKw:
-        chargeStatus === "charging"
-          ? Number(dig(status, ["energy", 0, "charging", "chargingRate"]) ?? 11)
-          : null,
-      lastUpdatedAt: new Date().toISOString(),
-      location: {
-        latitude,
-        longitude,
-        address: base.location.address.includes("Demo")
-          ? "Live-Standort"
+    ...base,
+    id: base.id,
+    vin: meta.vin || base.vin,
+    mode: "live",
+    batteryPercent: Number.isFinite(batteryPercent)
+      ? batteryPercent
+      : base.batteryPercent,
+    rangeKm: Number.isFinite(rangeKm) ? Math.round(rangeKm) : base.rangeKm,
+    mileageKm: Number.isFinite(mileageKm)
+      ? Math.round(mileageKm)
+      : base.mileageKm,
+    cabinTempC: Number.isFinite(cabinTempC) ? cabinTempC : base.cabinTempC,
+    locked,
+    chargeStatus,
+    chargeLimitPercent: limit,
+    chargePowerKw,
+    estimatedFullAt,
+    lastUpdatedAt: updatedFromApi || new Date().toISOString(),
+    location: {
+      latitude: Number.isFinite(latitude) ? latitude : base.location.latitude,
+      longitude: Number.isFinite(longitude)
+        ? longitude
+        : base.location.longitude,
+      address:
+        base.location.address.includes("Demo") || !base.location.address
+          ? "Live-Standort (MyPeugeot)"
           : base.location.address,
-        updatedAt: new Date().toISOString(),
-      },
-    }),
+      updatedAt: updatedFromApi || new Date().toISOString(),
+    },
   };
 }

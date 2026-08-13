@@ -41,6 +41,7 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
             {statusLabel[vehicle.chargeStatus]}
             {vehicle.chargePowerKw ? ` · ${vehicle.chargePowerKw} kW` : ""}
+            {vehicle.mode === "live" ? " · Live (MyPeugeot)" : " · Demo"}
           </p>
         </div>
         <p className="font-[family-name:var(--font-display)] text-4xl font-semibold tabular-nums">

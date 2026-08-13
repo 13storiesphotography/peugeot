@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { signOut } from "@/app/actions/auth";
 import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
@@ -19,19 +20,27 @@ export default async function SettingsPage() {
 
   return (
     <main className="min-h-full">
-      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-lg px-4 py-8 sm:max-w-xl sm:px-6 sm:py-10">
+        <div className="flex items-center justify-between gap-3">
           <Link
             href="/control"
             className="text-sm text-[var(--accent-bright)] hover:underline"
           >
             ← Zurück
           </Link>
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="text-sm text-[var(--fg-muted)] underline-offset-2 hover:underline"
+            >
+              Abmelden
+            </button>
+          </form>
+        </div>
         <h1 className="mt-4 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight">
           Einstellungen
         </h1>
-        <p className="mt-2 text-[var(--fg-muted)]">
-          Hier verbindest du deinen echten Peugeot E-3008 über MyPeugeot.
-        </p>
+        <p className="mt-2 text-sm text-[var(--fg-muted)]">{session.email}</p>
         <div className="mt-8 space-y-6">
           <section className="panel rounded-[1.75rem] p-6 sm:p-8">
             <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">

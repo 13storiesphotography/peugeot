@@ -61,19 +61,35 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
   const vehicle = bundle.vehicle;
 
-  const refresh = useCallback(async () => {
-    const res = await fetch("/api/vehicle", { cache: "no-store" });
+  const refresh = useCallback(async (forceSync = false) => {
+    const qs = forceSync ? "?sync=1" : "";
+    const res = await fetch(`/api/vehicle${qs}`, { cache: "no-store" });
     if (!res.ok) return;
     const data = (await res.json()) as VehicleBundle;
     startTransition(() => setBundle(data));
   }, []);
 
   useEffect(() => {
+    // Immediate live pull once on mount when connected.
+    if (initial.connection.connected) {
+      void refresh(true);
+    }
+  }, [initial.connection.connected, refresh]);
+
+  useEffect(() => {
+    const live = bundle.connection.connected;
+    const charging = bundle.vehicle.chargeStatus === "charging";
+    // Live + charging: poll + force sync cadence ~20s. Demo: soft 8s tick.
+    const intervalMs = live ? (charging ? 20_000 : 45_000) : 10_000;
     const id = window.setInterval(() => {
-      void refresh();
-    }, 8000);
+      void refresh(live);
+    }, intervalMs);
     return () => window.clearInterval(id);
-  }, [refresh]);
+  }, [
+    bundle.connection.connected,
+    bundle.vehicle.chargeStatus,
+    refresh,
+  ]);
 
   const runCommand = async (
     command: VehicleCommand,

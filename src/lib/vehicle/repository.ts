@@ -189,12 +189,9 @@ async function saveState(
 export async function getVehicleBundle(
   supabase: SupabaseClient,
   userId: string,
+  options: { forceSync?: boolean } = {},
 ): Promise<VehicleBundle> {
   const { vehicleId, vehicle: base } = await ensureVehicle(supabase, userId);
-  let vehicle = tickChargeState(base);
-  if (vehicle !== base) {
-    await saveState(supabase, userId, vehicleId, vehicle);
-  }
 
   const [{ data: connection }, { data: schedules }, { data: activity }] =
     await Promise.all([
@@ -218,20 +215,38 @@ export async function getVehicleBundle(
         .limit(12),
     ]);
 
-  const mode: VehicleState["mode"] =
-    connection?.connected && connection.access_token ? "live" : "demo";
+  const isLive = Boolean(
+    connection?.connected && connection.access_token && connection.vehicle_api_id,
+  );
 
-  // Soft live refresh at most every 2 minutes when connected.
+  let vehicle: VehicleState = {
+    ...base,
+    mode: isLive ? "live" : "demo",
+  };
+
+  // Demo only: advance charge by elapsed wall-clock time (realistic kW math).
+  // Live never simulates SoC — MyPeugeot status is the source of truth.
+  if (!isLive) {
+    const ticked = tickChargeState(vehicle);
+    if (ticked !== vehicle) {
+      vehicle = ticked;
+      await saveState(supabase, userId, vehicleId, vehicle);
+    }
+  }
+
   const lastSyncMs = connection?.last_sync_at
     ? new Date(connection.last_sync_at as string).getTime()
     : 0;
+  const chargingNow = vehicle.chargeStatus === "charging";
+  // While charging, refresh often; otherwise keep API gentle.
+  const syncEveryMs = chargingNow ? 30_000 : 90_000;
   const shouldSync =
-    mode === "live" &&
-    connection?.vehicle_api_id &&
-    connection?.access_token &&
-    Date.now() - lastSyncMs > 120_000;
+    isLive &&
+    (options.forceSync ||
+      !lastSyncMs ||
+      Date.now() - lastSyncMs > syncEveryMs);
 
-  if (shouldSync) {
+  if (shouldSync && connection?.vehicle_api_id && connection.access_token) {
     try {
       const {
         fetchVehicleStatus,
@@ -268,15 +283,20 @@ export async function getVehicleBundle(
         countryCode,
         String(connection.vehicle_api_id),
       );
-      vehicle = mapStatusToVehicleState(status, { ...vehicle, mode: "live" }, {
-        vehicleId: String(connection.vehicle_api_id),
-        vin: vehicle.vin,
-      });
+      vehicle = mapStatusToVehicleState(
+        status,
+        { ...vehicle, mode: "live" },
+        {
+          vehicleId: String(connection.vehicle_api_id),
+          vin: vehicle.vin,
+        },
+      );
       await saveState(supabase, userId, vehicleId, vehicle);
       await supabase
         .from("peugeot_connections")
         .update({ last_sync_at: new Date().toISOString() })
         .eq("user_id", userId);
+      connection.last_sync_at = new Date().toISOString();
     } catch {
       // Keep last known state if Stellantis is flaky.
     }
@@ -284,7 +304,7 @@ export async function getVehicleBundle(
 
   return {
     vehicleId,
-    vehicle: { ...vehicle, mode },
+    vehicle: { ...vehicle, mode: isLive ? "live" : "demo" },
     connection: {
       connected: Boolean(connection?.connected),
       countryCode: connection?.country_code ?? "DE",

@@ -46,6 +46,14 @@ export function applyCommandToState(
         vehicle: touch(state, {}),
       };
     case "charge_start": {
+      if (state.mode === "live") {
+        return {
+          ok: false,
+          message:
+            "Live-Laden steuert das Fahrzeug über MyPeugeot. Status wird vom Auto gelesen — bitte am Wagen oder in der Peugeot-App starten.",
+          vehicle: state,
+        };
+      }
       if (state.chargeStatus === "idle") {
         return {
           ok: false,
@@ -56,7 +64,7 @@ export function applyCommandToState(
       const power = 11;
       return {
         ok: true,
-        message: "Laden gestartet.",
+        message: "Laden gestartet (Demo).",
         vehicle: touch(state, {
           chargeStatus: "charging",
           chargePowerKw: power,
@@ -70,9 +78,17 @@ export function applyCommandToState(
       };
     }
     case "charge_stop":
+      if (state.mode === "live") {
+        return {
+          ok: false,
+          message:
+            "Live-Stopp noch nicht angebunden — bitte in der Peugeot-App oder am Ladepunkt stoppen.",
+          vehicle: state,
+        };
+      }
       return {
         ok: true,
-        message: "Laden gestoppt.",
+        message: "Laden gestoppt (Demo).",
         vehicle: touch(state, {
           chargeStatus: state.chargeStatus === "idle" ? "idle" : "plugged",
           chargePowerKw: null,
@@ -148,19 +164,41 @@ export function applyCommandToState(
   }
 }
 
-export function tickChargeState(state: VehicleState): VehicleState {
+export function tickChargeState(
+  state: VehicleState,
+  nowMs: number = Date.now(),
+): VehicleState {
+  // Live vehicles must never simulate SoC — only MyPeugeot status updates %.
+  if (state.mode === "live") {
+    return state;
+  }
   if (state.chargeStatus !== "charging" || !state.chargePowerKw) {
     return state;
   }
 
+  const lastMs = new Date(state.lastUpdatedAt).getTime();
+  if (!Number.isFinite(lastMs)) {
+    return state;
+  }
+
+  // Physics: percent/hour ≈ power_kW / capacity_kWh * 100
+  // e.g. 11 kW / 73 kWh ≈ 15 %/h → ~0.033 % per 8s poll (not 0.4 %).
+  const elapsedHours = Math.max(0, (nowMs - lastMs) / 3_600_000);
+  if (elapsedHours < 1 / 3_600) {
+    return state;
+  }
+
+  const percentPerHour =
+    (state.chargePowerKw / Math.max(1, state.batteryCapacityKwh)) * 100;
   const nextPercent = Math.min(
     state.chargeLimitPercent,
-    state.batteryPercent + 0.4,
+    Math.round((state.batteryPercent + percentPerHour * elapsedHours) * 10) /
+      10,
   );
   const done = nextPercent >= state.chargeLimitPercent;
 
   return touch(state, {
-    batteryPercent: Math.round(nextPercent * 10) / 10,
+    batteryPercent: nextPercent,
     rangeKm: estimateRange(nextPercent),
     chargeStatus: done ? "complete" : "charging",
     chargePowerKw: done ? null : state.chargePowerKw,
