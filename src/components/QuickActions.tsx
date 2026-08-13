@@ -8,6 +8,7 @@ interface QuickActionsProps {
   climateOn: boolean;
   busy: boolean;
   remoteReady?: boolean;
+  remoteSignalsOk?: boolean | null;
   onCommand: (command: VehicleCommand) => void;
   onOpenClimate?: () => void;
 }
@@ -18,6 +19,7 @@ type Action = {
   active?: boolean;
   icon: ReactNode;
   onClick: () => void;
+  disabled?: boolean;
 };
 
 /** Three primary actions under the vehicle — lock, climate, find. */
@@ -26,9 +28,11 @@ export function QuickActions({
   climateOn,
   busy,
   remoteReady = true,
+  remoteSignalsOk = null,
   onCommand,
   onOpenClimate,
 }: QuickActionsProps) {
+  const signalsDenied = remoteSignalsOk === false;
   const actions: Action[] = [
     {
       id: "lock",
@@ -36,6 +40,7 @@ export function QuickActions({
       active: !locked,
       icon: <IconLock locked={locked} />,
       onClick: () => onCommand(locked ? "unlock" : "lock"),
+      disabled: signalsDenied,
     },
     {
       id: "climate",
@@ -59,6 +64,7 @@ export function QuickActions({
       label: "Finden",
       icon: <IconFind />,
       onClick: () => onCommand("flash"),
+      disabled: signalsDenied,
     },
   ];
 
@@ -68,11 +74,17 @@ export function QuickActions({
         <button
           key={action.id}
           type="button"
-          disabled={busy}
+          disabled={busy || action.disabled}
           onClick={action.onClick}
           className={`action-btn ui-surface ui-tile ${
             action.active ? "ui-surface-active" : ""
           }`}
+          style={{ opacity: action.disabled ? 0.45 : 1 }}
+          title={
+            action.disabled
+              ? "Connect PLUS / Remote Control in MyPeugeot nötig"
+              : undefined
+          }
         >
           <span
             className="ui-tile-icon"

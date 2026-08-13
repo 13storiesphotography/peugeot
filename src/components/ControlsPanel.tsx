@@ -8,6 +8,7 @@ interface ControlsPanelProps {
   vehicle: VehicleState;
   busy: boolean;
   remoteReady?: boolean;
+  remoteSignalsOk?: boolean | null;
   onCommand: (command: VehicleCommand) => void;
 }
 
@@ -24,11 +25,13 @@ export function ControlsPanel({
   vehicle,
   busy,
   remoteReady = false,
+  remoteSignalsOk = null,
   onCommand,
 }: ControlsPanelProps) {
   const locked = vehicle.locked;
   const live = vehicle.mode === "live";
   const wakeDisabled = live && !remoteReady;
+  const signalsDenied = live && remoteSignalsOk === false;
 
   const actions: ControlTile[] = [
     {
@@ -36,12 +39,14 @@ export function ControlsPanel({
       label: "Finden",
       onClick: () => onCommand("flash"),
       icon: <IconFind />,
+      disabled: signalsDenied,
     },
     {
       id: "horn",
       label: "Hupe",
       onClick: () => onCommand("horn"),
       icon: <IconHorn />,
+      disabled: signalsDenied,
     },
     {
       id: "wakeup",
@@ -57,18 +62,30 @@ export function ControlsPanel({
       <SectionHeader
         title="Steuern"
         hint={
-          wakeDisabled
-            ? "Wecken braucht Fernbedienung"
-            : "Schloss und Signale"
+          signalsDenied
+            ? "Schloss/Signal: Connect PLUS in MyPeugeot nötig"
+            : wakeDisabled
+              ? "Wecken braucht Fernbedienung"
+              : "Schloss und Signale"
         }
       />
 
+      {signalsDenied ? (
+        <p className="rounded-2xl border border-[var(--line)] px-4 py-3 text-xs text-[var(--fg-muted)]">
+          Peugeot hat Schloss/Hupe/Licht für dieses Konto abgelehnt. In
+          MyPeugeot unter Connected Services prüfen, ob{" "}
+          <span className="text-[var(--fg)]">Connect PLUS / Remote Control</span>{" "}
+          aktiv ist (e-Remote allein steuert nur Klima/Laden).
+        </p>
+      ) : null}
+
       <button
         type="button"
-        disabled={busy}
+        disabled={busy || signalsDenied}
         onClick={() => onCommand(locked ? "unlock" : "lock")}
         className="action-btn ui-surface flex w-full flex-col items-center gap-3 px-5 py-7"
         style={{
+          opacity: signalsDenied ? 0.55 : 1,
           borderColor: locked
             ? "rgba(95,227,192,0.45)"
             : "rgba(232,184,109,0.4)",
@@ -104,7 +121,9 @@ export function ControlsPanel({
             disabled={busy || tile.disabled}
             title={
               tile.disabled
-                ? "Fernbedienung unter Einstellungen einrichten"
+                ? tile.id === "wakeup"
+                  ? "Fernbedienung unter Einstellungen einrichten"
+                  : "Connect PLUS / Remote Control in MyPeugeot nötig"
                 : undefined
             }
             onClick={tile.onClick}

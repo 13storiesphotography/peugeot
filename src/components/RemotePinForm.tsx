@@ -52,8 +52,8 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
             </h2>
             <p className="mt-1 text-sm text-[var(--fg-muted)]">
               {ready
-                ? "Klima und Aufwecken ohne erneute PIN."
-                : "Einmalig: SMS-Code + 4-stellige MyPeugeot-PIN."}
+                ? "Klima/Aufwecken aktiv. Schloss/Hupe/Licht brauchen zusätzlich Connect PLUS in MyPeugeot."
+                : "Einmalig: SMS-Code + 4-stellige MyPeugeot-PIN (für Klima/e-Remote)."}
             </p>
           </div>
           {ready ? (

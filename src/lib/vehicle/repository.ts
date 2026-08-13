@@ -37,6 +37,12 @@ export type PeugeotConnection = {
   syncIntervalSec: number;
   /** True when Peugeot OAuth refresh failed and the user must reconnect. */
   needsReconnect: boolean;
+  /**
+   * Schloss/Hupe/Licht over MQTT.
+   * null = noch nicht getestet, false = Peugeot lehnt ab (kein Connect PLUS /
+   * Remote Control), true = mindestens ein Befehl hat funktioniert.
+   */
+  remoteSignalsOk: boolean | null;
 };
 
 export type ChargeSample = {
@@ -415,6 +421,7 @@ export async function getSettingsBundle(
         Number(connection?.sync_interval_sec ?? 60),
       ),
       needsReconnect,
+      remoteSignalsOk: readRemoteSignalsOk(oauthMeta),
     },
   };
 }
@@ -635,6 +642,7 @@ async function loadVehicleBundle(
         Number(connection?.sync_interval_sec ?? 60),
       ),
       needsReconnect: reconnectNeeded,
+      remoteSignalsOk: readRemoteSignalsOk(asOAuthMeta(connection?.oauth_meta)),
     },
     schedules: (scheduleRows ?? schedules ?? []).map(mapSchedule),
     activity: (activity ?? []).map((row) => ({
@@ -757,6 +765,37 @@ function asOAuthMeta(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function readRemoteSignalsOk(meta: Record<string, unknown>): boolean | null {
+  if (meta.remoteSignalsOk === true) return true;
+  if (meta.remoteSignalsOk === false) return false;
+  return null;
+}
+
+async function setRemoteSignalsOk(
+  supabase: SupabaseClient,
+  userId: string,
+  ok: boolean,
+): Promise<void> {
+  const { data } = await supabase
+    .from("peugeot_connections")
+    .select("oauth_meta")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const meta = asOAuthMeta(data?.oauth_meta);
+  if (meta.remoteSignalsOk === ok) return;
+  await supabase
+    .from("peugeot_connections")
+    .update({
+      oauth_meta: {
+        ...meta,
+        remoteSignalsOk: ok,
+        remoteSignalsCheckedAt: new Date().toISOString(),
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
 }
 
 /**
@@ -1153,6 +1192,7 @@ async function runLiveRemoteSignalCommand(
         remoteAccessToken: remote.remoteAccessToken,
         lock: command === "lock",
       });
+      await setRemoteSignalsOk(supabase, userId, true);
       return {
         ok: true,
         message:
@@ -1168,6 +1208,7 @@ async function runLiveRemoteSignalCommand(
         remoteAccessToken: remote.remoteAccessToken,
         count: 2,
       });
+      await setRemoteSignalsOk(supabase, userId, true);
       return {
         ok: true,
         message: "Hupe ausgelöst.",
@@ -1181,18 +1222,21 @@ async function runLiveRemoteSignalCommand(
       remoteAccessToken: remote.remoteAccessToken,
       durationSec: 10,
     });
+    await setRemoteSignalsOk(supabase, userId, true);
     return {
       ok: true,
       message: "Lichter geblinkt.",
       vehicle: bundle.vehicle,
     };
   } catch (error) {
+    const raw =
+      error instanceof Error ? error.message : "Fernbefehl fehlgeschlagen.";
+    if (/no\.matching\.service\.key|authorization\.denied/i.test(raw)) {
+      await setRemoteSignalsOk(supabase, userId, false);
+    }
     return {
       ok: false,
-      message:
-        error instanceof Error
-          ? humanizeRemoteSignalError(error.message)
-          : "Fernbefehl fehlgeschlagen.",
+      message: humanizeRemoteSignalError(raw),
       vehicle: bundle.vehicle,
     };
   }
@@ -1200,7 +1244,7 @@ async function runLiveRemoteSignalCommand(
 
 function humanizeRemoteSignalError(message: string): string {
   if (/no\.matching\.service\.key|authorization\.denied/i.test(message)) {
-    return "Fernbedienung für Schloss/Signal nicht freigeschaltet (Connect Plus / Remote Control).";
+    return "Schloss/Hupe/Licht brauchen Connect PLUS (Remote Control) in MyPeugeot — e-Remote für Klima reicht dafür nicht. Prüfe dort, ob Entriegeln funktioniert.";
   }
   if (/Remote-Fehler 400/i.test(message)) {
     return "Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";

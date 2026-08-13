@@ -335,6 +335,19 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       setBundle((prev) => ({
         ...prev,
         vehicle: data.vehicle,
+        connection: {
+          ...prev.connection,
+          remoteSignalsOk:
+            data.ok &&
+            (command === "lock" ||
+              command === "unlock" ||
+              command === "horn" ||
+              command === "flash")
+              ? true
+              : !data.ok && /Connect PLUS|Remote Control/i.test(data.message)
+                ? false
+                : prev.connection.remoteSignalsOk,
+        },
         activity: [
           {
             id: crypto.randomUUID(),
@@ -538,6 +551,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             climateOn={climateOn}
             busy={busy}
             remoteReady={bundle.connection.remoteReady}
+            remoteSignalsOk={bundle.connection.remoteSignalsOk}
             onCommand={(command) => void runCommand(command)}
             onOpenClimate={() => selectTab("climate")}
           />
@@ -564,6 +578,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           vehicle={vehicle}
           busy={busy}
           remoteReady={bundle.connection.remoteReady}
+          remoteSignalsOk={bundle.connection.remoteSignalsOk}
           onCommand={(command) => void runCommand(command)}
         />
       ) : null}
