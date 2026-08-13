@@ -190,11 +190,27 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   }, [refresh]);
 
   useEffect(() => {
-    // Immediate live pull once on mount when connected (and auth still valid).
-    if (initial.connection.connected && !initial.connection.needsReconnect) {
-      void refresh(true);
+    // Soft catch-up on mount. Force Peugeot only when SSR stand is already stale.
+    if (!initial.connection.connected || initial.connection.needsReconnect) {
+      return;
     }
-  }, [initial.connection.connected, initial.connection.needsReconnect, refresh]);
+    const intervalSec = Math.max(
+      30,
+      initial.connection.syncIntervalSec || 60,
+    );
+    const lastSyncMs = initial.connection.lastSyncAt
+      ? new Date(initial.connection.lastSyncAt).getTime()
+      : 0;
+    const stale =
+      !lastSyncMs || Date.now() - lastSyncMs > intervalSec * 1000;
+    void refresh(stale, { silent: true });
+  }, [
+    initial.connection.connected,
+    initial.connection.needsReconnect,
+    initial.connection.lastSyncAt,
+    initial.connection.syncIntervalSec,
+    refresh,
+  ]);
 
   useEffect(() => {
     const live = bundle.connection.connected;
@@ -202,21 +218,31 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       return;
     }
 
-    const intervalSec = Math.max(
-      15,
-      bundle.connection.syncIntervalSec || 45,
+    const configuredSec = Math.max(
+      30,
+      bundle.connection.syncIntervalSec || 60,
     );
+    // While charging, check a bit more often — server still throttles Peugeot.
+    const intervalSec =
+      live && bundle.vehicle.chargeStatus === "charging"
+        ? Math.min(configuredSec, 30)
+        : configuredSec;
     const intervalMs = live ? intervalSec * 1000 : 10_000;
 
     const tick = () => {
       if (document.visibilityState !== "visible") return;
-      void refresh(live);
+      // Soft poll: server decides whether Peugeot is due (avoids hammering).
+      void refresh(false, { silent: true });
     };
 
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      // Catch up immediately when returning to the app.
-      void refresh(live);
+      const lastSyncMs = bundle.connection.lastSyncAt
+        ? new Date(bundle.connection.lastSyncAt).getTime()
+        : 0;
+      const stale =
+        !lastSyncMs || Date.now() - lastSyncMs > configuredSec * 1000;
+      void refresh(stale, { silent: true });
     };
 
     const id = window.setInterval(tick, intervalMs);
@@ -229,6 +255,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     bundle.connection.connected,
     bundle.connection.needsReconnect,
     bundle.connection.syncIntervalSec,
+    bundle.connection.lastSyncAt,
+    bundle.vehicle.chargeStatus,
     refresh,
   ]);
 
@@ -269,7 +297,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       }));
       setToast({ text: data.message, ok: data.ok });
       // Force Peugeot pull after remotes; wakeup needs longer for a fresh stand.
-      window.setTimeout(() => {
+      if (followUpTimer.current) window.clearTimeout(followUpTimer.current);
+      followUpTimer.current = window.setTimeout(() => {
+        followUpTimer.current = null;
         void refresh(true, {
           silent: true,
           hard: command === "wakeup",

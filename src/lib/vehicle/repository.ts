@@ -412,7 +412,7 @@ export async function getSettingsBundle(
         ? String(connection.customer_id)
         : null,
       syncIntervalSec: clampSyncInterval(
-        Number(connection?.sync_interval_sec ?? 45),
+        Number(connection?.sync_interval_sec ?? 60),
       ),
       needsReconnect,
     },
@@ -473,9 +473,9 @@ async function loadVehicleBundle(
     : 0;
   const chargingNow = vehicle.chargeStatus === "charging";
   const configuredIntervalSec = clampSyncInterval(
-    Number(connection?.sync_interval_sec ?? 45),
+    Number(connection?.sync_interval_sec ?? 60),
   );
-  // Server throttle: respect setting, but never hammer harder than every 20s.
+  // Server throttle: respect setting. While charging, allow up to every 30s.
   const syncEveryMs = chargingNow
     ? Math.min(configuredIntervalSec, 30) * 1000
     : configuredIntervalSec * 1000;
@@ -623,7 +623,7 @@ async function loadVehicleBundle(
       remoteReady: Boolean(connection?.remote_ready),
       customerId: connection?.customer_id ?? null,
       syncIntervalSec: clampSyncInterval(
-        Number(connection?.sync_interval_sec ?? 45),
+        Number(connection?.sync_interval_sec ?? 60),
       ),
       needsReconnect: reconnectNeeded,
     },
@@ -874,8 +874,9 @@ async function ensurePeugeotAccessToken(
 }
 
 function clampSyncInterval(sec: number): number {
-  if (!Number.isFinite(sec)) return 45;
-  return Math.min(600, Math.max(15, Math.round(sec)));
+  if (!Number.isFinite(sec)) return 60;
+  // Floor 30s — Peugeot status rarely changes faster when parked/asleep.
+  return Math.min(600, Math.max(30, Math.round(sec)));
 }
 
 export async function runVehicleCommand(

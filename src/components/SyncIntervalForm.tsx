@@ -7,9 +7,7 @@ import {
 } from "@/app/actions/settings";
 
 const OPTIONS = [
-  { value: 20, label: "20 Sek." },
-  { value: 30, label: "30 Sek." },
-  { value: 45, label: "45 Sek." },
+  { value: 30, label: "30 Sek. (Laden)" },
   { value: 60, label: "1 Min." },
   { value: 120, label: "2 Min." },
   { value: 300, label: "5 Min." },
@@ -25,6 +23,10 @@ export function SyncIntervalForm({
     {} as SettingsState,
   );
 
+  const selected = OPTIONS.some((opt) => opt.value === syncIntervalSec)
+    ? syncIntervalSec
+    : 60;
+
   return (
     <form action={action} className="space-y-3">
       <div>
@@ -32,9 +34,10 @@ export function SyncIntervalForm({
           Aktualisierung
         </h2>
         <p className="mt-1 text-sm text-[var(--fg-muted)]">
-          Wie oft die App den Stand von Peugeot holt, solange sie geöffnet ist.
-          Standort folgt dem Auto oft verzögert — besonders unterwegs; der
-          Refresh-Button weckt zusätzlich.
+          Wie oft die App bei Peugeot nachfragt, solange sie geöffnet ist
+          (Standard 1 Min.). Zwischendurch liest sie nur den letzten Stand —
+          ohne jedes Mal das Auto zu wecken. Beim Laden prüft sie häufiger.
+          Der Refresh-Button holt hart inkl. Aufwecken.
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-3">
@@ -42,7 +45,7 @@ export function SyncIntervalForm({
           <span className="text-[var(--fg-muted)]">Intervall</span>
           <select
             name="syncIntervalSec"
-            defaultValue={syncIntervalSec}
+            defaultValue={selected}
             className="mt-1 ui-field"
           >
             {OPTIONS.map((opt) => (

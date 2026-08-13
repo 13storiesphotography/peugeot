@@ -46,8 +46,8 @@ export async function saveVehicleSettings(
 }
 
 function clampSyncInterval(value: number): number {
-  if (!Number.isFinite(value)) return 45;
-  return Math.min(600, Math.max(15, Math.round(value)));
+  if (!Number.isFinite(value)) return 60;
+  return Math.min(600, Math.max(30, Math.round(value)));
 }
 
 export async function saveSyncIntervalAction(
