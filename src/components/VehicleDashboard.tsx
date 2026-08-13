@@ -57,7 +57,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
   useEffect(() => {
     if (!toast) return;
-    const id = window.setTimeout(() => setToast(null), 2500);
+    const ms = /neu verbinden|abgelaufen/i.test(toast.text) ? 6000 : 2500;
+    const id = window.setTimeout(() => setToast(null), ms);
     return () => window.clearTimeout(id);
   }, [toast]);
 
@@ -90,14 +91,17 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   }, []);
 
   useEffect(() => {
-    // Immediate live pull once on mount when connected.
-    if (initial.connection.connected) {
+    // Immediate live pull once on mount when connected (and auth still valid).
+    if (initial.connection.connected && !initial.connection.needsReconnect) {
       void refresh(true);
     }
-  }, [initial.connection.connected, refresh]);
+  }, [initial.connection.connected, initial.connection.needsReconnect, refresh]);
 
   useEffect(() => {
     const live = bundle.connection.connected;
+    if (live && bundle.connection.needsReconnect) {
+      return;
+    }
     const intervalSec = Math.max(
       15,
       bundle.connection.syncIntervalSec || 45,
@@ -110,6 +114,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     return () => window.clearInterval(id);
   }, [
     bundle.connection.connected,
+    bundle.connection.needsReconnect,
     bundle.connection.syncIntervalSec,
     refresh,
   ]);
@@ -220,6 +225,30 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </svg>
         </Link>
       </header>
+
+      {bundle.connection.needsReconnect ? (
+        <div
+          className="mb-3 rounded-2xl border px-4 py-3 text-sm"
+          style={{
+            borderColor: "rgba(224,122,106,0.45)",
+            background: "rgba(224,122,106,0.1)",
+          }}
+          role="alert"
+        >
+          <p className="font-semibold text-[var(--danger)]">
+            MyPeugeot-Anmeldung abgelaufen
+          </p>
+          <p className="mt-1 text-[var(--fg-muted)]">
+            Keine neuen Fahrzeugdaten, bis du dich erneut verbindest.{" "}
+            <Link
+              href="/control/settings"
+              className="text-[var(--accent-bright)] underline-offset-2 hover:underline"
+            >
+              Zu den Einstellungen
+            </Link>
+          </p>
+        </div>
+      ) : null}
 
       {tab === "home" ? (
         <div className="animate-rise-delay-1 space-y-6 pt-2">

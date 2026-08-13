@@ -139,6 +139,8 @@ export async function connectPeugeotWithCode(
             ? details.pictures[0]
             : null,
           pictureUrl: details.pictureUrl ?? null,
+          needsReconnect: false,
+          authError: null,
         },
       },
       { onConflict: "user_id" },

@@ -67,6 +67,26 @@ export function PeugeotConnectForm({
         gibt es die nicht — der Code steckt trotzdem in dem Redirect.
       </p>
 
+      {connection.needsReconnect ? (
+        <div
+          className="mt-5 rounded-2xl border px-4 py-4 text-sm"
+          style={{
+            borderColor: "rgba(224,122,106,0.5)",
+            background: "rgba(224,122,106,0.1)",
+          }}
+          role="alert"
+        >
+          <p className="font-semibold text-[var(--danger)]">
+            Anmeldung abgelaufen
+          </p>
+          <p className="mt-1 text-[var(--fg-muted)]">
+            Peugeot hat den Zugriff widerrufen („grant invalid“). Bitte erneut
+            bei Peugeot anmelden und den neuen Code hier speichern — danach
+            kommen wieder frische Fahrzeugdaten.
+          </p>
+        </div>
+      ) : null}
+
       <div
         className="mt-5 rounded-2xl border px-4 py-4 text-sm"
         style={{

@@ -35,6 +35,8 @@ export type PeugeotConnection = {
   customerId: string | null;
   /** Seconds between automatic Peugeot status pulls while the control page is open. */
   syncIntervalSec: number;
+  /** True when Peugeot OAuth refresh failed and the user must reconnect. */
+  needsReconnect: boolean;
 };
 
 export type ChargeSample = {
@@ -330,7 +332,7 @@ export async function getVehicleBundle(
       supabase
         .from("peugeot_connections")
         .select(
-          "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, refresh_token, token_expires_at, last_sync_at, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at, sync_interval_sec",
+          "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, refresh_token, token_expires_at, last_sync_at, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at, sync_interval_sec, oauth_meta",
         )
         .eq("user_id", userId)
         .maybeSingle(),
@@ -386,39 +388,33 @@ export async function getVehicleBundle(
 
   let didUpdateVehicle = !isLive && vehicle.chargeStatus === "charging";
   let syncError: string | null = null;
+  const oauthMeta = asOAuthMeta(connection?.oauth_meta);
+  const needsReconnect = Boolean(oauthMeta.needsReconnect);
 
-  if (shouldSync && connection?.vehicle_api_id && connection.access_token) {
+  if (needsReconnect) {
+    syncError =
+      typeof oauthMeta.authError === "string" && oauthMeta.authError
+        ? oauthMeta.authError
+        : "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.";
+  } else if (shouldSync && connection?.vehicle_api_id && connection.access_token) {
     try {
       const {
         fetchVehicleDetails,
         fetchVehicleStatus,
         mapStatusToVehicleStateWithAddress,
-        refreshAccessToken,
       } = await import("@/lib/stellantis/api");
-      let accessToken = String(connection.access_token);
       const countryCode = String(connection.country_code ?? "DE");
-      const expiresAt = connection.token_expires_at
-        ? new Date(connection.token_expires_at as string).getTime()
-        : 0;
-      if (
-        connection.refresh_token &&
-        expiresAt &&
-        expiresAt < Date.now() + 60_000
-      ) {
-        const refreshed = await refreshAccessToken(
-          countryCode,
-          String(connection.refresh_token),
-        );
-        accessToken = refreshed.accessToken;
-        await supabase
-          .from("peugeot_connections")
-          .update({
-            access_token: refreshed.accessToken,
-            refresh_token: refreshed.refreshToken,
-            token_expires_at: refreshed.expiresAt,
-          })
-          .eq("user_id", userId);
-      }
+      const accessToken = await ensurePeugeotAccessToken(supabase, userId, {
+        accessToken: String(connection.access_token),
+        refreshToken: connection.refresh_token
+          ? String(connection.refresh_token)
+          : null,
+        tokenExpiresAt: connection.token_expires_at
+          ? String(connection.token_expires_at)
+          : null,
+        countryCode,
+        oauthMeta,
+      });
 
       const needsPaint =
         options.forceSync ||
@@ -456,34 +452,11 @@ export async function getVehicleBundle(
         }
       }
 
-      const pullStatus = async (token: string) =>
-        fetchVehicleStatus(
-          token,
-          countryCode,
-          String(connection.vehicle_api_id),
-        );
-
-      let status: unknown;
-      try {
-        status = await pullStatus(accessToken);
-      } catch (firstError) {
-        // Token may be rejected early — try one refresh then retry.
-        if (!connection.refresh_token) throw firstError;
-        const refreshed = await refreshAccessToken(
-          countryCode,
-          String(connection.refresh_token),
-        );
-        accessToken = refreshed.accessToken;
-        await supabase
-          .from("peugeot_connections")
-          .update({
-            access_token: refreshed.accessToken,
-            refresh_token: refreshed.refreshToken,
-            token_expires_at: refreshed.expiresAt,
-          })
-          .eq("user_id", userId);
-        status = await pullStatus(accessToken);
-      }
+      const status = await fetchVehicleStatus(
+        accessToken,
+        countryCode,
+        String(connection.vehicle_api_id),
+      );
 
       vehicle = await mapStatusToVehicleStateWithAddress(
         status,
@@ -513,10 +486,11 @@ export async function getVehicleBundle(
       connection.last_sync_at = new Date().toISOString();
       didUpdateVehicle = true;
     } catch (error) {
-      syncError =
+      const message =
         error instanceof Error
           ? error.message
           : "Fahrzeugstatus konnte nicht geladen werden.";
+      syncError = message;
     }
   }
 
@@ -533,6 +507,9 @@ export async function getVehicleBundle(
   }
 
   const chargeCurve = await loadChargeCurve(supabase, vehicleId);
+  const reconnectNeeded =
+    needsReconnect ||
+    Boolean(syncError && /neu verbinden|abgelaufen|invalid_grant|grant invalid/i.test(syncError));
 
   return {
     vehicleId,
@@ -549,6 +526,7 @@ export async function getVehicleBundle(
       syncIntervalSec: clampSyncInterval(
         Number(connection?.sync_interval_sec ?? 45),
       ),
+      needsReconnect: reconnectNeeded,
     },
     schedules: (schedules ?? []).map(mapSchedule),
     activity: (activity ?? []).map((row) => ({
@@ -561,6 +539,121 @@ export async function getVehicleBundle(
     chargeCurve,
     syncError,
   };
+}
+
+function asOAuthMeta(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+/**
+ * Refresh Peugeot access token when near expiry. Re-reads DB first to avoid
+ * invalidating a rotated refresh token when two syncs race.
+ */
+async function ensurePeugeotAccessToken(
+  supabase: SupabaseClient,
+  userId: string,
+  current: {
+    accessToken: string;
+    refreshToken: string | null;
+    tokenExpiresAt: string | null;
+    countryCode: string;
+    oauthMeta: Record<string, unknown>;
+  },
+): Promise<string> {
+  const {
+    humanizePeugeotOAuthError,
+    isPeugeotAuthFailure,
+    refreshAccessToken,
+  } = await import("@/lib/stellantis/api");
+
+  if (current.oauthMeta.needsReconnect) {
+    throw new Error(
+      typeof current.oauthMeta.authError === "string" &&
+        current.oauthMeta.authError
+        ? current.oauthMeta.authError
+        : "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.",
+    );
+  }
+
+  const expiresAt = current.tokenExpiresAt
+    ? new Date(current.tokenExpiresAt).getTime()
+    : 0;
+  if (expiresAt >= Date.now() + 60_000) {
+    return current.accessToken;
+  }
+  if (!current.refreshToken) {
+    throw new Error(
+      "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.",
+    );
+  }
+
+  // Another request may have refreshed already — use the freshest row.
+  const { data: fresh } = await supabase
+    .from("peugeot_connections")
+    .select("access_token, refresh_token, token_expires_at, oauth_meta")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const freshMeta = asOAuthMeta(fresh?.oauth_meta);
+  if (freshMeta.needsReconnect) {
+    throw new Error(
+      typeof freshMeta.authError === "string" && freshMeta.authError
+        ? freshMeta.authError
+        : "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.",
+    );
+  }
+
+  const freshExpires = fresh?.token_expires_at
+    ? new Date(fresh.token_expires_at as string).getTime()
+    : 0;
+  if (fresh?.access_token && freshExpires >= Date.now() + 60_000) {
+    return String(fresh.access_token);
+  }
+
+  const refreshToken = String(
+    fresh?.refresh_token ?? current.refreshToken,
+  );
+
+  try {
+    const refreshed = await refreshAccessToken(
+      current.countryCode,
+      refreshToken,
+    );
+    await supabase
+      .from("peugeot_connections")
+      .update({
+        access_token: refreshed.accessToken,
+        refresh_token: refreshed.refreshToken,
+        token_expires_at: refreshed.expiresAt,
+        oauth_meta: {
+          ...freshMeta,
+          needsReconnect: false,
+          authError: null,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+    return refreshed.accessToken;
+  } catch (error) {
+    const raw = error instanceof Error ? error.message : String(error);
+    const message = humanizePeugeotOAuthError(raw);
+    if (isPeugeotAuthFailure(raw) || isPeugeotAuthFailure(message)) {
+      await supabase
+        .from("peugeot_connections")
+        .update({
+          oauth_meta: {
+            ...freshMeta,
+            needsReconnect: true,
+            authError: message,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+    }
+    throw new Error(message);
+  }
 }
 
 function clampSyncInterval(sec: number): number {
