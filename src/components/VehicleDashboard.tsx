@@ -353,8 +353,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
                 disabled={busy}
                 className="action-btn rounded-full px-4 py-3 text-sm font-semibold"
                 style={{
-                  background: "linear-gradient(135deg, #e8b86d, #d4924a)",
-                  color: "#1a1005",
+                  background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
+                  color: "#031016",
                 }}
                 onClick={confirmUnlock}
               >
