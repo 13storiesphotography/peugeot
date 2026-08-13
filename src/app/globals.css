@@ -176,6 +176,10 @@ body {
   animation: charge-ring-expand 1.8s ease-out infinite;
 }
 
+.charge-ring-fast {
+  animation-duration: 1s;
+}
+
 .charge-ring-delay {
   animation-delay: 0.9s;
 }

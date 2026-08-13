@@ -79,30 +79,45 @@ export function applyCommandToState(
       };
     }
     case "set_charge_limit": {
-      if (state.mode === "live") {
-        return {
-          ok: false,
-          message:
-            "MyPeugeot liefert in der Status-API kein setzbares Ladelimit. Bitte Limit in der Peugeot-App prüfen.",
-          vehicle: state,
-        };
-      }
       const limit = Math.min(100, Math.max(50, request.chargeLimitPercent ?? 80));
       const next: Partial<VehicleState> = {
-        chargeLimitPercent: limit,
-        chargeLimitKnown: true,
+        preferredChargeLimitPercent: limit,
+        // Demo: preferred is the effective limit. Live: keep vehicle-reported
+        // chargeLimitPercent/known unless the car never reported one.
+        ...(state.mode === "demo" || !state.chargeLimitKnown
+          ? { chargeLimitPercent: limit, chargeLimitKnown: state.mode === "demo" }
+          : {}),
       };
+      const effectiveLimit =
+        next.chargeLimitPercent ?? state.chargeLimitPercent;
       if (state.chargeStatus === "charging" && state.chargePowerKw) {
         next.estimatedFullAt = estimateFullAt(
           state.batteryPercent,
-          limit,
+          effectiveLimit,
           state.batteryCapacityKwh,
           state.chargePowerKw,
         );
       }
       return {
         ok: true,
-        message: `Ladelimit auf ${limit}% gesetzt (Demo).`,
+        message:
+          state.mode === "live"
+            ? limit <= 80
+              ? `„Laden auf 80% begrenzen“ in der App aktiviert. Aktuell meldet das Auto ${
+                  state.chargeLimitKnown
+                    ? state.chargeLimitPercent <= 80
+                      ? "bereits 80%"
+                      : "noch Full/100%"
+                    : "kein klares Limit"
+                }. Den gleichen Schalter bitte in der Peugeot-App setzen, bis Remote durchgereicht wird.`
+              : `80%-Begrenzung in der App aus. Auto meldet ${
+                  state.chargeLimitKnown
+                    ? state.chargeLimitPercent >= 100
+                      ? "Full/100%"
+                      : `${state.chargeLimitPercent}%`
+                    : "kein klares Limit"
+                }.`
+            : `Ladelimit auf ${limit}% gesetzt (Demo).`,
         vehicle: touch(state, next),
       };
     }

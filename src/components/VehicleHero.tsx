@@ -1,6 +1,11 @@
 "use client";
 
 import type { VehicleState } from "@/lib/types";
+import {
+  chargeSpeedLabel,
+  normalizeChargeSpeedMode,
+  type ChargeSpeedMode,
+} from "@/lib/stellantis/charge-mode";
 
 /** Side-profile SUV — tinted to live paint, with official Peugeot render when available. */
 export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
@@ -11,19 +16,28 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
     vehicle.chargeStatus === "charging" ||
     vehicle.chargeStatus === "complete";
   const climateOn = vehicle.climateStatus !== "off";
+  const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
   const body = vehicle.colorHex ?? "#1a3a48";
   const bodyLight = lighten(body, 0.18);
+  const accent =
+    charging && speed === "quick" ? "#e8b86d" : "var(--accent-bright)";
+  const halo =
+    charging && speed === "quick"
+      ? "rgba(232,184,109,0.38)"
+      : charging
+        ? "rgba(95,227,192,0.35)"
+        : hexAlpha(body, 0.28);
 
   return (
     <div className="relative mx-auto w-full max-w-md">
       <div
         className="pointer-events-none absolute inset-x-8 top-6 h-40 rounded-full opacity-70"
         style={{
-          background: charging
-            ? "radial-gradient(ellipse at center, rgba(95,227,192,0.35), transparent 70%)"
-            : `radial-gradient(ellipse at center, ${hexAlpha(body, 0.28)}, transparent 70%)`,
+          background: `radial-gradient(ellipse at center, ${halo}, transparent 70%)`,
           animation: charging
-            ? "charge-halo 2.8s ease-in-out infinite"
+            ? speed === "quick"
+              ? "charge-halo 1.6s ease-in-out infinite"
+              : "charge-halo 2.8s ease-in-out infinite"
             : "soft-breathe 5s ease-in-out infinite",
         }}
       />
@@ -127,7 +141,11 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         )}
 
         {plugged ? (
-          <ChargeCableOverlay charging={charging} complete={vehicle.chargeStatus === "complete"} />
+          <ChargeCableOverlay
+            charging={charging}
+            complete={vehicle.chargeStatus === "complete"}
+            speed={speed}
+          />
         ) : null}
       </div>
 
@@ -135,22 +153,36 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         <div>
           <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tracking-tight tabular-nums leading-none">
             {Math.round(vehicle.batteryPercent)}
-            <span className="text-2xl text-[var(--accent-bright)]">%</span>
+            <span className="text-2xl" style={{ color: accent }}>
+              %
+            </span>
           </p>
           <p className="mt-2 text-sm text-[var(--fg-muted)]">
             {vehicle.rangeKm} km · {locked ? "Verriegelt" : "Entriegelt"}
-            {charging ? " · Lädt" : plugged ? " · Angeschlossen" : ""}
+            {charging
+              ? ` · ${chargeSpeedLabel(speed)}`
+              : plugged
+                ? " · Angeschlossen"
+                : ""}
             {climateOn ? " · Klima an" : ""}
           </p>
           {charging && vehicle.chargePowerKw != null ? (
             <p
-              className="mt-1 text-xs font-semibold tabular-nums text-[var(--accent-bright)]"
-              style={{ animation: "soft-breathe 2.4s ease-in-out infinite" }}
+              className="mt-1 text-xs font-semibold tabular-nums"
+              style={{
+                color: speed === "quick" ? "var(--warn)" : "var(--accent-bright)",
+                animation: "soft-breathe 2.4s ease-in-out infinite",
+              }}
             >
               {vehicle.chargePowerKw.toLocaleString("de-DE", {
                 maximumFractionDigits: 1,
               })}{" "}
               kW
+              {vehicle.chargeLimitKnown
+                ? vehicle.chargeLimitPercent <= 80
+                  ? " · Ziel 80%"
+                  : " · Ziel voll"
+                : ""}
             </p>
           ) : null}
         </div>
@@ -172,20 +204,26 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
   );
 }
 
-/** Animated CCS-style cable from ground post into the front charge port. */
+/** Animated CCS-style cable — Slow (calm teal) vs Quick (faster amber). */
 function ChargeCableOverlay({
   charging,
   complete,
+  speed,
 }: {
   charging: boolean;
   complete: boolean;
+  speed: ChargeSpeedMode;
 }) {
   const active = charging;
+  const quick = speed === "quick";
+  const energy = quick ? "#e8b86d" : "#5fe3c0";
+  const energyBright = quick ? "#ffe0a8" : "#a8fff0";
   const cableColor = active
-    ? "#5fe3c0"
+    ? energy
     : complete
       ? "rgba(95,227,192,0.55)"
       : "rgba(143,168,181,0.65)";
+  const postLabel = quick ? "DC" : "AC";
 
   return (
     <svg
@@ -200,19 +238,19 @@ function ChargeCableOverlay({
           <stop offset="100%" stopColor="#1a2832" />
         </linearGradient>
         <linearGradient id="energyGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#5fe3c0" stopOpacity="0" />
-          <stop offset="40%" stopColor="#5fe3c0" stopOpacity="1" />
-          <stop offset="100%" stopColor="#a8fff0" stopOpacity="0.2" />
+          <stop offset="0%" stopColor={energy} stopOpacity="0" />
+          <stop offset="40%" stopColor={energy} stopOpacity="1" />
+          <stop offset="100%" stopColor={energyBright} stopOpacity="0.2" />
         </linearGradient>
         <filter id="cableGlow" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="3.5" result="blur" />
+          <feGaussianBlur stdDeviation={quick ? 5 : 3.5} result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
         <filter id="portGlow" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feGaussianBlur stdDeviation={quick ? 5.5 : 4} result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -220,7 +258,6 @@ function ChargeCableOverlay({
         </filter>
       </defs>
 
-      {/* Wall / charger post */}
       <g transform="translate(18, 118)">
         <rect
           x="0"
@@ -238,16 +275,22 @@ function ChargeCableOverlay({
           width="12"
           height="18"
           rx="2"
-          fill={active ? "rgba(95,227,192,0.25)" : "rgba(143,168,181,0.12)"}
+          fill={
+            active
+              ? quick
+                ? "rgba(232,184,109,0.28)"
+                : "rgba(95,227,192,0.25)"
+              : "rgba(143,168,181,0.12)"
+          }
           stroke={cableColor}
           strokeWidth="1"
         />
         {active ? (
-          <circle cx="11" cy="19" r="3" fill="#5fe3c0" filter="url(#portGlow)">
+          <circle cx="11" cy="19" r="3" fill={energy} filter="url(#portGlow)">
             <animate
               attributeName="opacity"
               values="0.45;1;0.45"
-              dur="1.4s"
+              dur={quick ? "0.7s" : "1.4s"}
               repeatCount="indefinite"
             />
           </circle>
@@ -262,65 +305,63 @@ function ChargeCableOverlay({
           fontSize="7"
           fontFamily="system-ui,sans-serif"
         >
-          CCS
+          {postLabel}
         </text>
       </g>
 
-      {/* Cable sheath (thick dark path) */}
       <path
         d="M40 145 C 70 168, 110 188, 155 192 C 210 196, 255 175, 292 148"
         fill="none"
         stroke="url(#cableSheath)"
-        strokeWidth="7"
+        strokeWidth={quick ? 8 : 7}
         strokeLinecap="round"
       />
       <path
         d="M40 145 C 70 168, 110 188, 155 192 C 210 196, 255 175, 292 148"
         fill="none"
         stroke="rgba(0,0,0,0.45)"
-        strokeWidth="8.5"
+        strokeWidth={quick ? 9.5 : 8.5}
         strokeLinecap="round"
         opacity="0.35"
       />
-
-      {/* Cable highlight edge */}
       <path
         d="M40 145 C 70 168, 110 188, 155 192 C 210 196, 255 175, 292 148"
         fill="none"
         stroke={cableColor}
-        strokeWidth="2.2"
+        strokeWidth={quick ? 2.8 : 2.2}
         strokeLinecap="round"
-        opacity={active ? 0.85 : 0.45}
+        opacity={active ? 0.9 : 0.45}
         filter={active ? "url(#cableGlow)" : undefined}
       />
 
-      {/* Energy flow dashes along cable */}
       {active ? (
         <>
           <path
             d="M40 145 C 70 168, 110 188, 155 192 C 210 196, 255 175, 292 148"
             fill="none"
             stroke="url(#energyGrad)"
-            strokeWidth="3"
+            strokeWidth={quick ? 4 : 3}
             strokeLinecap="round"
-            strokeDasharray="10 18"
-            className="charging-cable-flow"
+            strokeDasharray={quick ? "14 10" : "10 18"}
+            className={quick ? "charging-cable-flow-fast" : "charging-cable-flow"}
           />
           <path
             d="M40 145 C 70 168, 110 188, 155 192 C 210 196, 255 175, 292 148"
             fill="none"
-            stroke="#a8fff0"
+            stroke={energyBright}
             strokeWidth="1.5"
             strokeLinecap="round"
-            strokeDasharray="4 22"
+            strokeDasharray={quick ? "6 12" : "4 22"}
             className="charging-cable-flow-fast"
-            opacity="0.9"
+            opacity="0.95"
           />
         </>
       ) : null}
 
-      {/* Connector / plug at charge port (front fender area) */}
-      <g transform="translate(286, 138)" filter={active ? "url(#portGlow)" : undefined}>
+      <g
+        transform="translate(286, 138)"
+        filter={active ? "url(#portGlow)" : undefined}
+      >
         <rect
           x="0"
           y="0"
@@ -337,7 +378,7 @@ function ChargeCableOverlay({
           width="10"
           height="10"
           rx="2"
-          fill={active ? "#5fe3c0" : "#3a4d58"}
+          fill={active ? energy : "#3a4d58"}
           opacity={active ? 0.95 : 0.8}
         />
         {active ? (
@@ -352,32 +393,44 @@ function ChargeCableOverlay({
         ) : null}
       </g>
 
-      {/* Port pulse rings while charging */}
       {active ? (
         <g transform="translate(308, 146)">
           <circle
             r="10"
             fill="none"
-            stroke="#5fe3c0"
+            stroke={energy}
             strokeWidth="1.2"
-            className="charge-ring"
+            className={quick ? "charge-ring charge-ring-fast" : "charge-ring"}
           />
           <circle
             r="10"
             fill="none"
-            stroke="#5fe3c0"
+            stroke={energy}
             strokeWidth="1"
-            className="charge-ring charge-ring-delay"
+            className={
+              quick
+                ? "charge-ring charge-ring-fast charge-ring-delay"
+                : "charge-ring charge-ring-delay"
+            }
           />
         </g>
       ) : null}
 
-      {/* Sparks / energy ticks near port */}
       {active ? (
-        <g fill="#5fe3c0" opacity="0.85">
+        <g fill={energy} opacity="0.85">
           <circle cx="320" cy="128" r="1.8" className="charge-spark" />
-          <circle cx="334" cy="136" r="1.4" className="charge-spark charge-spark-delay" />
-          <circle cx="318" cy="158" r="1.2" className="charge-spark charge-spark-delay-2" />
+          <circle
+            cx="334"
+            cy="136"
+            r="1.4"
+            className="charge-spark charge-spark-delay"
+          />
+          <circle
+            cx="318"
+            cy="158"
+            r="1.2"
+            className="charge-spark charge-spark-delay-2"
+          />
         </g>
       ) : null}
     </svg>

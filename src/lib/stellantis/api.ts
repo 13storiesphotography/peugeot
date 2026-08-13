@@ -328,8 +328,17 @@ export function mapStatusToVehicleState(
     dig(chargingBlock, ["chargeLimit"]) ??
       dig(chargingBlock, ["chargingLimit"]) ??
       dig(chargingBlock, ["chargingStopThreshold"]) ??
-      dig(chargingBlock, ["stopThreshold"]),
+      dig(chargingBlock, ["stopThreshold"]) ??
+      dig(chargingBlock, ["socLimit"]) ??
+      dig(chargingBlock, ["maxSoc"]) ??
+      dig(energy0, ["extension", "electric", "battery", "chargeLimit"]) ??
+      dig(energy0, ["extension", "electric", "battery", "load", "limit"]),
   );
+  const eightyFlag = dig(chargingBlock, ["eightyPercentLimit"]) ??
+    dig(chargingBlock, ["chargeLimit80"]) ??
+    dig(chargingBlock, ["batteryChargeLimit"]) ??
+    dig(chargingBlock, ["limitedTo80"]) ??
+    dig(energy0, ["extension", "electric", "battery", "eightyPercentLimit"]);
   const chargingModeRaw = dig(chargingBlock, ["chargingMode"]);
   const chargingTypeRaw = dig(chargingBlock, ["type"]);
   const chargingMode =
@@ -337,19 +346,46 @@ export function mapStatusToVehicleState(
   const chargingType =
     typeof chargingTypeRaw === "string" ? chargingTypeRaw : null;
 
-  // Live status from this car does not include a numeric SoC limit.
-  // "Full" means charge-to-full — do NOT invent an 80% limit.
-  let chargeLimitPercent = base.chargeLimitPercent;
-  let chargeLimitKnown = base.chargeLimitKnown;
-  if (Number.isFinite(limitFromApi) && limitFromApi >= 50 && limitFromApi <= 100) {
+  // Live status: numeric SoC limit is usually absent.
+  // Official MyPeugeot toggle "Laden auf 80% begrenzen":
+  // - OFF → chargingType "Full" (vehicle target 100%)
+  // - ON  → often 80 / Partial / explicit flag (when reported)
+  const preferred =
+    base.preferredChargeLimitPercent ?? base.chargeLimitPercent ?? 80;
+  let chargeLimitPercent = preferred;
+  let chargeLimitKnown = false;
+  const eightyOn =
+    eightyFlag === true ||
+    eightyFlag === "true" ||
+    eightyFlag === 1 ||
+    eightyFlag === "1" ||
+    (typeof eightyFlag === "string" && /on|true|active|enabled/i.test(eightyFlag));
+  const eightyOff =
+    eightyFlag === false ||
+    eightyFlag === "false" ||
+    eightyFlag === 0 ||
+    eightyFlag === "0" ||
+    (typeof eightyFlag === "string" && /off|false|inactive|disabled/i.test(eightyFlag));
+
+  if (eightyOn) {
+    chargeLimitPercent = 80;
+    chargeLimitKnown = true;
+  } else if (
+    Number.isFinite(limitFromApi) &&
+    limitFromApi >= 50 &&
+    limitFromApi <= 100
+  ) {
     chargeLimitPercent = Math.round(limitFromApi);
     chargeLimitKnown = true;
-  } else if (chargingType && /full/i.test(chargingType)) {
+  } else if (
+    chargingType &&
+    /(partial|limited|eighty|80|care)/i.test(chargingType)
+  ) {
+    chargeLimitPercent = 80;
+    chargeLimitKnown = true;
+  } else if (eightyOff || (chargingType && /full/i.test(chargingType))) {
     chargeLimitPercent = 100;
     chargeLimitKnown = true;
-  } else {
-    // No limit in status payload — keep slider value but mark unverified.
-    chargeLimitKnown = false;
   }
 
   // PSA `chargingRate` / `charging_rate` is km/h of range gain — never kW.
@@ -460,6 +496,7 @@ export function mapStatusToVehicleState(
     chargeStatus,
     chargeLimitPercent,
     chargeLimitKnown,
+    preferredChargeLimitPercent: preferred,
     chargingMode,
     chargingType,
     chargePowerKw,

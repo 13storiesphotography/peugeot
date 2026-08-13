@@ -1,6 +1,13 @@
 "use client";
 
 import type { VehicleCommand, VehicleState } from "@/lib/types";
+import {
+  chargeSpeedHint,
+  chargeSpeedLabel,
+  describeVehicleChargeTarget,
+  isEightyPercentLimitActive,
+  normalizeChargeSpeedMode,
+} from "@/lib/stellantis/charge-mode";
 
 interface ChargePanelProps {
   vehicle: VehicleState;
@@ -31,11 +38,14 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
   const charging = vehicle.chargeStatus === "charging";
   const plugged = vehicle.chargeStatus !== "idle";
   const live = vehicle.mode === "live";
-  const limitKnown = vehicle.chargeLimitKnown;
-  const chargingToFull =
-    limitKnown && vehicle.chargeLimitPercent >= 100
-      ? true
-      : /full/i.test(vehicle.chargingType ?? "");
+  const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
+  const vehicleTarget = describeVehicleChargeTarget(vehicle);
+  const eightyOn = isEightyPercentLimitActive(vehicle);
+  const preferred = vehicle.preferredChargeLimitPercent ?? (eightyOn ? 80 : 100);
+  const vehicleSaysEighty =
+    vehicle.chargeLimitKnown && vehicle.chargeLimitPercent <= 80;
+  const vehicleSaysFull =
+    vehicle.chargeLimitKnown && vehicle.chargeLimitPercent >= 100;
 
   return (
     <section className="animate-rise space-y-6">
@@ -46,7 +56,6 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
           </h2>
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
             {statusLabel[vehicle.chargeStatus]}
-            {vehicle.chargingMode ? ` · ${vehicle.chargingMode}` : ""}
             {live ? " · Live (MyPeugeot)" : " · Demo"}
           </p>
           {charging && vehicle.chargePowerKw != null ? (
@@ -70,6 +79,36 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
       </div>
 
       <div
+        className="rounded-2xl border px-4 py-4"
+        style={{
+          borderColor:
+            speed === "quick"
+              ? "rgba(232,184,109,0.45)"
+              : speed === "slow" && charging
+                ? "rgba(95,227,192,0.4)"
+                : "var(--line)",
+          background:
+            speed === "quick"
+              ? "rgba(232,184,109,0.1)"
+              : speed === "slow" && charging
+                ? "rgba(95,227,192,0.08)"
+                : "rgba(14,28,40,0.4)",
+        }}
+      >
+        <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
+          Lademodus
+        </p>
+        <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold">
+          {chargeSpeedLabel(speed)}
+        </p>
+        <p className="mt-1 text-xs text-[var(--fg-muted)]">
+          {chargeSpeedHint(speed)}
+          {vehicle.chargingMode ? ` · API „${vehicle.chargingMode}“` : ""}
+          {vehicle.chargingType ? ` · Typ „${vehicle.chargingType}“` : ""}
+        </p>
+      </div>
+
+      <div
         className="h-3 overflow-hidden rounded-full"
         style={{ background: "rgba(143,168,181,0.15)" }}
       >
@@ -78,7 +117,9 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
           style={{
             width: `${Math.min(100, vehicle.batteryPercent)}%`,
             background: charging
-              ? "linear-gradient(90deg, #3da8a0, #5fe3c0)"
+              ? speed === "quick"
+                ? "linear-gradient(90deg, #d4924a, #e8b86d)"
+                : "linear-gradient(90deg, #3da8a0, #5fe3c0)"
               : "#3da8a0",
           }}
         />
@@ -88,12 +129,21 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
         <p
           className="rounded-full px-5 py-4 text-center text-sm font-semibold"
           style={{
-            background: "rgba(95,227,192,0.12)",
-            border: "1px solid rgba(95,227,192,0.35)",
-            color: "var(--accent-bright)",
+            background:
+              speed === "quick"
+                ? "rgba(232,184,109,0.14)"
+                : "rgba(95,227,192,0.12)",
+            border: `1px solid ${
+              speed === "quick"
+                ? "rgba(232,184,109,0.4)"
+                : "rgba(95,227,192,0.35)"
+            }`,
+            color: speed === "quick" ? "var(--warn)" : "var(--accent-bright)",
           }}
         >
-          {live ? "Lädt (Stopp nur in der Peugeot-App)" : "Lädt …"}
+          {live
+            ? `Lädt · ${chargeSpeedLabel(speed)} (Stopp nur in der Peugeot-App)`
+            : `Lädt · ${chargeSpeedLabel(speed)}`}
         </p>
       ) : (
         <button
@@ -111,47 +161,79 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
         </button>
       )}
 
-      <div>
-        <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-          <span className="text-[var(--fg-muted)]">Ladelimit</span>
-          <span className="text-right font-semibold tabular-nums">
-            {chargingToFull
-              ? "Voll (100%)"
-              : limitKnown
-                ? `${vehicle.chargeLimitPercent}%`
-                : "Nicht vom Auto gemeldet"}
+      {/* Same control as MyPeugeot */}
+      <div
+        className="rounded-2xl border px-4 py-4"
+        style={{
+          borderColor: eightyOn
+            ? "rgba(95,227,192,0.45)"
+            : "var(--line)",
+          background: eightyOn
+            ? "rgba(95,227,192,0.1)"
+            : "rgba(14,28,40,0.4)",
+        }}
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-semibold">Laden auf 80% begrenzen</p>
+            <p className="mt-1 text-xs text-[var(--fg-muted)]">
+              Wie in der Peugeot-App · empfohlen für den Alltag
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={eightyOn}
+            disabled={busy}
+            onClick={() =>
+              onCommand("set_charge_limit", {
+                chargeLimitPercent: eightyOn ? 100 : 80,
+              })
+            }
+            className="action-btn relative h-8 w-14 shrink-0 rounded-full transition"
+            style={{
+              background: eightyOn
+                ? "linear-gradient(135deg, #5fe3c0, #3da8a0)"
+                : "rgba(143,168,181,0.25)",
+            }}
+          >
+            <span
+              className="absolute top-1 h-6 w-6 rounded-full bg-white shadow transition"
+              style={{ left: eightyOn ? "1.75rem" : "0.25rem" }}
+            />
+          </button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          <span
+            className="rounded-full px-2.5 py-1 font-semibold"
+            style={{
+              background: vehicleSaysEighty
+                ? "rgba(95,227,192,0.18)"
+                : vehicleSaysFull
+                  ? "rgba(232,184,109,0.15)"
+                  : "rgba(143,168,181,0.12)",
+              color: vehicleSaysEighty
+                ? "var(--accent-bright)"
+                : vehicleSaysFull
+                  ? "var(--warn)"
+                  : "var(--fg-muted)",
+            }}
+          >
+            Auto: {vehicleTarget.label}
+          </span>
+          <span className="rounded-full bg-black/25 px-2.5 py-1 text-[var(--fg-muted)]">
+            App: {preferred <= 80 ? "80% an" : "aus (100%)"}
           </span>
         </div>
-        {!live ? (
-          <>
-            <input
-              type="range"
-              min={50}
-              max={100}
-              step={5}
-              value={vehicle.chargeLimitPercent}
-              disabled={busy}
-              onChange={(e) =>
-                onCommand("set_charge_limit", {
-                  chargeLimitPercent: Number(e.target.value),
-                })
-              }
-              className="w-full accent-[var(--accent-bright)]"
-              aria-label="Ladelimit"
-            />
-            <div className="mt-2 flex justify-between text-xs text-[var(--fg-muted)]">
-              <span>50%</span>
-              <span>Empfohlen 80%</span>
-              <span>100%</span>
-            </div>
-          </>
-        ) : (
-          <p className="rounded-xl border border-[var(--line)] px-3 py-3 text-xs text-[var(--fg-muted)]">
-            {chargingToFull
-              ? "MyPeugeot meldet Lademodus „Full“ — das Auto lädt ohne separates %-Limit bis voll."
-              : "Die Status-API liefert kein Zahlen-Ladelimit. Ein angezeigtes 80%-Default wäre geraten, nicht live."}
-          </p>
-        )}
+        <p className="mt-3 text-xs text-[var(--fg-muted)]">
+          {live
+            ? vehicleSaysFull && preferred <= 80
+              ? "Dein App-Schalter ist an, das Auto meldet noch „Full“. Bitte denselben Schalter in der Peugeot-App setzen — Remote-Durchreichen folgt."
+              : vehicleSaysEighty
+                ? "Auto meldet 80%-Begrenzung — Stand stimmt mit dem Schalter überein."
+                : "Wir lesen den echten Stand vom Auto (aktuell oft „Full“ = 100%). Der Schalter hier speichert dein Ziel und spiegelt die Peugeot-App."
+            : "Im Demo-Modus steuert dieser Schalter die Simulation (80% oder 100%)."}
+        </p>
       </div>
 
       <dl className="grid grid-cols-2 gap-4 text-sm">

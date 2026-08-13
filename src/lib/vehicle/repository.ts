@@ -167,6 +167,8 @@ async function ensureVehicle(
     chargeRateKmh: vehicle.chargeRateKmh ?? null,
     chargePowerKw: vehicle.chargePowerKw ?? null,
     chargeLimitKnown: vehicle.chargeLimitKnown ?? false,
+    preferredChargeLimitPercent:
+      vehicle.preferredChargeLimitPercent ?? vehicle.chargeLimitPercent ?? 80,
     chargingMode: vehicle.chargingMode ?? null,
     chargingType: vehicle.chargingType ?? null,
     colorHex: vehicle.colorHex ?? null,

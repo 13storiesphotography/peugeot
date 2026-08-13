@@ -38,10 +38,15 @@ export interface VehicleState {
   batteryCapacityKwh: number;
   rangeKm: number;
   chargeStatus: ChargeStatus;
+  /** Effective limit used for ETA / demo physics (API when known, else preferred). */
   chargeLimitPercent: number;
-  /** True only when MyPeugeot reported a limit, or user set one locally. */
+  /** True only when MyPeugeot reported a numeric limit or chargingType Full→100%. */
   chargeLimitKnown: boolean;
+  /** User-chosen App-Ziel (always editable; may differ from vehicle Full). */
+  preferredChargeLimitPercent: number;
+  /** PSA chargingMode: Slow | Quick | No */
   chargingMode: string | null;
+  /** PSA charging type e.g. Full / Delayed */
   chargingType: string | null;
   chargePowerKw: number | null;
   /** PSA chargingRate — km of range gained per hour (null if unknown). */

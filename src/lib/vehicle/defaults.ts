@@ -19,6 +19,7 @@ export function createDefaultVehicleState(
     chargeStatus: "plugged",
     chargeLimitPercent: 80,
     chargeLimitKnown: false,
+    preferredChargeLimitPercent: 80,
     chargingMode: null,
     chargingType: null,
     chargePowerKw: null,
