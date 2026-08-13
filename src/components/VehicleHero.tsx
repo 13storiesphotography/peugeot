@@ -2,7 +2,6 @@
 
 import type { VehicleState } from "@/lib/types";
 import {
-  chargeSpeedLabel,
   normalizeChargeSpeedMode,
   type ChargeSpeedMode,
 } from "@/lib/stellantis/charge-mode";
@@ -148,7 +147,8 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
           </svg>
         )}
 
-        {plugged ? (
+        {/* TEMP: charge cable overlay disabled until port alignment is settled */}
+        {false && plugged ? (
           <ChargeCableOverlay
             charging={charging}
             complete={vehicle.chargeStatus === "complete"}
@@ -167,11 +167,26 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
           </p>
           <p className="mt-2 text-sm text-[var(--fg-muted)]">
             {vehicle.rangeKm} km · {locked ? "Verriegelt" : "Entriegelt"}
-            {charging
-              ? ` · ${chargeSpeedLabel(speed)}`
-              : plugged
-                ? " · Angeschlossen"
-                : ""}
+            {charging ? (
+              <>
+                {" · "}
+                <span
+                  className="font-semibold"
+                  style={{
+                    color:
+                      speed === "quick"
+                        ? "var(--warn)"
+                        : "var(--accent-bright)",
+                  }}
+                >
+                  Lädt
+                </span>
+              </>
+            ) : plugged ? (
+              " · Angeschlossen"
+            ) : (
+              ""
+            )}
             {climateOn ? " · Klima an" : ""}
           </p>
           {charging && vehicle.chargePowerKw != null ? (
