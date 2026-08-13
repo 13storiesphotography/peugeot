@@ -19,10 +19,9 @@ type Action = {
   active?: boolean;
   icon: ReactNode;
   onClick: () => void;
-  disabled?: boolean;
 };
 
-/** Three primary actions under the vehicle — lock, climate, find. */
+/** Primary actions under the vehicle. Lock/find only when Peugeot allows them. */
 export function QuickActions({
   locked,
   climateOn,
@@ -32,59 +31,72 @@ export function QuickActions({
   onCommand,
   onOpenClimate,
 }: QuickActionsProps) {
-  const signalsDenied = remoteSignalsOk === false;
-  const actions: Action[] = [
-    {
-      id: "lock",
-      label: locked ? "Entriegeln" : "Verriegeln",
-      active: !locked,
-      icon: <IconLock locked={locked} />,
-      onClick: () => onCommand(locked ? "unlock" : "lock"),
-      disabled: signalsDenied,
+  const showSignals = remoteSignalsOk !== false;
+
+  const climate: Action = {
+    id: "climate",
+    label: climateOn ? "Vorklima aus" : "Vorklima",
+    active: climateOn,
+    icon: <IconClimate />,
+    onClick: () => {
+      if (climateOn) {
+        onCommand("climate_stop");
+        return;
+      }
+      if (!remoteReady && onOpenClimate) {
+        onOpenClimate();
+        return;
+      }
+      onCommand("climate_start");
     },
-    {
-      id: "climate",
-      label: climateOn ? "Vorklima aus" : "Vorklima",
-      active: climateOn,
-      icon: <IconClimate />,
-      onClick: () => {
-        if (climateOn) {
-          onCommand("climate_stop");
-          return;
-        }
-        if (!remoteReady && onOpenClimate) {
-          onOpenClimate();
-          return;
-        }
-        onCommand("climate_start");
-      },
-    },
-    {
-      id: "flash",
-      label: "Finden",
-      icon: <IconFind />,
-      onClick: () => onCommand("flash"),
-      disabled: signalsDenied,
-    },
-  ];
+  };
+
+  const actions: Action[] = showSignals
+    ? [
+        {
+          id: "lock",
+          label: locked ? "Entriegeln" : "Verriegeln",
+          active: !locked,
+          icon: <IconLock locked={locked} />,
+          onClick: () => onCommand(locked ? "unlock" : "lock"),
+        },
+        climate,
+        {
+          id: "flash",
+          label: "Finden",
+          icon: <IconFind />,
+          onClick: () => onCommand("flash"),
+        },
+      ]
+    : [
+        climate,
+        {
+          id: "wakeup",
+          label: "Wecken",
+          icon: <IconWake />,
+          onClick: () => onCommand("wakeup"),
+        },
+      ];
 
   return (
-    <div className="mx-auto grid w-full max-w-sm grid-cols-3 gap-3">
+    <div
+      className={`mx-auto grid w-full max-w-sm gap-3 ${
+        actions.length === 2 ? "grid-cols-2" : "grid-cols-3"
+      }`}
+    >
       {actions.map((action) => (
         <button
           key={action.id}
           type="button"
-          disabled={busy || action.disabled}
+          disabled={busy || (action.id === "wakeup" && !remoteReady)}
           onClick={action.onClick}
           className={`action-btn ui-surface ui-tile ${
             action.active ? "ui-surface-active" : ""
           }`}
-          style={{ opacity: action.disabled ? 0.45 : 1 }}
-          title={
-            action.disabled
-              ? "Connect PLUS / Remote Control in MyPeugeot nötig"
-              : undefined
-          }
+          style={{
+            opacity:
+              action.id === "wakeup" && !remoteReady ? 0.45 : 1,
+          }}
         >
           <span
             className="ui-tile-icon"
@@ -167,6 +179,20 @@ function IconFind() {
         strokeWidth="1.8"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function IconWake() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
 }
