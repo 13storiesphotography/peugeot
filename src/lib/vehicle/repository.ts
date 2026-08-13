@@ -33,12 +33,24 @@ export type PeugeotConnection = {
   lastSyncAt: string | null;
 };
 
+export type ChargeSample = {
+  id: string;
+  sessionId: string;
+  recordedAt: string;
+  batteryPercent: number;
+  chargePowerKw: number | null;
+  chargeRateKmh: number | null;
+  chargingMode: string | null;
+  chargeStatus: string;
+};
+
 export type VehicleBundle = {
   vehicleId: string;
   vehicle: VehicleState;
   connection: PeugeotConnection;
   schedules: VehicleSchedule[];
   activity: ActivityItem[];
+  chargeCurve: ChargeSample[];
 };
 
 function mapSchedule(row: {
@@ -195,6 +207,111 @@ async function saveState(
   }
 }
 
+async function recordChargeSample(
+  supabase: SupabaseClient,
+  userId: string,
+  vehicleId: string,
+  vehicle: VehicleState,
+) {
+  const interesting =
+    vehicle.chargeStatus === "charging" ||
+    vehicle.chargeStatus === "complete";
+  if (!interesting) return;
+
+  const { data: last } = await supabase
+    .from("charge_samples")
+    .select("id, session_id, recorded_at, battery_percent, charge_status")
+    .eq("vehicle_id", vehicleId)
+    .order("recorded_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const lastAt = last?.recorded_at
+    ? new Date(last.recorded_at as string).getTime()
+    : 0;
+  const ageMs = lastAt ? Date.now() - lastAt : Number.POSITIVE_INFINITY;
+  const lastStatus = String(last?.charge_status ?? "");
+  const lastPercent = Number(last?.battery_percent ?? NaN);
+
+  // New session when starting to charge after a gap / different phase.
+  let sessionId = String(last?.session_id ?? crypto.randomUUID());
+  if (
+    !last ||
+    ageMs > 2 * 60 * 60 * 1000 ||
+    (vehicle.chargeStatus === "charging" &&
+      lastStatus !== "charging" &&
+      lastStatus !== "complete") ||
+    (vehicle.chargeStatus === "charging" &&
+      lastStatus === "complete" &&
+      ageMs > 5 * 60 * 1000)
+  ) {
+    sessionId = crypto.randomUUID();
+  } else if (last?.session_id) {
+    sessionId = String(last.session_id);
+  }
+
+  // Dedupe near-identical points (keep ~1–2 min resolution).
+  if (
+    last &&
+    ageMs < 50_000 &&
+    lastStatus === vehicle.chargeStatus &&
+    Number.isFinite(lastPercent) &&
+    Math.abs(lastPercent - vehicle.batteryPercent) < 0.3
+  ) {
+    return;
+  }
+
+  await supabase.from("charge_samples").insert({
+    user_id: userId,
+    vehicle_id: vehicleId,
+    session_id: sessionId,
+    recorded_at: new Date().toISOString(),
+    battery_percent: vehicle.batteryPercent,
+    charge_power_kw: vehicle.chargePowerKw,
+    charge_rate_kmh: vehicle.chargeRateKmh,
+    charging_mode: vehicle.chargingMode,
+    charge_status: vehicle.chargeStatus,
+  });
+}
+
+async function loadChargeCurve(
+  supabase: SupabaseClient,
+  vehicleId: string,
+): Promise<ChargeSample[]> {
+  const { data: latest } = await supabase
+    .from("charge_samples")
+    .select("session_id")
+    .eq("vehicle_id", vehicleId)
+    .order("recorded_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!latest?.session_id) return [];
+
+  const { data: rows } = await supabase
+    .from("charge_samples")
+    .select(
+      "id, session_id, recorded_at, battery_percent, charge_power_kw, charge_rate_kmh, charging_mode, charge_status",
+    )
+    .eq("vehicle_id", vehicleId)
+    .eq("session_id", latest.session_id)
+    .order("recorded_at", { ascending: true })
+    .limit(400);
+
+  return (rows ?? []).map((row) => ({
+    id: row.id,
+    sessionId: row.session_id,
+    recordedAt: row.recorded_at,
+    batteryPercent: Number(row.battery_percent),
+    chargePowerKw:
+      row.charge_power_kw == null ? null : Number(row.charge_power_kw),
+    chargeRateKmh:
+      row.charge_rate_kmh == null ? null : Number(row.charge_rate_kmh),
+    chargingMode: row.charging_mode ?? null,
+    chargeStatus: row.charge_status,
+  }));
+}
+
 export async function getVehicleBundle(
   supabase: SupabaseClient,
   userId: string,
@@ -255,6 +372,8 @@ export async function getVehicleBundle(
     (options.forceSync ||
       !lastSyncMs ||
       Date.now() - lastSyncMs > syncEveryMs);
+
+  let didUpdateVehicle = !isLive && vehicle.chargeStatus === "charging";
 
   if (shouldSync && connection?.vehicle_api_id && connection.access_token) {
     try {
@@ -356,10 +475,25 @@ export async function getVehicleBundle(
         .update({ last_sync_at: new Date().toISOString() })
         .eq("user_id", userId);
       connection.last_sync_at = new Date().toISOString();
+      didUpdateVehicle = true;
     } catch {
       // Keep last known state if Stellantis is flaky.
     }
   }
+
+  if (
+    didUpdateVehicle ||
+    vehicle.chargeStatus === "charging" ||
+    vehicle.chargeStatus === "complete"
+  ) {
+    try {
+      await recordChargeSample(supabase, userId, vehicleId, vehicle);
+    } catch {
+      // Curve sampling must never break the dashboard.
+    }
+  }
+
+  const chargeCurve = await loadChargeCurve(supabase, vehicleId);
 
   return {
     vehicleId,
@@ -380,6 +514,7 @@ export async function getVehicleBundle(
       ok: row.ok,
       createdAt: row.created_at,
     })),
+    chargeCurve,
   };
 }
 
@@ -391,6 +526,17 @@ export async function runVehicleCommand(
   const bundle = await getVehicleBundle(supabase, userId);
   const result = applyCommandToState(bundle.vehicle, request);
   await saveState(supabase, userId, bundle.vehicleId, result.vehicle);
+
+  try {
+    await recordChargeSample(
+      supabase,
+      userId,
+      bundle.vehicleId,
+      result.vehicle,
+    );
+  } catch {
+    // ignore
+  }
 
   await supabase.from("activity_log").insert({
     user_id: userId,

@@ -1,6 +1,8 @@
 "use client";
 
+import { ChargeCurve } from "@/components/ChargeCurve";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
+import type { ChargeSample } from "@/lib/vehicle/repository";
 import {
   chargeSpeedHint,
   chargeSpeedLabel,
@@ -12,6 +14,7 @@ import {
 interface ChargePanelProps {
   vehicle: VehicleState;
   busy: boolean;
+  chargeCurve?: ChargeSample[];
   onCommand: (
     command: VehicleCommand,
     opts?: { chargeLimitPercent?: number },
@@ -34,7 +37,12 @@ const statusLabel: Record<VehicleState["chargeStatus"], string> = {
   error: "Fehler",
 };
 
-export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
+export function ChargePanel({
+  vehicle,
+  busy,
+  chargeCurve = [],
+  onCommand,
+}: ChargePanelProps) {
   const charging = vehicle.chargeStatus === "charging";
   const plugged = vehicle.chargeStatus !== "idle";
   const live = vehicle.mode === "live";
@@ -235,6 +243,11 @@ export function ChargePanel({ vehicle, busy, onCommand }: ChargePanelProps) {
             : "Im Demo-Modus steuert dieser Schalter die Simulation (80% oder 100%)."}
         </p>
       </div>
+
+      <ChargeCurve
+        samples={chargeCurve}
+        live={live}
+      />
 
       <dl className="grid grid-cols-2 gap-4 text-sm">
         <div className="rounded-2xl border border-[var(--line)] px-4 py-4">

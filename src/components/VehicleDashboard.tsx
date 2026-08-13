@@ -259,6 +259,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         <ChargePanel
           vehicle={vehicle}
           busy={busy}
+          chargeCurve={bundle.chargeCurve}
           onCommand={(command, opts) => void runCommand(command, opts)}
         />
       ) : null}
