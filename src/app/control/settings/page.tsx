@@ -33,11 +33,24 @@ function StatusDot({
   );
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await assertOwnerSession();
   if (!session) {
     redirect("/");
   }
+
+  const params = (await searchParams) ?? {};
+  const handoff = params.peugeot_oauth === "1" || params.peugeot_oauth === "true";
+  const rawCode = handoff ? params.code : undefined;
+  const rawCountry = handoff ? params.country : undefined;
+  const initialOAuthCode = Array.isArray(rawCode) ? rawCode[0] : rawCode;
+  const initialOAuthCountry = Array.isArray(rawCountry)
+    ? rawCountry[0]
+    : rawCountry;
 
   const bundle = await getSettingsBundle(session.supabase, session.userId);
   const mfa = session.mfa;
@@ -151,7 +164,12 @@ export default async function SettingsPage() {
 
         <div className="mt-6 space-y-4">
           <section className="animate-rise-delay-2 ui-surface p-4 sm:p-5">
-            <PeugeotConnectForm connection={connection} compact />
+            <PeugeotConnectForm
+              connection={connection}
+              compact
+              initialOAuthCode={initialOAuthCode ?? null}
+              initialOAuthCountry={initialOAuthCountry ?? null}
+            />
           </section>
 
           <section className="animate-rise-delay-2 ui-surface p-4 sm:p-5">
