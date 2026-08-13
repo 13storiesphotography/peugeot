@@ -578,17 +578,8 @@ async function loadVehicleBundle(
         pictureUrl,
       };
       await saveState(supabase, userId, vehicleId, vehicle);
-      const imported = await replaceClimateSchedulesFromStatus(
-        supabase,
-        userId,
-        vehicleId,
-        status,
-      );
-      if (imported.error) {
-        syncError = syncError
-          ? `${syncError} · Vorklima-Pläne: ${imported.error}`
-          : `Vorklima-Pläne nicht übernommen: ${imported.error}`;
-      }
+      // Do not auto-replace climate schedules here — that undoes deletes in the
+      // app. Import only via „Pläne vom Fahrzeug laden“.
       await supabase
         .from("peugeot_connections")
         .update({ last_sync_at: new Date().toISOString() })
@@ -604,7 +595,6 @@ async function loadVehicleBundle(
     }
   }
 
-  // Schedules may have been refreshed from Peugeot programs during sync.
   const { data: scheduleRows } = await supabase
     .from("vehicle_schedules")
     .select("id, kind, enabled, time_local, days_of_week, payload")
