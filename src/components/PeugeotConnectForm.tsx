@@ -35,6 +35,16 @@ function useIsPhone(): boolean {
   return phone;
 }
 
+function useMobileOs(): "ios" | "android" | "other" {
+  const [os, setOs] = useState<"ios" | "android" | "other">("other");
+  useEffect(() => {
+    const ua = navigator.userAgent || "";
+    if (/iPhone|iPad|iPod/i.test(ua)) setOs("ios");
+    else if (/Android/i.test(ua)) setOs("android");
+  }, []);
+  return os;
+}
+
 function clearOAuthStarted() {
   try {
     sessionStorage.removeItem(OAUTH_STARTED_KEY);
@@ -68,6 +78,7 @@ export function PeugeotConnectForm({
   compact?: boolean;
 }) {
   const isPhone = useIsPhone();
+  const mobileOs = useMobileOs();
   const [countryCode, setCountryCode] = useState(connection.countryCode || "DE");
   const [state, action, pending] = useActionState(
     connectPeugeotWithCode,
@@ -81,6 +92,7 @@ export function PeugeotConnectForm({
   const [oauthCode, setOauthCode] = useState("");
   const [pasteHint, setPasteHint] = useState<string | null>(null);
   const [awaitingReturn, setAwaitingReturn] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const codeRef = useRef<HTMLTextAreaElement>(null);
   const isPhoneRef = useRef(isPhone);
   isPhoneRef.current = isPhone;
@@ -126,10 +138,20 @@ export function PeugeotConnectForm({
     setAwaitingReturn(true);
     setPasteHint(
       isPhoneRef.current
-        ? "Nach „Weiter“: MyPeugeot-App abbrechen, mymap://-Adresse kopieren, hierher zurück."
+        ? "MyPeugeot muss deaktiviert sein — sonst öffnet sich die App ohne Nachfrage und der Code ist weg."
         : "Nach „Weiter“ die mymap://-URL aus dem Netzwerk-Tab hier einfügen.",
     );
     setOAuthStartedFlag();
+  };
+
+  const copyAuthorizeLink = async () => {
+    try {
+      await navigator.clipboard.writeText(authorizeUrl);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2500);
+    } catch {
+      setPasteHint("Link konnte nicht kopiert werden — lange auf „Bei Peugeot anmelden“ tippen.");
+    }
   };
 
   useEffect(() => {
@@ -211,32 +233,57 @@ export function PeugeotConnectForm({
           {isPhone ? (
             <div className="mt-4 rounded-2xl border border-[var(--line)]/80 bg-black/[0.03] p-3 text-xs leading-relaxed text-[var(--fg-muted)]">
               <p className="font-semibold text-[var(--fg)]">
-                Anmeldung am Handy
+                Keine Nachfrage „App öffnen?“ — so geht’s
+              </p>
+              <p className="mt-1.5">
+                Viele Handys öffnen MyPeugeot sofort ohne Frage. Dann ist der Code weg.
+                Deshalb zuerst die App kurz ausschalten:
               </p>
               <ol className="mt-2 list-decimal space-y-1.5 pl-4">
                 <li>
-                  Unten <strong className="text-[var(--fg)]">Bei Peugeot anmelden</strong>{" "}
-                  tippen (öffnet sich in einem neuen Tab).
+                  {mobileOs === "ios" ? (
+                    <>
+                      <strong className="text-[var(--fg)]">MyPeugeot</strong> lange
+                      drücken → App entfernen →{" "}
+                      <strong className="text-[var(--fg)]">In App-Mediathek legen</strong>{" "}
+                      (nicht löschen). Oder: Einstellungen → Allgemein → iPhone-Speicher →
+                      MyPeugeot → App auslagern.
+                    </>
+                  ) : mobileOs === "android" ? (
+                    <>
+                      Einstellungen → Apps →{" "}
+                      <strong className="text-[var(--fg)]">MyPeugeot</strong> →{" "}
+                      <strong className="text-[var(--fg)]">Deaktivieren</strong> (nicht
+                      deinstallieren).
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-[var(--fg)]">MyPeugeot</strong> vorübergehend
+                      deaktivieren / in die App-Mediathek legen (nicht löschen).
+                    </>
+                  )}
                 </li>
-                <li>Einloggen und auf <strong className="text-[var(--fg)]">WEITER</strong> tippen.</li>
                 <li>
-                  Wenn das Handy die <strong className="text-[var(--fg)]">MyPeugeot-App</strong>{" "}
-                  öffnen will:{" "}
-                  <strong className="text-[var(--fg)]">Abbrechen</strong> / „Nicht öffnen“.
+                  Unten <strong className="text-[var(--fg)]">Bei Peugeot anmelden</strong>,
+                  einloggen, <strong className="text-[var(--fg)]">WEITER</strong>.
                 </li>
                 <li>
-                  In der Adresszeile steht dann etwas mit{" "}
-                  <code className="text-[var(--accent-bright)]">mymap://</code> — gesamte
-                  Adresse kopieren.
+                  Der Browser bleibt offen mit Fehler wie „Seite kann nicht geöffnet
+                  werden“. In der <strong className="text-[var(--fg)]">Adresszeile</strong>{" "}
+                  steht <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
+                  — gesamte Adresse kopieren.
                 </li>
                 <li>
-                  Hierher zurück, einfügen (oder „Aus Zwischenablage“) und{" "}
+                  Hierher zurück → einfügen →{" "}
                   <strong className="text-[var(--fg)]">Code einlösen</strong>.
                 </li>
+                <li>Danach MyPeugeot wieder aktivieren / aus der Mediathek holen.</li>
               </ol>
-              <p className="mt-2 text-[var(--fg-muted)]">
-                Wichtig: Nicht in der MyPeugeot-App anmelden — der Code muss in diesem
-                Browser-Tab landen.
+              <p className="mt-2">
+                Einfacher: denselben Link am <strong className="text-[var(--fg)]">PC</strong>{" "}
+                öffnen (unten kopieren) — dort erscheint die{" "}
+                <code className="text-[var(--accent-bright)]">mymap://</code>-Adresse als
+                Fehlerseite und lässt sich kopieren.
               </p>
             </div>
           ) : (
@@ -247,9 +294,11 @@ export function PeugeotConnectForm({
               <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-xs text-[var(--fg-muted)]">
                 <li>
                   Peugeot-Seite öffnen, <kbd className="text-[var(--fg)]">F12</kbd> →
-                  Netzwerk
+                  Netzwerk — oder nach „Weiter“ die fehlgeschlagene{" "}
+                  <code className="text-[var(--accent-bright)]">mymap://</code>-Adresse aus
+                  der Adresszeile kopieren
                 </li>
-                <li>Protokoll beibehalten aktivieren</li>
+                <li>Protokoll beibehalten aktivieren (falls Netzwerk-Tab)</li>
                 <li>
                   Auf <strong className="text-[var(--fg)]">WEITER</strong> klicken
                 </li>
@@ -262,16 +311,15 @@ export function PeugeotConnectForm({
           )}
 
           {awaitingReturn ? (
-            <div
-              className="ui-alert mt-3"
-              role="status"
-            >
+            <div className="ui-alert mt-3" role="status">
               <p className="text-sm font-semibold text-[var(--fg)]">
                 Warte auf den Code aus dem Browser
               </p>
               <p className="mt-1 text-xs text-[var(--fg-muted)]">
-                MyPeugeot-App abbrechen, <code className="text-[var(--accent-bright)]">mymap://…</code>{" "}
-                aus der Adresszeile kopieren, dann hier einfügen.
+                Wenn MyPeugeot ohne Nachfrage aufging: App deaktivieren und Anmeldung
+                wiederholen. Sonst{" "}
+                <code className="text-[var(--accent-bright)]">mymap://…</code> aus der
+                Adresszeile kopieren und hier einfügen.
               </p>
             </div>
           ) : null}
@@ -286,6 +334,15 @@ export function PeugeotConnectForm({
             >
               Bei Peugeot anmelden
             </a>
+            {isPhone ? (
+              <button
+                type="button"
+                onClick={() => void copyAuthorizeLink()}
+                className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+              >
+                {linkCopied ? "Link kopiert" : "Login-Link für PC kopieren"}
+              </button>
+            ) : null}
             {connection.connected ? (
               <button
                 type="button"
