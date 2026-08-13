@@ -20,7 +20,7 @@ export function ActivityLog({ items }: { items: ActivityItem[] }) {
 
       {items.length === 0 ? (
         <p className="mt-3 text-sm text-[var(--fg-muted)]">
-          Noch keine Aktionen — starte Laden oder Klima.
+          Noch keine Aktivität.
         </p>
       ) : (
         <ul className="mt-3 space-y-3">
@@ -31,9 +31,6 @@ export function ActivityLog({ items }: { items: ActivityItem[] }) {
             >
               <div>
                 <p className="text-sm font-medium">{item.message}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[var(--fg-muted)]">
-                  {item.command}
-                </p>
               </div>
               <div className="text-right text-xs text-[var(--fg-muted)]">
                 <p

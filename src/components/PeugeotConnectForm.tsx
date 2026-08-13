@@ -199,7 +199,7 @@ export function PeugeotConnectForm({
               : ""}
           </p>
         ) : (
-          <p className="text-[var(--warn)]">Noch nicht verbunden (Demo-Daten).</p>
+          <p className="text-[var(--warn)]">Noch nicht verbunden.</p>
         )}
         {state.error ? (
           <p role="alert" className="text-[var(--danger)]">
