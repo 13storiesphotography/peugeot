@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createVehicleClient } from "@/lib/stellantis/client";
+import { createClient } from "@/lib/supabase/server";
 import type { CommandRequest, VehicleCommand } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,12 @@ const ALLOWED: VehicleCommand[] = [
 ];
 
 export async function POST(request: Request) {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let body: CommandRequest;
   try {
     body = (await request.json()) as CommandRequest;
