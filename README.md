@@ -14,7 +14,9 @@ Web-Steuerung für den **Peugeot E-3008** — im Browser anmelden, Fahrzeugstatu
 
 ## Online
 
-Nach Deploy die Vercel-URL öffnen → Konto anlegen → `/control`.
+**Production:** https://e3008-control.vercel.app/
+
+Konto anlegen → `/control`.
 
 ## Lokal
 
