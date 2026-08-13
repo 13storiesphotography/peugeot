@@ -201,11 +201,6 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
                 maximumFractionDigits: 1,
               })}{" "}
               kW
-              {vehicle.chargeLimitKnown
-                ? vehicle.chargeLimitPercent <= 80
-                  ? " · Ziel 80%"
-                  : " · Ziel voll"
-                : ""}
             </p>
           ) : null}
         </div>

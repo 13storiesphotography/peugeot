@@ -15,7 +15,6 @@ const ALLOWED: VehicleCommand[] = [
   "battery_preheat_start",
   "battery_preheat_stop",
   "wakeup",
-  "set_charge_limit",
   "set_climate_temp",
 ];
 
