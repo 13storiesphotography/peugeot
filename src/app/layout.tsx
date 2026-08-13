@@ -50,7 +50,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="de"
       className={`${display.variable} ${body.variable} h-full`}
     >
-      <body className="min-h-dvh overflow-x-hidden antialiased">{children}</body>
+      <body className="min-h-dvh max-w-[100%] overflow-x-hidden antialiased">
+        {children}
+      </body>
     </html>
   );
 }

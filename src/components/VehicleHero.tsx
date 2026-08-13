@@ -28,7 +28,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         : hexAlpha(body, 0.28);
 
   return (
-    <div className="relative mx-auto w-full max-w-md overflow-visible">
+    <div className="relative mx-auto w-full max-w-md overflow-hidden">
       <div
         className="pointer-events-none absolute inset-x-8 top-6 h-40 rounded-full opacity-70"
         style={{
@@ -41,7 +41,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         }}
       />
 
-      <div className="relative mx-auto w-full max-w-sm overflow-visible">
+      <div className="relative mx-auto w-full max-w-sm overflow-hidden">
         {vehicle.pictureUrl ? (
           // Official Peugeot 3D asset (includes correct paint).
           // eslint-disable-next-line @next/next/no-img-element

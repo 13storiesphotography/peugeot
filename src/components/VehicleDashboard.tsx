@@ -303,7 +303,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const climateOn = vehicle.climateStatus !== "off";
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6">
+    <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6">
       <header className="animate-rise flex items-start justify-between gap-3 py-3">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[var(--accent-bright)]">
@@ -431,17 +431,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           remoteReady={bundle.connection.remoteReady}
           onCommand={(command, opts) => void runCommand(command, opts)}
           onOpenSchedule={() => selectTab("schedule")}
-          onRemoteReady={() => {
-            setBundle((prev) => ({
-              ...prev,
-              connection: { ...prev.connection, remoteReady: true },
-            }));
-            setToast({
-              text: "Fernbedienung aktiv — Klima ist freigeschaltet.",
-              ok: true,
-            });
-            void refresh(true, { silent: true });
-          }}
         />
       ) : null}
 

@@ -31,6 +31,8 @@
 html {
   background-color: #071018;
   color-scheme: dark;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 html,
@@ -51,6 +53,8 @@ body {
   background-size: cover;
   font-family: var(--font-body), system-ui, sans-serif;
   overscroll-behavior-y: none;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 ::selection {
