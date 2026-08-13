@@ -211,18 +211,24 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         </div>
         <Link
           href="/control/settings"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)]"
+          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-[var(--line)] px-3 text-[var(--fg-muted)]"
           aria-label="Einstellungen"
+          title="Einstellungen"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
             <path
-              d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6 18 18M18 6l-1.4 1.4M7.4 16.6 6 18"
+              d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"
               stroke="currentColor"
               strokeWidth="1.7"
-              strokeLinecap="round"
+            />
+            <path
+              d="M19.4 13.1a7.7 7.7 0 0 0 .1-1.1 7.7 7.7 0 0 0-.1-1.1l1.8-1.4-1.7-3-2.1.7a7.4 7.4 0 0 0-1.9-1.1L15.2 3h-3.4l-.3 2.2a7.4 7.4 0 0 0-1.9 1.1l-2.1-.7-1.7 3 1.8 1.4a7.7 7.7 0 0 0-.1 1.1c0 .4 0 .7.1 1.1L4.8 14.5l1.7 3 2.1-.7c.6.5 1.2.8 1.9 1.1l.3 2.2h3.4l.3-2.2c.7-.3 1.3-.6 1.9-1.1l2.1.7 1.7-3-1.8-1.4Z"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinejoin="round"
             />
           </svg>
+          <span className="text-xs font-medium">Menü</span>
         </Link>
       </header>
 
