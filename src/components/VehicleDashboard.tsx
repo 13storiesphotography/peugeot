@@ -195,8 +195,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   };
 
   const climateOn = vehicle.climateStatus !== "off";
-  const charging = vehicle.chargeStatus === "charging";
-  const plugged = vehicle.chargeStatus !== "idle";
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col px-4 pb-28 pt-2 sm:max-w-xl sm:px-6">
