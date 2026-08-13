@@ -17,11 +17,6 @@ export function LocationLink({ location, className }: Props) {
     <>
       <p className="eyebrow">Standort</p>
       <p className="mt-1 text-sm font-medium leading-snug">{location.address}</p>
-      {href ? (
-        <p className="mt-1.5 text-xs font-medium text-[var(--accent-bright)]">
-          Navigation öffnen
-        </p>
-      ) : null}
     </>
   );
 
