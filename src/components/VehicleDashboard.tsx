@@ -42,7 +42,9 @@ function readTab(): ControlTab {
 
 export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const [bundle, setBundle] = useState(initial);
-  const [message, setMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(
+    null,
+  );
   const [isPending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<ControlTab>("home");
@@ -51,7 +53,14 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     setTab(readTab());
   }, []);
 
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 2500);
+    return () => window.clearTimeout(id);
+  }, [toast]);
+
   const selectTab = (next: ControlTab) => {
+    setToast(null);
     setTab(next);
     const url = new URL(window.location.href);
     if (next === "home") url.searchParams.delete(TAB_QUERY);
@@ -96,7 +105,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     opts?: { chargeLimitPercent?: number; targetTempC?: number },
   ) => {
     setBusy(true);
-    setMessage(null);
+    setToast(null);
     try {
       const res = await fetch("/api/vehicle/command", {
         method: "POST",
@@ -126,10 +135,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           ...prev.activity,
         ].slice(0, 12),
       }));
-      setMessage(data.message);
+      setToast({ text: data.message, ok: data.ok });
       void refresh();
     } catch {
-      setMessage("Befehl fehlgeschlagen – bitte erneut versuchen.");
+      setToast({
+        text: "Befehl fehlgeschlagen – bitte erneut versuchen.",
+        ok: false,
+      });
     } finally {
       setBusy(false);
     }
@@ -184,14 +196,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             onCommand={(command) => void runCommand(command)}
             onOpenClimate={() => selectTab("climate")}
           />
-          {message ? (
-            <p
-              role="status"
-              className="rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
-            >
-              {message}
-            </p>
-          ) : null}
           <button
             type="button"
             onClick={() => selectTab("charge")}
@@ -263,13 +267,24 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         </div>
       ) : null}
 
-      {tab !== "home" && message ? (
-        <p
+      {toast ? (
+        <div
           role="status"
-          className="mt-4 rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
+          className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4"
         >
-          {message}
-        </p>
+          <p
+            className="max-w-sm rounded-full border px-4 py-2.5 text-center text-sm shadow-lg"
+            style={{
+              background: "rgba(7, 16, 24, 0.94)",
+              borderColor: toast.ok
+                ? "rgba(95,227,192,0.4)"
+                : "rgba(224,122,106,0.45)",
+              color: toast.ok ? "var(--accent-bright)" : "var(--danger)",
+            }}
+          >
+            {toast.text}
+          </p>
+        </div>
       ) : null}
 
       <ControlBottomNav tab={tab} onChange={selectTab} />
