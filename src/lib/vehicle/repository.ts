@@ -350,6 +350,69 @@ export async function getVehicleBundle(
   });
 }
 
+/** Lightweight settings payload — DB only, never hits Peugeot APIs. */
+export type SettingsBundle = {
+  vehicle: Pick<
+    VehicleState,
+    "id" | "nickname" | "model" | "color" | "vin" | "mode"
+  >;
+  connection: PeugeotConnection;
+};
+
+export async function getSettingsBundle(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<SettingsBundle> {
+  const { vehicleId, vehicle: base } = await ensureVehicle(supabase, userId);
+
+  const { data: connection } = await supabase
+    .from("peugeot_connections")
+    .select(
+      "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, last_sync_at, remote_ready, customer_id, sync_interval_sec, oauth_meta",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const oauthMeta = asOAuthMeta(connection?.oauth_meta);
+  const needsReconnect = Boolean(oauthMeta.needsReconnect);
+  const isLive = Boolean(
+    connection?.connected && connection.access_token && connection.vehicle_api_id,
+  );
+
+  return {
+    vehicle: {
+      id: vehicleId,
+      nickname: base.nickname,
+      model: base.model,
+      color: base.color,
+      vin: base.vin,
+      mode: isLive ? "live" : "demo",
+    },
+    connection: {
+      connected: Boolean(connection?.connected),
+      countryCode: String(connection?.country_code ?? "DE"),
+      mypeugeotEmail: connection?.mypeugeot_email
+        ? String(connection.mypeugeot_email)
+        : null,
+      vehicleApiId: connection?.vehicle_api_id
+        ? String(connection.vehicle_api_id)
+        : null,
+      hasAccessToken: Boolean(connection?.access_token),
+      lastSyncAt: connection?.last_sync_at
+        ? String(connection.last_sync_at)
+        : null,
+      remoteReady: Boolean(connection?.remote_ready),
+      customerId: connection?.customer_id
+        ? String(connection.customer_id)
+        : null,
+      syncIntervalSec: clampSyncInterval(
+        Number(connection?.sync_interval_sec ?? 45),
+      ),
+      needsReconnect,
+    },
+  };
+}
+
 async function loadVehicleBundle(
   supabase: SupabaseClient,
   userId: string,

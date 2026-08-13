@@ -29,10 +29,23 @@ function buildAuthorizeUrl(countryCode: string): string {
   return `https://idpcvs.peugeot.com/am/oauth2/authorize?${params.toString()}`;
 }
 
+function formatSync(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
 export function PeugeotConnectForm({
   connection,
+  compact = false,
 }: {
   connection: PeugeotConnection;
+  /** Settings layout: collapse reconnect UI when already linked. */
+  compact?: boolean;
 }) {
   const [countryCode, setCountryCode] = useState(connection.countryCode || "DE");
   const [state, action, pending] = useActionState(
@@ -41,6 +54,9 @@ export function PeugeotConnectForm({
   );
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [open, setOpen] = useState(
+    !connection.connected || connection.needsReconnect,
+  );
 
   const authorizeUrl = useMemo(
     () => buildAuthorizeUrl(countryCode),
@@ -55,145 +71,149 @@ export function PeugeotConnectForm({
     setSyncing(false);
   };
 
+  const syncLabel = formatSync(connection.lastSyncAt);
+  const showForm = !compact || open || connection.needsReconnect;
+
   return (
-    <section className="ui-surface p-5">
-      <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-        MyPeugeot verbinden
-      </h2>
-      <p className="mt-1 text-sm text-[var(--fg-muted)]">
-        Fahrzeugkonto verbinden, damit Status und Fernbedienung funktionieren.
-      </p>
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+            MyPeugeot
+          </h2>
+          <p className="mt-1 text-sm text-[var(--fg-muted)]">
+            {connection.needsReconnect
+              ? "Anmeldung abgelaufen — bitte neu verbinden."
+              : connection.connected
+                ? syncLabel
+                  ? `Verbunden · letzter Sync ${syncLabel}`
+                  : "Verbunden — Sitzung erneuert sich automatisch."
+                : "Konto verbinden für Status und Fernbedienung."}
+          </p>
+        </div>
+        {compact && connection.connected && !connection.needsReconnect ? (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="shrink-0 rounded-full border border-[var(--line)] px-3 py-1.5 text-xs font-semibold text-[var(--fg-muted)]"
+            aria-expanded={open}
+          >
+            {open ? "Schließen" : "Verwalten"}
+          </button>
+        ) : null}
+      </div>
 
       {connection.needsReconnect ? (
         <div
-          className="mt-5 rounded-2xl border px-4 py-4 text-sm"
+          className="mt-4 rounded-xl border px-3 py-3 text-sm"
           style={{
-            borderColor: "rgba(224,122,106,0.5)",
+            borderColor: "rgba(224,122,106,0.45)",
             background: "rgba(224,122,106,0.1)",
           }}
           role="alert"
         >
           <p className="font-semibold text-[var(--danger)]">
-            Anmeldung abgelaufen
+            Neu anmelden erforderlich
           </p>
-          <p className="mt-1 text-[var(--fg-muted)]">
-            Bitte erneut bei Peugeot anmelden und den neuen Code speichern.
+          <p className="mt-1 text-xs text-[var(--fg-muted)]">
+            Code von Peugeot holen und unten speichern.
           </p>
         </div>
-      ) : connection.connected ? (
-        <p className="mt-4 text-xs text-[var(--fg-muted)]">
-          Sitzung wird im Hintergrund automatisch erneuert.
-        </p>
       ) : null}
 
-      <details className="mt-5 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm">
-        <summary className="cursor-pointer font-semibold text-[var(--warn)]">
-          So holst du den Anmeldecode
-        </summary>
-        <ol className="mt-3 list-decimal space-y-2 pl-5 text-[var(--fg-muted)]">
-          <li>
-            Auf der Peugeot-Seite <kbd className="text-[var(--fg)]">F12</kbd> →
-            Tab Netzwerk / Network
-          </li>
-          <li>
-            Haken: Protokoll beibehalten / Preserve log
-          </li>
-          <li>
-            Auf <strong className="text-[var(--fg)]">WEITER</strong> klicken
-          </li>
-          <li>
-            Nach <code className="text-[var(--accent-bright)]">mymap://</code>{" "}
-            oder oauth2redirect suchen und die URL kopieren
-          </li>
-          <li>URL unten einfügen</li>
-        </ol>
-      </details>
+      {showForm ? (
+        <>
+          <details className="mt-4 text-sm">
+            <summary className="cursor-pointer text-[var(--accent-bright)]">
+              So holst du den Anmeldecode
+            </summary>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-xs text-[var(--fg-muted)]">
+              <li>
+                Peugeot-Seite öffnen, <kbd className="text-[var(--fg)]">F12</kbd>{" "}
+                → Netzwerk
+              </li>
+              <li>Protokoll beibehalten aktivieren</li>
+              <li>
+                Auf <strong className="text-[var(--fg)]">WEITER</strong> klicken
+              </li>
+              <li>
+                Nach <code className="text-[var(--accent-bright)]">mymap://</code>{" "}
+                suchen und URL kopieren
+              </li>
+            </ol>
+          </details>
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        <a
-          href={authorizeUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="action-btn btn-primary rounded-full px-5 py-3 text-sm font-semibold"
-        >
-          Bei Peugeot anmelden
-        </a>
-        {connection.connected ? (
-          <button
-            type="button"
-            onClick={() => void onSync()}
-            disabled={syncing}
-            className="action-btn rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold"
-          >
-            {syncing ? "Aktualisiere…" : "Jetzt aktualisieren"}
-          </button>
-        ) : null}
-      </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <a
+              href={authorizeUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="action-btn btn-primary rounded-full px-4 py-2.5 text-sm font-semibold"
+            >
+              Bei Peugeot anmelden
+            </a>
+            {connection.connected ? (
+              <button
+                type="button"
+                onClick={() => void onSync()}
+                disabled={syncing}
+                className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+              >
+                {syncing ? "Aktualisiere…" : "Jetzt syncen"}
+              </button>
+            ) : null}
+          </div>
 
-      <form action={action} className="mt-6 grid gap-4 sm:grid-cols-2">
-        <label className="block">
-          <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            Land
-          </span>
-          <select
-            name="countryCode"
-            value={countryCode}
-            onChange={(e) => setCountryCode(e.target.value)}
-            className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 outline-none focus:border-[var(--accent-bright)]"
-          >
-            <option value="DE">Deutschland</option>
-            <option value="AT">Österreich</option>
-            <option value="CH">Schweiz</option>
-            <option value="FR">Frankreich</option>
-          </select>
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            MyPeugeot E-Mail (optional)
-          </span>
-          <input
-            name="mypeugeotEmail"
-            type="email"
-            defaultValue={connection.mypeugeotEmail ?? ""}
-            className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 outline-none focus:border-[var(--accent-bright)]"
-          />
-        </label>
-        <label className="block sm:col-span-2">
-          <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            Redirect-URL oder OAuth-Code
-          </span>
-          <textarea
-            name="oauthCode"
-            required
-            rows={3}
-            placeholder="mymap://oauth2redirect/de?code=…&scope=…  (komplette URL einfügen)"
-            className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 outline-none focus:border-[var(--accent-bright)]"
-          />
-        </label>
+          <form action={action} className="mt-4 grid gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm">
+                <span className="text-[var(--fg-muted)]">Land</span>
+                <select
+                  name="countryCode"
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2.5 outline-none focus:border-[var(--accent-bright)]"
+                >
+                  <option value="DE">Deutschland</option>
+                  <option value="AT">Österreich</option>
+                  <option value="CH">Schweiz</option>
+                  <option value="FR">Frankreich</option>
+                </select>
+              </label>
+              <label className="block text-sm">
+                <span className="text-[var(--fg-muted)]">E-Mail (optional)</span>
+                <input
+                  name="mypeugeotEmail"
+                  type="email"
+                  defaultValue={connection.mypeugeotEmail ?? ""}
+                  className="mt-1 w-full rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2.5 outline-none focus:border-[var(--accent-bright)]"
+                />
+              </label>
+            </div>
+            <label className="block text-sm">
+              <span className="text-[var(--fg-muted)]">
+                Redirect-URL oder OAuth-Code
+              </span>
+              <textarea
+                name="oauthCode"
+                required
+                rows={2}
+                placeholder="mymap://oauth2redirect/de?code=…"
+                className="mt-1 w-full rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2.5 outline-none focus:border-[var(--accent-bright)]"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={pending}
+              className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+            >
+              {pending ? "Verbinde…" : "Code einlösen"}
+            </button>
+          </form>
+        </>
+      ) : null}
 
-        <div className="sm:col-span-2">
-          <button
-            type="submit"
-            disabled={pending}
-            className="action-btn rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold"
-          >
-            {pending ? "Verbinde…" : "Code einlösen & verbinden"}
-          </button>
-        </div>
-      </form>
-
-      <div className="mt-4 space-y-2 text-sm">
-        {connection.connected ? (
-          <p className="text-[var(--accent-bright)]">
-            Verbunden
-            {connection.vehicleApiId ? ` · ID ${connection.vehicleApiId}` : ""}
-            {connection.lastSyncAt
-              ? ` · Sync ${new Date(connection.lastSyncAt).toLocaleString("de-DE")}`
-              : ""}
-          </p>
-        ) : (
-          <p className="text-[var(--warn)]">Noch nicht verbunden.</p>
-        )}
+      <div className="mt-3 space-y-1 text-sm">
         {state.error ? (
           <p role="alert" className="text-[var(--danger)]">
             {state.error}
@@ -210,6 +230,6 @@ export function PeugeotConnectForm({
           </p>
         ) : null}
       </div>
-    </section>
+    </div>
   );
 }

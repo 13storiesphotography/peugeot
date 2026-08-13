@@ -7,12 +7,12 @@ import {
 } from "@/app/actions/settings";
 
 const OPTIONS = [
-  { value: 20, label: "20 Sekunden" },
-  { value: 30, label: "30 Sekunden" },
-  { value: 45, label: "45 Sekunden" },
-  { value: 60, label: "1 Minute" },
-  { value: 120, label: "2 Minuten" },
-  { value: 300, label: "5 Minuten" },
+  { value: 20, label: "20 Sek." },
+  { value: 30, label: "30 Sek." },
+  { value: 45, label: "45 Sek." },
+  { value: 60, label: "1 Min." },
+  { value: 120, label: "2 Min." },
+  { value: 300, label: "5 Min." },
 ];
 
 export function SyncIntervalForm({
@@ -26,40 +26,39 @@ export function SyncIntervalForm({
   );
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="space-y-3">
       <div>
         <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
           Aktualisierung
         </h2>
         <p className="mt-1 text-sm text-[var(--fg-muted)]">
-          Wie oft die App den Stand von Peugeot holt, solange sie geöffnet und
-          sichtbar ist. Der Aktualisieren-Button oben weckt das Auto (wenn die
-          Fernbedienung eingerichtet ist) und holt danach erneut echte Daten.
-          Wenn das Auto tief schläft, kann Peugeot trotzdem kurz alten Stand
-          liefern.
+          Intervall für den Stand, solange die App offen ist. Der Refresh-Button
+          weckt zusätzlich das Auto.
         </p>
       </div>
-      <label className="block text-sm">
-        <span className="text-[var(--fg-muted)]">Intervall</span>
-        <select
-          name="syncIntervalSec"
-          defaultValue={syncIntervalSec}
-          className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2"
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="min-w-[10rem] flex-1 text-sm">
+          <span className="text-[var(--fg-muted)]">Intervall</span>
+          <select
+            name="syncIntervalSec"
+            defaultValue={syncIntervalSec}
+            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-transparent px-3 py-2.5"
+          >
+            {OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="submit"
+          disabled={pending}
+          className="action-btn btn-primary rounded-full px-4 py-2.5 text-sm font-semibold"
         >
-          {OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="action-btn btn-primary rounded-full px-5 py-2.5 text-sm font-semibold"
-      >
-        {pending ? "Speichern…" : "Speichern"}
-      </button>
+          {pending ? "…" : "Speichern"}
+        </button>
+      </div>
       {state.error ? (
         <p role="alert" className="text-sm text-[var(--danger)]">
           {state.error}
