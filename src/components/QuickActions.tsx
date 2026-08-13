@@ -11,6 +11,7 @@ interface QuickActionsProps {
   busy: boolean;
   onCommand: (command: VehicleCommand) => void;
   onOpenClimate?: () => void;
+  onOpenCharge?: () => void;
 }
 
 function IconLock({ locked }: { locked: boolean }) {
@@ -67,7 +68,25 @@ function IconFind() {
   );
 }
 
-/** Tesla-style row of 4 primary actions under the vehicle. */
+type Slot =
+  | {
+      kind: "button";
+      id: string;
+      label: string;
+      active?: boolean;
+      disabled?: boolean;
+      icon: ReactNode;
+      onClick: () => void;
+    }
+  | {
+      kind: "status";
+      id: string;
+      label: string;
+      active?: boolean;
+      icon: ReactNode;
+    };
+
+/** Tesla-style row of primary actions under the vehicle. */
 export function QuickActions({
   locked,
   climateOn,
@@ -76,15 +95,37 @@ export function QuickActions({
   busy,
   onCommand,
   onOpenClimate,
+  onOpenCharge,
 }: QuickActionsProps) {
-  const actions: {
-    id: string;
-    label: string;
-    active?: boolean;
-    icon: ReactNode;
-    onClick: () => void;
-  }[] = [
+  const chargeSlot: Slot = charging
+    ? {
+        kind: "status",
+        id: "charge",
+        label: "Lädt",
+        active: true,
+        icon: <IconCharge />,
+      }
+    : plugged
+      ? {
+          kind: "button",
+          id: "charge",
+          label: "Laden",
+          icon: <IconCharge />,
+          onClick: () => {
+            if (onOpenCharge) onOpenCharge();
+            else onCommand("charge_start");
+          },
+        }
+      : {
+          kind: "status",
+          id: "charge",
+          label: "Leer",
+          icon: <IconCharge />,
+        };
+
+  const slots: Slot[] = [
     {
+      kind: "button",
       id: "lock",
       label: locked ? "Entriegeln" : "Verriegeln",
       active: locked,
@@ -92,6 +133,7 @@ export function QuickActions({
       onClick: () => onCommand(locked ? "unlock" : "lock"),
     },
     {
+      kind: "button",
       id: "climate",
       label: climateOn ? "Klima aus" : "Klima",
       active: climateOn,
@@ -102,16 +144,9 @@ export function QuickActions({
         else onCommand("climate_start");
       },
     },
+    chargeSlot,
     {
-      id: "charge",
-      label: charging ? "Lädt" : "Laden",
-      active: charging,
-      icon: <IconCharge />,
-      onClick: () => {
-        if (!charging) onCommand("charge_start");
-      },
-    },
-    {
+      kind: "button",
       id: "flash",
       label: "Finden",
       icon: <IconFind />,
@@ -121,39 +156,59 @@ export function QuickActions({
 
   return (
     <div className="grid grid-cols-4 gap-2 sm:gap-3">
-      {actions.map((action) => (
-        <button
-          key={action.id}
-          type="button"
-          disabled={
-            busy ||
-            (action.id === "charge" && (charging || !plugged))
-          }
-          onClick={action.onClick}
-          className="action-btn flex flex-col items-center gap-2 rounded-2xl px-1 py-3 text-center"
-          style={{
-            background: action.active
-              ? "rgba(95,227,192,0.12)"
-              : "rgba(14,28,40,0.45)",
-            border: `1px solid ${action.active ? "rgba(95,227,192,0.4)" : "var(--line)"}`,
-          }}
-        >
-          <span
-            className="grid h-10 w-10 place-items-center rounded-full"
-            style={{
-              background: action.active
-                ? "rgba(95,227,192,0.2)"
-                : "rgba(0,0,0,0.25)",
-              color: action.active ? "var(--accent-bright)" : "var(--fg)",
-            }}
+      {slots.map((slot) => {
+        const shellStyle = {
+          background: slot.active
+            ? "rgba(95,227,192,0.12)"
+            : "rgba(14,28,40,0.45)",
+          border: `1px solid ${slot.active ? "rgba(95,227,192,0.4)" : "var(--line)"}`,
+        } as const;
+
+        const content = (
+          <>
+            <span
+              className="grid h-10 w-10 place-items-center rounded-full"
+              style={{
+                background: slot.active
+                  ? "rgba(95,227,192,0.2)"
+                  : "rgba(0,0,0,0.25)",
+                color: slot.active ? "var(--accent-bright)" : "var(--fg)",
+              }}
+            >
+              {slot.icon}
+            </span>
+            <span className="text-[11px] font-semibold leading-tight text-[var(--fg)]">
+              {slot.label}
+            </span>
+          </>
+        );
+
+        if (slot.kind === "status") {
+          return (
+            <div
+              key={slot.id}
+              className="flex flex-col items-center gap-2 rounded-2xl px-1 py-3 text-center"
+              style={shellStyle}
+              aria-label={slot.label}
+            >
+              {content}
+            </div>
+          );
+        }
+
+        return (
+          <button
+            key={slot.id}
+            type="button"
+            disabled={busy || slot.disabled}
+            onClick={slot.onClick}
+            className="action-btn flex flex-col items-center gap-2 rounded-2xl px-1 py-3 text-center"
+            style={shellStyle}
           >
-            {action.icon}
-          </span>
-          <span className="text-[11px] font-semibold leading-tight text-[var(--fg)]">
-            {action.label}
-          </span>
-        </button>
-      ))}
+            {content}
+          </button>
+        );
+      })}
     </div>
   );
 }

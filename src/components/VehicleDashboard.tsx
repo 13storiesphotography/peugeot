@@ -212,6 +212,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             busy={busy}
             onCommand={(command) => void runCommand(command)}
             onOpenClimate={() => selectTab("climate")}
+            onOpenCharge={() => selectTab("charge")}
           />
           <button
             type="button"
