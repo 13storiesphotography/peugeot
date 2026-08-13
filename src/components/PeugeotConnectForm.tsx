@@ -8,7 +8,7 @@ import {
   type ConnectState,
 } from "@/app/actions/peugeot";
 import { buildPeugeotAuthorizeUrl } from "@/lib/stellantis/authorize-url";
-import { buildCodeCatcherBookmarklet } from "@/lib/stellantis/code-catcher";
+import { buildIosShortcutJavaScript } from "@/lib/stellantis/code-catcher";
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
 import type { PeugeotConnection } from "@/lib/vehicle/repository";
 
@@ -24,6 +24,14 @@ function formatSync(iso: string | null): string | null {
   }).format(new Date(iso));
 }
 
+function useIsIos(): boolean {
+  const [ios, setIos] = useState(false);
+  useEffect(() => {
+    setIos(/iPhone|iPad|iPod/i.test(navigator.userAgent));
+  }, []);
+  return ios;
+}
+
 export function PeugeotConnectForm({
   connection,
   compact = false,
@@ -31,12 +39,11 @@ export function PeugeotConnectForm({
   initialOAuthCountry = null,
 }: {
   connection: PeugeotConnection;
-  /** Settings layout: collapse reconnect UI when already linked. */
   compact?: boolean;
-  /** From Code-Fänger redirect (?code=…). */
   initialOAuthCode?: string | null;
   initialOAuthCountry?: string | null;
 }) {
+  const isIos = useIsIos();
   const [countryCode, setCountryCode] = useState(
     initialOAuthCountry || connection.countryCode || "DE",
   );
@@ -57,7 +64,8 @@ export function PeugeotConnectForm({
   );
   const [oauthCode, setOauthCode] = useState(initialOAuthCode ?? "");
   const [pasteHint, setPasteHint] = useState<string | null>(null);
-  const [catcherCopied, setCatcherCopied] = useState(false);
+  const [jsCopied, setJsCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [origin, setOrigin] = useState("");
   const [autoStarted, setAutoStarted] = useState(false);
   const codeFormRef = useRef<HTMLFormElement>(null);
@@ -72,21 +80,20 @@ export function PeugeotConnectForm({
     [countryCode],
   );
 
-  const catcherHref = useMemo(() => {
+  const shortcutJs = useMemo(() => {
     if (!origin) return "";
-    return buildCodeCatcherBookmarklet({
+    return buildIosShortcutJavaScript({
       returnBaseUrl: origin,
       countryCode,
     });
   }, [origin, countryCode]);
 
-  // Returning from Code-Fänger: redeem code automatically.
   useEffect(() => {
     if (!initialOAuthCode || autoStarted) return;
     const code = extractOAuthCode(initialOAuthCode);
     if (!code) {
       setPasteHint(
-        "Rückkehr vom Code-Fänger ohne gültigen Code — bitte Schritte wiederholen.",
+        "Rückkehr ohne gültigen Code — bitte Schritte wiederholen oder Computer nutzen.",
       );
       return;
     }
@@ -94,7 +101,6 @@ export function PeugeotConnectForm({
     setOpen(true);
     setAutoStarted(true);
     setPasteHint("Code empfangen — verbinde…");
-    // Drop query params without remounting, then submit.
     window.history.replaceState({}, "", "/control/settings");
     const t = window.setTimeout(() => {
       codeFormRef.current?.requestSubmit();
@@ -102,17 +108,26 @@ export function PeugeotConnectForm({
     return () => window.clearTimeout(t);
   }, [initialOAuthCode, autoStarted]);
 
-  const copyCatcher = async () => {
-    if (!catcherHref) return;
+  const copyShortcutJs = async () => {
+    if (!shortcutJs) return;
     try {
-      await navigator.clipboard.writeText(catcherHref);
-      setCatcherCopied(true);
-      window.setTimeout(() => setCatcherCopied(false), 2500);
-      setPasteHint(
-        "Code-Fänger kopiert. In Safari als Lesezeichen speichern (siehe Schritte).",
-      );
+      await navigator.clipboard.writeText(shortcutJs);
+      setJsCopied(true);
+      window.setTimeout(() => setJsCopied(false), 2500);
+      setPasteHint("JavaScript kopiert — in den Kurzbefehl einfügen.");
     } catch {
-      setPasteHint("Kopieren blockiert — Lesezeichen unten lange drücken.");
+      setPasteHint("Kopieren blockiert — Textfeld lange drücken → Kopieren.");
+    }
+  };
+
+  const copyLoginLink = async () => {
+    try {
+      await navigator.clipboard.writeText(authorizeUrl);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2500);
+      setPasteHint("Login-Link kopiert — am Computer öffnen.");
+    } catch {
+      setPasteHint("Link konnte nicht kopiert werden.");
     }
   };
 
@@ -155,9 +170,7 @@ export function PeugeotConnectForm({
   const state =
     passwordState.success || passwordState.error
       ? passwordState
-      : codeState.success || codeState.error
-        ? codeState
-        : codeState;
+      : codeState;
   const pending = passwordPending || codePending;
 
   return (
@@ -195,7 +208,7 @@ export function PeugeotConnectForm({
             Neu anmelden erforderlich
           </p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            Captcha selbst lösen, Code-Fänger holt den Rest.
+            Am iPhone am zuverlässigsten über Computer oder Kurzbefehl.
           </p>
         </div>
       ) : null}
@@ -204,31 +217,72 @@ export function PeugeotConnectForm({
         <>
           <div className="mt-4 rounded-2xl border border-[var(--line)]/80 bg-black/[0.03] p-3 text-xs leading-relaxed text-[var(--fg-muted)]">
             <p className="font-semibold text-[var(--fg)]">
-              Empfohlen: Captcha selbst, Rest automatisch
+              {isIos
+                ? "Am iPhone: Lesezeichen mit javascript: funktionieren oft nicht"
+                : "MyPeugeot verbinden"}
             </p>
-            <p className="mt-1.5">
-              Peugeot blockiert den vollautomatischen Login oft mit Captcha. Deshalb
-              meldest du dich einmal manuell an — ein kleines Lesezeichen fängt danach
-              den Code ab und schickt dich zurück in die App.
-            </p>
-            <ol className="mt-2 list-decimal space-y-1.5 pl-4">
-              <li>
-                <strong className="text-[var(--fg)]">Code-Fänger kopieren</strong> und in
-                Safari als Lesezeichen speichern: Teilen/Lesezeichen → neues Lesezeichen →
-                bearbeiten → Adresse durch den kopierten Text ersetzen (muss mit{" "}
-                <code className="text-[var(--accent-bright)]">javascript:</code> beginnen).
-              </li>
-              <li>
-                Unten <strong className="text-[var(--fg)]">Peugeot-Login öffnen</strong>,
-                Captcha + Login wie gewohnt.
-              </li>
-              <li>
-                Auf der Seite „Anmeldung erfolgreich“ zuerst das{" "}
-                <strong className="text-[var(--fg)]">Code-Fänger-Lesezeichen</strong> tippen,
-                dann <strong className="text-[var(--fg)]">WEITER</strong>.
-              </li>
-              <li>Du landest zurück hier — die App löst den Code automatisch ein.</li>
-            </ol>
+            {isIos ? (
+              <>
+                <p className="mt-1.5">
+                  Safari lässt den Anmeldecode nach „Weiter“ nicht in der Adresszeile
+                  stehen, und Captcha blockiert die Vollautomatik. Zwei Wege, die
+                  funktionieren:
+                </p>
+                <p className="mt-2 font-semibold text-[var(--fg)]">
+                  A) Am Computer (einfachste)
+                </p>
+                <ol className="mt-1 list-decimal space-y-1 pl-4">
+                  <li>
+                    <strong className="text-[var(--fg)]">Login-Link kopieren</strong> und
+                    am Mac/PC öffnen.
+                  </li>
+                  <li>Einloggen → WEITER →{" "}
+                    <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
+                    aus der Adresszeile (oder F12 → Netzwerk) kopieren.
+                  </li>
+                  <li>Hier unter „Code einfügen“ einlösen.</li>
+                </ol>
+                <p className="mt-2 font-semibold text-[var(--fg)]">
+                  B) Mit Kurzbefehl (ohne Lesezeichen-Hack)
+                </p>
+                <ol className="mt-1 list-decimal space-y-1 pl-4">
+                  <li>
+                    App <strong className="text-[var(--fg)]">Kurzbefehle</strong> öffnen →
+                    neuer Kurzbefehl.
+                  </li>
+                  <li>
+                    Aktion{" "}
+                    <strong className="text-[var(--fg)]">
+                      „JavaScript auf Webseite ausführen“
+                    </strong>{" "}
+                    hinzufügen.
+                  </li>
+                  <li>
+                    Websites:{" "}
+                    <code className="text-[var(--accent-bright)]">peugeot.com</code>{" "}
+                    erlauben. Unten{" "}
+                    <strong className="text-[var(--fg)]">JS kopieren</strong> und in die
+                    Aktion einfügen.
+                  </li>
+                  <li>
+                    Danach Aktion{" "}
+                    <strong className="text-[var(--fg)]">„URLs öffnen“</strong> — als
+                    Eingabe das Ergebnis des JavaScript.
+                  </li>
+                  <li>
+                    Peugeot-Login öffnen, Captcha + Login, auf „Anmeldung erfolgreich“:{" "}
+                    <strong className="text-[var(--fg)]">Teilen → Kurzbefehl</strong>{" "}
+                    (nicht WEITER tippen — der Kurzbefehl drückt WEITER und holt den
+                    Code).
+                  </li>
+                </ol>
+              </>
+            ) : (
+              <ol className="mt-2 list-decimal space-y-1.5 pl-4">
+                <li>Peugeot-Login öffnen (F12 → Netzwerk optional).</li>
+                <li>Nach WEITER die mymap://-Adresse kopieren und einlösen.</li>
+              </ol>
+            )}
           </div>
 
           <div className="mt-4 grid gap-3">
@@ -249,11 +303,10 @@ export function PeugeotConnectForm({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => void copyCatcher()}
-                disabled={!catcherHref}
+                onClick={() => void copyLoginLink()}
                 className="action-btn btn-primary rounded-full px-4 py-2.5 text-sm font-semibold"
               >
-                {catcherCopied ? "Code-Fänger kopiert" : "1. Code-Fänger kopieren"}
+                {linkCopied ? "Login-Link kopiert" : "Login-Link für PC kopieren"}
               </button>
               <a
                 href={authorizeUrl}
@@ -261,23 +314,29 @@ export function PeugeotConnectForm({
                 rel="noreferrer"
                 className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
               >
-                2. Peugeot-Login öffnen
+                Peugeot-Login öffnen
               </a>
+              {isIos ? (
+                <button
+                  type="button"
+                  onClick={() => void copyShortcutJs()}
+                  disabled={!shortcutJs}
+                  className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+                >
+                  {jsCopied ? "JS kopiert" : "Kurzbefehl-JS kopieren"}
+                </button>
+              ) : null}
             </div>
 
-            {/* iOS: long-press also works for some browsers */}
-            {catcherHref ? (
-              <a
-                href={catcherHref}
-                className="text-[11px] text-[var(--accent-bright)] underline-offset-2 hover:underline"
-                onClick={(e) => {
-                  // Don't navigate — users should save as bookmark.
-                  e.preventDefault();
-                  void copyCatcher();
-                }}
-              >
-                Falls Kopieren scheitert: Link lange drücken → „Link kopieren“
-              </a>
+            {isIos && shortcutJs ? (
+              <textarea
+                readOnly
+                rows={4}
+                value={shortcutJs}
+                className="ui-field font-mono text-[10px] leading-snug"
+                onFocus={(e) => e.currentTarget.select()}
+                aria-label="JavaScript für iOS-Kurzbefehl"
+              />
             ) : null}
           </div>
 
@@ -294,52 +353,10 @@ export function PeugeotConnectForm({
             </div>
           ) : null}
 
-          <details className="mt-4 text-sm">
+          <details className="mt-4 text-sm" open={!isIos}>
             <summary className="cursor-pointer text-[var(--accent-bright)]">
-              Alternativen (Automatik / Code einfügen)
+              Code einfügen / Passwort-Automatik
             </summary>
-
-            <div className="mt-3 rounded-2xl border border-[var(--line)]/60 p-3 text-xs text-[var(--fg-muted)]">
-              <p className="font-semibold text-[var(--fg)]">
-                Automatisch mit Passwort
-              </p>
-              <p className="mt-1">
-                Oft durch Captcha blockiert. Passwort wird nicht gespeichert.
-              </p>
-              <form action={passwordAction} className="mt-3 grid gap-3">
-                <input type="hidden" name="countryCode" value={countryCode} />
-                <label className="block text-sm">
-                  <span className="text-[var(--fg-muted)]">MyPeugeot E-Mail</span>
-                  <input
-                    name="mypeugeotEmail"
-                    type="email"
-                    required
-                    defaultValue={connection.mypeugeotEmail ?? ""}
-                    className="mt-1 ui-field"
-                    autoComplete="username"
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="text-[var(--fg-muted)]">Passwort</span>
-                  <input
-                    name="mypeugeotPassword"
-                    type="password"
-                    required
-                    className="mt-1 ui-field"
-                    autoComplete="current-password"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  disabled={pending}
-                  className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
-                >
-                  {passwordPending
-                    ? "Melde an…"
-                    : "Trotzdem automatisch versuchen"}
-                </button>
-              </form>
-            </div>
 
             <form
               ref={codeFormRef}
@@ -396,6 +413,48 @@ export function PeugeotConnectForm({
                 </button>
               </div>
             </form>
+
+            <div className="mt-3 rounded-2xl border border-[var(--line)]/60 p-3 text-xs text-[var(--fg-muted)]">
+              <p className="font-semibold text-[var(--fg)]">
+                Automatisch mit Passwort
+              </p>
+              <p className="mt-1">
+                Oft durch Captcha blockiert. Passwort wird nicht gespeichert.
+              </p>
+              <form action={passwordAction} className="mt-3 grid gap-3">
+                <input type="hidden" name="countryCode" value={countryCode} />
+                <label className="block text-sm">
+                  <span className="text-[var(--fg-muted)]">MyPeugeot E-Mail</span>
+                  <input
+                    name="mypeugeotEmail"
+                    type="email"
+                    required
+                    defaultValue={connection.mypeugeotEmail ?? ""}
+                    className="mt-1 ui-field"
+                    autoComplete="username"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-[var(--fg-muted)]">Passwort</span>
+                  <input
+                    name="mypeugeotPassword"
+                    type="password"
+                    required
+                    className="mt-1 ui-field"
+                    autoComplete="current-password"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+                >
+                  {passwordPending
+                    ? "Melde an…"
+                    : "Trotzdem automatisch versuchen"}
+                </button>
+              </form>
+            </div>
           </details>
         </>
       ) : null}
