@@ -48,6 +48,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const [isPending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<ControlTab>("home");
+  const [unlockConfirmOpen, setUnlockConfirmOpen] = useState(false);
 
   useEffect(() => {
     setTab(readTab());
@@ -100,7 +101,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     refresh,
   ]);
 
-  const runCommand = async (
+  const executeCommand = async (
     command: VehicleCommand,
     opts?: { chargeLimitPercent?: number; targetTempC?: number },
   ) => {
@@ -145,6 +146,22 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  const runCommand = (
+    command: VehicleCommand,
+    opts?: { chargeLimitPercent?: number; targetTempC?: number },
+  ) => {
+    if (command === "unlock") {
+      setUnlockConfirmOpen(true);
+      return;
+    }
+    void executeCommand(command, opts);
+  };
+
+  const confirmUnlock = () => {
+    setUnlockConfirmOpen(false);
+    void executeCommand("unlock");
   };
 
   const climateOn = vehicle.climateStatus !== "off";
@@ -288,6 +305,59 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           >
             {toast.text}
           </p>
+        </div>
+      ) : null}
+
+      {unlockConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/55 px-4 pb-28 sm:items-center sm:pb-4"
+          role="presentation"
+          onClick={() => setUnlockConfirmOpen(false)}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="unlock-confirm-title"
+            aria-describedby="unlock-confirm-desc"
+            className="animate-rise w-full max-w-sm rounded-[1.5rem] border border-[var(--line)] p-5 shadow-2xl"
+            style={{ background: "rgba(10, 20, 30, 0.97)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p
+              id="unlock-confirm-title"
+              className="font-[family-name:var(--font-display)] text-xl font-semibold"
+            >
+              Wirklich entriegeln?
+            </p>
+            <p
+              id="unlock-confirm-desc"
+              className="mt-2 text-sm text-[var(--fg-muted)]"
+            >
+              Die Türen werden geöffnet. Nur bestätigen, wenn du in der Nähe
+              bist.
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="action-btn rounded-full border border-[var(--line)] px-4 py-3 text-sm font-semibold"
+                onClick={() => setUnlockConfirmOpen(false)}
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                className="action-btn rounded-full px-4 py-3 text-sm font-semibold"
+                style={{
+                  background: "linear-gradient(135deg, #e8b86d, #d4924a)",
+                  color: "#1a1005",
+                }}
+                onClick={confirmUnlock}
+              >
+                Entriegeln
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
