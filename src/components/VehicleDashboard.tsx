@@ -282,12 +282,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           <QuickActions
             locked={vehicle.locked}
             climateOn={climateOn}
-            charging={charging}
-            plugged={plugged}
             busy={busy}
             onCommand={(command) => void runCommand(command)}
             onOpenClimate={() => selectTab("climate")}
-            onOpenCharge={() => selectTab("charge")}
           />
           <LocationLink location={vehicle.location} />
           <ActivityLog items={bundle.activity.slice(0, 3)} />
