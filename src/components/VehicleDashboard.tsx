@@ -18,8 +18,6 @@ import {
 import { ControlsPanel } from "@/components/ControlsPanel";
 import { LocationLink } from "@/components/LocationLink";
 import { QuickActions } from "@/components/QuickActions";
-import { SchedulePanel } from "@/components/SchedulePanel";
-import { SectionHeader } from "@/components/SectionHeader";
 import { VehicleHero } from "@/components/VehicleHero";
 import type { VehicleCommand } from "@/lib/types";
 import type { VehicleBundle } from "@/lib/vehicle/repository";
@@ -48,8 +46,7 @@ function readTab(): ControlTab {
   if (
     value === "climate" ||
     value === "charge" ||
-    value === "controls" ||
-    value === "schedule"
+    value === "controls"
   ) {
     return value;
   }
@@ -491,20 +488,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           remoteReady={bundle.connection.remoteReady}
           onCommand={(command) => void runCommand(command)}
         />
-      ) : null}
-
-      {tab === "schedule" ? (
-        <div className="animate-rise space-y-6 pt-2">
-          <SectionHeader
-            title="Planen"
-            hint="Ladezeiten in der App — Vorklima bitte in MyPeugeot planen"
-          />
-          <SchedulePanel
-            schedules={bundle.schedules}
-            onChanged={() => void refresh(true, { silent: true })}
-            kinds={["charge"]}
-          />
-        </div>
       ) : null}
 
       {toast ? (
