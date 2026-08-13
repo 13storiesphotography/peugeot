@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { isEmailAllowed } from "@/lib/auth/allowlist";
+import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
 import { createClient } from "@/lib/supabase/server";
 
 export type AuthState = {
@@ -40,7 +41,8 @@ export async function signIn(
     return { error: "Dieser Zugang ist nicht freigeschaltet." };
   }
 
-  redirect("/control");
+  const mfa = await getMfaDecision(supabase);
+  redirect(mfaBlocksAccess(mfa) ? "/mfa" : "/control");
 }
 
 /** Public signup is disabled — personal app only. */

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isEmailAllowed } from "@/lib/auth/allowlist";
+import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -38,6 +39,7 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isAuthPage = path === "/";
+  const isMfaPage = path === "/mfa" || path.startsWith("/mfa/");
   const isProtected =
     path.startsWith("/control") || path.startsWith("/api/vehicle");
 
@@ -62,7 +64,37 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (isMfaPage && !allowed) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+
+  let mfaDecision = null as Awaited<ReturnType<typeof getMfaDecision>> | null;
+  if (allowed && (isProtected || isAuthPage || isMfaPage)) {
+    mfaDecision = await getMfaDecision(supabase);
+  }
+
+  if (allowed && isProtected && mfaDecision && mfaBlocksAccess(mfaDecision)) {
+    if (path.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "MFA required", status: mfaDecision.status },
+        { status: 403 },
+      );
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/mfa";
+    return NextResponse.redirect(url);
+  }
+
   if (isAuthPage && allowed) {
+    const url = request.nextUrl.clone();
+    url.pathname =
+      mfaDecision && mfaBlocksAccess(mfaDecision) ? "/mfa" : "/control";
+    return NextResponse.redirect(url);
+  }
+
+  if (isMfaPage && allowed && mfaDecision?.status === "ok") {
     const url = request.nextUrl.clone();
     url.pathname = "/control";
     return NextResponse.redirect(url);

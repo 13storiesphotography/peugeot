@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { isEmailAllowed } from "@/lib/auth/allowlist";
+import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
 import { createClient } from "@/lib/supabase/server";
 
 export async function assertOwnerSession() {
@@ -12,5 +14,10 @@ export async function assertOwnerSession() {
     return null;
   }
 
-  return { supabase, userId, email };
+  const mfa = await getMfaDecision(supabase);
+  if (mfaBlocksAccess(mfa)) {
+    redirect("/mfa");
+  }
+
+  return { supabase, userId, email, mfa };
 }
