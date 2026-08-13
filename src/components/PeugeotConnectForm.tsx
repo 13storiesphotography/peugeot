@@ -327,15 +327,7 @@ export function PeugeotConnectForm({
                 </p>
                 <ol className="mt-2 list-decimal space-y-1.5 pl-4">
                   <li>
-                    Unten <strong className="text-[var(--fg)]">Peugeot-Login öffnen</strong>{" "}
-                    (oder Login-Link kopieren).
-                  </li>
-                  <li>
-                    Optional vorher: Safari-Menü{" "}
-                    <strong className="text-[var(--fg)]">Einstellungen → Erweitert</strong>{" "}
-                    → „Menü „Entwickler“ in der Menüleiste anzeigen“ aktivieren. Dann{" "}
-                    <strong className="text-[var(--fg)]">Entwickler → Netzwerkanforderungen anzeigen</strong>,
-                    „Protokoll beibehalten“ einschalten.
+                    Unten <strong className="text-[var(--fg)]">Peugeot-Login öffnen</strong>.
                   </li>
                   <li>
                     Einloggen und auf <strong className="text-[var(--fg)]">WEITER</strong>{" "}
@@ -343,22 +335,47 @@ export function PeugeotConnectForm({
                   </li>
                   <li>
                     Safari meldet oft, dass die Seite nicht geöffnet werden kann — das ist
-                    ok. In der <strong className="text-[var(--fg)]">Adresszeile</strong> steht{" "}
-                    <code className="text-[var(--accent-bright)]">mymap://oauth2redirect/…?code=…</code>
-                    {" "}→ gesamte Adresse kopieren.
+                    ok. Oben in die <strong className="text-[var(--fg)]">Adresszeile</strong>{" "}
+                    klicken: Dort sollte{" "}
+                    <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
+                    stehen → gesamte Adresse kopieren (⌘C).
                   </li>
                   <li>
-                    Oder im Netzwerk-Tab den Eintrag mit{" "}
-                    <code className="text-[var(--accent-bright)]">mymap://</code> /{" "}
-                    <code className="text-[var(--accent-bright)]">authorize</code> öffnen →
-                    Antwort-Header <strong className="text-[var(--fg)]">Location</strong>{" "}
-                    kopieren.
-                  </li>
-                  <li>
-                    Unten unter „Code einfügen“ einfügen →{" "}
+                    Zurück hier → unter „Code einfügen“ einfügen →{" "}
                     <strong className="text-[var(--fg)]">Code einlösen</strong>.
                   </li>
                 </ol>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-[var(--accent-bright)]">
+                    Falls die Adresszeile kein mymap:// zeigt (Web-Inspektor)
+                  </summary>
+                  <ol className="mt-2 list-decimal space-y-1.5 pl-4">
+                    <li>
+                      Safari → Einstellungen → <strong className="text-[var(--fg)]">Erweitert</strong>{" "}
+                      → Haken bei{" "}
+                      <strong className="text-[var(--fg)]">
+                        „Funktionen für Webentwickler anzeigen“
+                      </strong>{" "}
+                      (älter: „Menü Entwickler anzeigen“).
+                    </li>
+                    <li>
+                      Menü <strong className="text-[var(--fg)]">Entwickler</strong> →{" "}
+                      <strong className="text-[var(--fg)]">Web-Inspektor einblenden</strong>{" "}
+                      (oder ⌥⌘I).
+                    </li>
+                    <li>
+                      Oben den Tab <strong className="text-[var(--fg)]">Netzwerk</strong>{" "}
+                      wählen → „Protokoll beibehalten“ / Preserve Log an.
+                    </li>
+                    <li>
+                      Nochmal <strong className="text-[var(--fg)]">WEITER</strong> → nach{" "}
+                      <code className="text-[var(--accent-bright)]">mymap</code> oder{" "}
+                      <code className="text-[var(--accent-bright)]">authorize</code> suchen
+                      → Header <strong className="text-[var(--fg)]">Location</strong>{" "}
+                      kopieren.
+                    </li>
+                  </ol>
+                </details>
               </>
             )}
           </div>
