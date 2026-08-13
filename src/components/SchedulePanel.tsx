@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { VehicleSchedule } from "@/lib/vehicle/repository";
 
 const DAY_LABELS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -14,18 +14,62 @@ const KIND_LABEL: Record<VehicleSchedule["kind"], string> = {
 interface SchedulePanelProps {
   schedules: VehicleSchedule[];
   onChanged: () => void;
+  /** Limit to these kinds (e.g. climate-only under Klima). */
+  kinds?: VehicleSchedule["kind"][];
+  /** Seed target °C into new climate schedules. */
+  defaultTargetTempC?: number;
+  title?: string;
+  hint?: string;
+  compact?: boolean;
 }
 
-export function SchedulePanel({ schedules, onChanged }: SchedulePanelProps) {
+export function SchedulePanel({
+  schedules,
+  onChanged,
+  kinds,
+  defaultTargetTempC = 21,
+  title,
+  hint,
+  compact = false,
+}: SchedulePanelProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [local, setLocal] = useState(schedules);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLocal(schedules);
   }, [schedules]);
 
+  const visible = useMemo(
+    () => (kinds ? local.filter((item) => kinds.includes(item.kind)) : local),
+    [local, kinds],
+  );
+
+  const addableKinds = kinds?.length
+    ? kinds
+    : (["climate", "charge", "battery_preheat"] as VehicleSchedule["kind"][]);
+
+  const kindCounts = useMemo(() => {
+    const counts: Partial<Record<VehicleSchedule["kind"], number>> = {};
+    for (const item of visible) {
+      counts[item.kind] = (counts[item.kind] ?? 0) + 1;
+    }
+    return counts;
+  }, [visible]);
+
+  const kindOrdinal = (schedule: VehicleSchedule) => {
+    if ((kindCounts[schedule.kind] ?? 0) <= 1) return "";
+    const n =
+      visible
+        .filter((item) => item.kind === schedule.kind)
+        .findIndex((item) => item.id === schedule.id) + 1;
+    return ` ${n}`;
+  };
+
   const save = async (schedule: VehicleSchedule) => {
     setBusyId(schedule.id);
+    setError(null);
     try {
       const res = await fetch("/api/vehicle/schedules", {
         method: "PATCH",
@@ -38,12 +82,55 @@ export function SchedulePanel({ schedules, onChanged }: SchedulePanelProps) {
           payload: schedule.payload,
         }),
       });
-      if (!res.ok) {
-        throw new Error("Speichern fehlgeschlagen");
-      }
+      if (!res.ok) throw new Error("Speichern fehlgeschlagen");
       onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Fehler");
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const remove = async (scheduleId: string) => {
+    setBusyId(scheduleId);
+    setError(null);
+    try {
+      const res = await fetch("/api/vehicle/schedules", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduleId }),
+      });
+      if (!res.ok) throw new Error("Löschen fehlgeschlagen");
+      setLocal((prev) => prev.filter((item) => item.id !== scheduleId));
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Fehler");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const add = async (kind: VehicleSchedule["kind"]) => {
+    setCreating(true);
+    setError(null);
+    try {
+      const payload =
+        kind === "climate"
+          ? { targetTempC: defaultTargetTempC }
+          : kind === "charge"
+            ? { chargeLimitPercent: 80 }
+            : {};
+      const res = await fetch("/api/vehicle/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, enabled: true, payload }),
+      });
+      if (!res.ok) throw new Error("Anlegen fehlgeschlagen");
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Fehler");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -61,19 +148,58 @@ export function SchedulePanel({ schedules, onChanged }: SchedulePanelProps) {
     update(schedule.id, { daysOfWeek });
   };
 
+  const setTargetTemp = (schedule: VehicleSchedule, value: number) => {
+    const targetTempC = Math.min(28, Math.max(16, Math.round(value)));
+    update(schedule.id, {
+      payload: { ...schedule.payload, targetTempC },
+    });
+  };
+
   return (
     <div className="space-y-4">
-      {local.map((schedule) => (
+      {(title || hint) && (
+        <div>
+          {title ? (
+            <h3
+              className={
+                compact
+                  ? "text-sm font-semibold uppercase tracking-[0.18em] text-[var(--fg-muted)]"
+                  : "font-[family-name:var(--font-display)] text-xl font-semibold"
+              }
+            >
+              {title}
+            </h3>
+          ) : null}
+          {hint ? (
+            <p className="mt-1 text-xs text-[var(--fg-muted)]">{hint}</p>
+          ) : null}
+        </div>
+      )}
+
+      {visible.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-[var(--line)] px-4 py-5 text-sm text-[var(--fg-muted)]">
+          Noch kein Zeitplan — leg z.&nbsp;B. Mo–Fr morgens Vorklima an.
+        </p>
+      ) : null}
+
+      {visible.map((schedule) => (
         <div
           key={schedule.id}
           className="rounded-2xl border border-[var(--line)] px-4 py-4"
           style={{ background: "rgba(14,28,40,0.4)" }}
         >
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-semibold">{KIND_LABEL[schedule.kind]}</p>
+              <p className="font-semibold">
+                {KIND_LABEL[schedule.kind]}
+                {kindOrdinal(schedule)}
+              </p>
               <p className="text-xs text-[var(--fg-muted)]">
                 {schedule.enabled ? "Aktiv" : "Pausiert"}
+                {schedule.kind === "climate" &&
+                typeof schedule.payload.targetTempC === "number"
+                  ? ` · ${schedule.payload.targetTempC}°`
+                  : ""}
               </p>
             </div>
             <label className="flex items-center gap-2 text-sm">
@@ -97,9 +223,29 @@ export function SchedulePanel({ schedules, onChanged }: SchedulePanelProps) {
               }
               className="rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2 text-sm"
             />
+            {schedule.kind === "climate" ? (
+              <label className="flex items-center gap-2 text-sm text-[var(--fg-muted)]">
+                Ziel
+                <input
+                  type="number"
+                  min={16}
+                  max={28}
+                  value={
+                    typeof schedule.payload.targetTempC === "number"
+                      ? schedule.payload.targetTempC
+                      : defaultTargetTempC
+                  }
+                  onChange={(e) =>
+                    setTargetTemp(schedule, Number(e.target.value))
+                  }
+                  className="w-16 rounded-xl border border-[var(--line)] bg-black/25 px-2 py-2 text-sm tabular-nums text-[var(--fg)]"
+                />
+                °C
+              </label>
+            ) : null}
             <div className="flex flex-wrap gap-1">
-              {DAY_LABELS.map((label, index) => {
-                const day = index + 1;
+              {DAY_LABELS.map((label, dayIndex) => {
+                const day = dayIndex + 1;
                 const active = schedule.daysOfWeek.includes(day);
                 return (
                   <button
@@ -124,16 +270,48 @@ export function SchedulePanel({ schedules, onChanged }: SchedulePanelProps) {
             </div>
           </div>
 
-          <button
-            type="button"
-            disabled={busyId === schedule.id}
-            onClick={() => void save(schedule)}
-            className="action-btn mt-4 rounded-full border border-[var(--line)] px-4 py-2 text-xs font-semibold"
-          >
-            {busyId === schedule.id ? "Speichern…" : "Zeitplan speichern"}
-          </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busyId === schedule.id}
+              onClick={() => void save(schedule)}
+              className="action-btn rounded-full border border-[var(--line)] px-4 py-2 text-xs font-semibold"
+            >
+              {busyId === schedule.id ? "Speichern…" : "Speichern"}
+            </button>
+            <button
+              type="button"
+              disabled={busyId === schedule.id}
+              onClick={() => void remove(schedule.id)}
+              className="action-btn rounded-full px-4 py-2 text-xs font-semibold text-[var(--danger)]"
+              style={{ border: "1px solid rgba(224,122,106,0.35)" }}
+            >
+              Löschen
+            </button>
+          </div>
         </div>
       ))}
+
+      <div className="flex flex-wrap gap-2">
+        {addableKinds.map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            disabled={creating}
+            onClick={() => void add(kind)}
+            className="action-btn rounded-full border px-4 py-2.5 text-xs font-semibold"
+            style={{
+              background: "rgba(95,227,192,0.08)",
+              borderColor: "rgba(95,227,192,0.35)",
+              color: "var(--accent-bright)",
+            }}
+          >
+            {creating ? "…" : `+ ${KIND_LABEL[kind]}`}
+          </button>
+        ))}
+      </div>
+
+      {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
     </div>
   );
 }

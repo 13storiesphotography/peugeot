@@ -1,17 +1,27 @@
 "use client";
 
+import { SchedulePanel } from "@/components/SchedulePanel";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
+import type { VehicleSchedule } from "@/lib/vehicle/repository";
 
 interface ClimatePanelProps {
   vehicle: VehicleState;
   busy: boolean;
+  schedules: VehicleSchedule[];
   onCommand: (
     command: VehicleCommand,
     opts?: { targetTempC?: number },
   ) => void;
+  onSchedulesChanged: () => void;
 }
 
-export function ClimatePanel({ vehicle, busy, onCommand }: ClimatePanelProps) {
+export function ClimatePanel({
+  vehicle,
+  busy,
+  schedules,
+  onCommand,
+  onSchedulesChanged,
+}: ClimatePanelProps) {
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
   const target = vehicle.targetTempC;
@@ -140,6 +150,22 @@ export function ClimatePanel({ vehicle, busy, onCommand }: ClimatePanelProps) {
           </p>
           <p className="mt-2 text-sm font-medium">{vehicle.location.address}</p>
         </div>
+      </div>
+
+      <div className="border-t border-[var(--line)] pt-6">
+        <SchedulePanel
+          schedules={schedules}
+          onChanged={onSchedulesChanged}
+          kinds={["climate"]}
+          defaultTargetTempC={target}
+          compact
+          title="Vorklima planen"
+          hint={
+            live
+              ? "Mehrere Zeitpläne möglich (z. B. Werktags 7:15, Wochenende 9:00). Speichern in der App — automatisches Starten am Auto folgt mit Remote."
+              : "Mehrere Zeitpläne möglich — z. B. Werktags früh, Wochenende später."
+          }
+        />
       </div>
     </section>
   );

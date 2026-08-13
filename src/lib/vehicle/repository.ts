@@ -213,7 +213,8 @@ export async function getVehicleBundle(
         .from("vehicle_schedules")
         .select("id, kind, enabled, time_local, days_of_week, payload")
         .eq("vehicle_id", vehicleId)
-        .order("kind"),
+        .order("kind")
+        .order("time_local"),
       supabase
         .from("activity_log")
         .select("id, command, message, ok, created_at")
@@ -486,6 +487,60 @@ export async function updateSchedule(
       payload: input.payload ?? {},
       updated_at: new Date().toISOString(),
     })
+    .eq("id", scheduleId)
+    .eq("user_id", userId);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function createSchedule(
+  supabase: SupabaseClient,
+  userId: string,
+  input: {
+    kind: VehicleSchedule["kind"];
+    enabled?: boolean;
+    timeLocal?: string;
+    daysOfWeek?: number[];
+    payload?: Record<string, unknown>;
+  },
+): Promise<VehicleSchedule> {
+  const { vehicleId } = await ensureVehicle(supabase, userId);
+  const defaults: Record<
+    VehicleSchedule["kind"],
+    { timeLocal: string; payload: Record<string, unknown> }
+  > = {
+    charge: { timeLocal: "22:00", payload: { chargeLimitPercent: 80 } },
+    climate: { timeLocal: "07:15", payload: { targetTempC: 21 } },
+    battery_preheat: { timeLocal: "06:45", payload: {} },
+  };
+  const preset = defaults[input.kind];
+
+  const { data, error } = await supabase
+    .from("vehicle_schedules")
+    .insert({
+      user_id: userId,
+      vehicle_id: vehicleId,
+      kind: input.kind,
+      enabled: input.enabled ?? true,
+      time_local: input.timeLocal ?? preset.timeLocal,
+      days_of_week: input.daysOfWeek ?? [1, 2, 3, 4, 5],
+      payload: input.payload ?? preset.payload,
+    })
+    .select("id, kind, enabled, time_local, days_of_week, payload")
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapSchedule(data);
+}
+
+export async function deleteSchedule(
+  supabase: SupabaseClient,
+  userId: string,
+  scheduleId: string,
+) {
+  const { error } = await supabase
+    .from("vehicle_schedules")
+    .delete()
     .eq("id", scheduleId)
     .eq("user_id", userId);
 

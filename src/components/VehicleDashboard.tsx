@@ -249,7 +249,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         <ClimatePanel
           vehicle={vehicle}
           busy={busy}
+          schedules={bundle.schedules}
           onCommand={(command, opts) => void runCommand(command, opts)}
+          onSchedulesChanged={() => void refresh()}
         />
       ) : null}
 
@@ -278,12 +280,14 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               Planen
             </h2>
             <p className="mt-1 text-sm text-[var(--fg-muted)]">
-              Laden und Klima nach deinem Alltag.
+              Beliebig viele Pläne für Laden, Vorklima und Akku-Vorwärmung.
+              Zeit und Wochentage je Plan — unter Klima auch direkt editierbar.
             </p>
           </div>
           <SchedulePanel
             schedules={bundle.schedules}
             onChanged={() => void refresh()}
+            hint="Tipp: Für unterschiedliche Routinen einfach mehrere Vorklima-Pläne anlegen (Werktag / Wochenende)."
           />
         </div>
       ) : null}
