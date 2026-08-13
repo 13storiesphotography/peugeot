@@ -4,6 +4,7 @@ import { signOut } from "@/app/actions/auth";
 import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
 import { RemotePinForm } from "@/components/RemotePinForm";
 import { SettingsForm } from "@/components/SettingsForm";
+import { SyncIntervalForm } from "@/components/SyncIntervalForm";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { MFA_GRACE_DAYS } from "@/lib/auth/mfa-policy";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
@@ -70,6 +71,11 @@ export default async function SettingsPage() {
           <PeugeotConnectForm connection={bundle.connection} />
           <div className="panel rounded-[1.75rem] p-6 sm:p-8">
             <RemotePinForm ready={bundle.connection.remoteReady} />
+          </div>
+          <div className="panel rounded-[1.75rem] p-6 sm:p-8">
+            <SyncIntervalForm
+              syncIntervalSec={bundle.connection.syncIntervalSec}
+            />
           </div>
           <SettingsForm vehicle={bundle.vehicle} />
         </div>

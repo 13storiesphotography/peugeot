@@ -33,6 +33,8 @@ export type PeugeotConnection = {
   lastSyncAt: string | null;
   remoteReady: boolean;
   customerId: string | null;
+  /** Seconds between automatic Peugeot status pulls while the control page is open. */
+  syncIntervalSec: number;
 };
 
 export type ChargeSample = {
@@ -53,6 +55,8 @@ export type VehicleBundle = {
   schedules: VehicleSchedule[];
   activity: ActivityItem[];
   chargeCurve: ChargeSample[];
+  /** Last Peugeot sync error, if any. */
+  syncError?: string | null;
 };
 
 function mapSchedule(row: {
@@ -326,7 +330,7 @@ export async function getVehicleBundle(
       supabase
         .from("peugeot_connections")
         .select(
-          "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, refresh_token, token_expires_at, last_sync_at, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at",
+          "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, refresh_token, token_expires_at, last_sync_at, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at, sync_interval_sec",
         )
         .eq("user_id", userId)
         .maybeSingle(),
@@ -367,8 +371,13 @@ export async function getVehicleBundle(
     ? new Date(connection.last_sync_at as string).getTime()
     : 0;
   const chargingNow = vehicle.chargeStatus === "charging";
-  // While charging, refresh often; otherwise keep API gentle.
-  const syncEveryMs = chargingNow ? 30_000 : 90_000;
+  const configuredIntervalSec = clampSyncInterval(
+    Number(connection?.sync_interval_sec ?? 45),
+  );
+  // Server throttle: respect setting, but never hammer harder than every 20s.
+  const syncEveryMs = chargingNow
+    ? Math.min(configuredIntervalSec, 30) * 1000
+    : configuredIntervalSec * 1000;
   const shouldSync =
     isLive &&
     (options.forceSync ||
@@ -376,6 +385,7 @@ export async function getVehicleBundle(
       Date.now() - lastSyncMs > syncEveryMs);
 
   let didUpdateVehicle = !isLive && vehicle.chargeStatus === "charging";
+  let syncError: string | null = null;
 
   if (shouldSync && connection?.vehicle_api_id && connection.access_token) {
     try {
@@ -446,11 +456,35 @@ export async function getVehicleBundle(
         }
       }
 
-      const status = await fetchVehicleStatus(
-        accessToken,
-        countryCode,
-        String(connection.vehicle_api_id),
-      );
+      const pullStatus = async (token: string) =>
+        fetchVehicleStatus(
+          token,
+          countryCode,
+          String(connection.vehicle_api_id),
+        );
+
+      let status: unknown;
+      try {
+        status = await pullStatus(accessToken);
+      } catch (firstError) {
+        // Token may be rejected early — try one refresh then retry.
+        if (!connection.refresh_token) throw firstError;
+        const refreshed = await refreshAccessToken(
+          countryCode,
+          String(connection.refresh_token),
+        );
+        accessToken = refreshed.accessToken;
+        await supabase
+          .from("peugeot_connections")
+          .update({
+            access_token: refreshed.accessToken,
+            refresh_token: refreshed.refreshToken,
+            token_expires_at: refreshed.expiresAt,
+          })
+          .eq("user_id", userId);
+        status = await pullStatus(accessToken);
+      }
+
       vehicle = await mapStatusToVehicleStateWithAddress(
         status,
         {
@@ -478,8 +512,11 @@ export async function getVehicleBundle(
         .eq("user_id", userId);
       connection.last_sync_at = new Date().toISOString();
       didUpdateVehicle = true;
-    } catch {
-      // Keep last known state if Stellantis is flaky.
+    } catch (error) {
+      syncError =
+        error instanceof Error
+          ? error.message
+          : "Fahrzeugstatus konnte nicht geladen werden.";
     }
   }
 
@@ -509,6 +546,9 @@ export async function getVehicleBundle(
       lastSyncAt: connection?.last_sync_at ?? null,
       remoteReady: Boolean(connection?.remote_ready),
       customerId: connection?.customer_id ?? null,
+      syncIntervalSec: clampSyncInterval(
+        Number(connection?.sync_interval_sec ?? 45),
+      ),
     },
     schedules: (schedules ?? []).map(mapSchedule),
     activity: (activity ?? []).map((row) => ({
@@ -519,7 +559,13 @@ export async function getVehicleBundle(
       createdAt: row.created_at,
     })),
     chargeCurve,
+    syncError,
   };
+}
+
+function clampSyncInterval(sec: number): number {
+  if (!Number.isFinite(sec)) return 45;
+  return Math.min(600, Math.max(15, Math.round(sec)));
 }
 
 export async function runVehicleCommand(
@@ -717,6 +763,23 @@ export async function updateVehicleProfile(
   };
   await saveState(supabase, userId, vehicleId, next);
   return next;
+}
+
+export async function updateSyncInterval(
+  supabase: SupabaseClient,
+  userId: string,
+  syncIntervalSec: number,
+) {
+  const sec = clampSyncInterval(syncIntervalSec);
+  const { error } = await supabase
+    .from("peugeot_connections")
+    .update({
+      sync_interval_sec: sec,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+  return sec;
 }
 
 export async function updatePeugeotConnection(

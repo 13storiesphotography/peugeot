@@ -75,9 +75,18 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const refresh = useCallback(async (forceSync = false) => {
     const qs = forceSync ? "?sync=1" : "";
     const res = await fetch(`/api/vehicle${qs}`, { cache: "no-store" });
-    if (!res.ok) return;
+    if (!res.ok) {
+      setToast({
+        text: "Aktualisierung fehlgeschlagen.",
+        ok: false,
+      });
+      return;
+    }
     const data = (await res.json()) as VehicleBundle;
     startTransition(() => setBundle(data));
+    if (data.syncError) {
+      setToast({ text: data.syncError, ok: false });
+    }
   }, []);
 
   useEffect(() => {
@@ -89,16 +98,19 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
   useEffect(() => {
     const live = bundle.connection.connected;
-    const charging = bundle.vehicle.chargeStatus === "charging";
-    // Live + charging: poll + force sync cadence ~20s. Demo: soft 8s tick.
-    const intervalMs = live ? (charging ? 20_000 : 45_000) : 10_000;
+    const intervalSec = Math.max(
+      15,
+      bundle.connection.syncIntervalSec || 45,
+    );
+    // Demo tick stays snappy; live uses the configured interval.
+    const intervalMs = live ? intervalSec * 1000 : 10_000;
     const id = window.setInterval(() => {
       void refresh(live);
     }, intervalMs);
     return () => window.clearInterval(id);
   }, [
     bundle.connection.connected,
-    bundle.vehicle.chargeStatus,
+    bundle.connection.syncIntervalSec,
     refresh,
   ]);
 
@@ -183,9 +195,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             type="button"
             onClick={() => void refresh(true)}
             className="mt-1 block text-left text-xs text-[var(--fg-muted)]"
-            title="Aktualisieren"
+            title="Jetzt aktualisieren"
           >
-            Aktualisiert {formatUpdated(vehicle.lastUpdatedAt)}
+            Stand {formatUpdated(vehicle.lastUpdatedAt)}
+            {bundle.connection.lastSyncAt
+              ? ` · Abruf ${formatUpdated(bundle.connection.lastSyncAt)}`
+              : ""}
             {isPending ? "…" : ""}
           </button>
         </div>
