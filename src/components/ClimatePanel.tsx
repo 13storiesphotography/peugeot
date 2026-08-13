@@ -81,7 +81,7 @@ export function ClimatePanel({
 
       <p className="text-center text-xs text-[var(--fg-muted)]">
         Außen {formatTemp(vehicle.outdoorTempC)}
-        {live ? " · Innentemperatur liefert Peugeot nicht" : " · Demo"}
+        {live ? null : " · Demo"}
       </p>
 
       {onOpenSchedule ? (
