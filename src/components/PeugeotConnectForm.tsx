@@ -32,6 +32,17 @@ function useIsIos(): boolean {
   return ios;
 }
 
+function useIsMacSafari(): boolean {
+  const [macSafari, setMacSafari] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    const isMac = /Macintosh|Mac OS X/i.test(ua);
+    const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|Edg|Firefox/i.test(ua);
+    setMacSafari(isMac && isSafari);
+  }, []);
+  return macSafari;
+}
+
 export function PeugeotConnectForm({
   connection,
   compact = false,
@@ -46,6 +57,7 @@ export function PeugeotConnectForm({
   initialOAuthError?: string | null;
 }) {
   const isIos = useIsIos();
+  const isMacSafari = useIsMacSafari();
   const [countryCode, setCountryCode] = useState(
     initialOAuthCountry || connection.countryCode || "DE",
   );
@@ -232,7 +244,9 @@ export function PeugeotConnectForm({
             <p className="font-semibold text-[var(--fg)]">
               {isIos
                 ? "Am iPhone: Lesezeichen mit javascript: funktionieren oft nicht"
-                : "MyPeugeot verbinden"}
+                : isMacSafari
+                  ? "Am Mac mit Safari verbinden"
+                  : "MyPeugeot verbinden"}
             </p>
             {isIos ? (
               <>
@@ -251,7 +265,7 @@ export function PeugeotConnectForm({
                   </li>
                   <li>Einloggen → WEITER →{" "}
                     <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
-                    aus der Adresszeile (oder F12 → Netzwerk) kopieren.
+                    aus der Adresszeile (oder Entwicklermenü → Netzwerk) kopieren.
                   </li>
                   <li>Hier unter „Code einfügen“ einlösen.</li>
                 </ol>
@@ -305,10 +319,47 @@ export function PeugeotConnectForm({
                 </p>
               </>
             ) : (
-              <ol className="mt-2 list-decimal space-y-1.5 pl-4">
-                <li>Peugeot-Login öffnen (F12 → Netzwerk optional).</li>
-                <li>Nach WEITER die mymap://-Adresse kopieren und einlösen.</li>
-              </ol>
+              <>
+                <p className="mt-1.5">
+                  Nach dem Login versucht Peugeot die App zu öffnen (
+                  <code className="text-[var(--accent-bright)]">mymap://</code>
+                  ). In Safari am Mac bleibt die Adresse sichtbar — die kopierst du.
+                </p>
+                <ol className="mt-2 list-decimal space-y-1.5 pl-4">
+                  <li>
+                    Unten <strong className="text-[var(--fg)]">Peugeot-Login öffnen</strong>{" "}
+                    (oder Login-Link kopieren).
+                  </li>
+                  <li>
+                    Optional vorher: Safari-Menü{" "}
+                    <strong className="text-[var(--fg)]">Einstellungen → Erweitert</strong>{" "}
+                    → „Menü „Entwickler“ in der Menüleiste anzeigen“ aktivieren. Dann{" "}
+                    <strong className="text-[var(--fg)]">Entwickler → Netzwerkanforderungen anzeigen</strong>,
+                    „Protokoll beibehalten“ einschalten.
+                  </li>
+                  <li>
+                    Einloggen und auf <strong className="text-[var(--fg)]">WEITER</strong>{" "}
+                    klicken.
+                  </li>
+                  <li>
+                    Safari meldet oft, dass die Seite nicht geöffnet werden kann — das ist
+                    ok. In der <strong className="text-[var(--fg)]">Adresszeile</strong> steht{" "}
+                    <code className="text-[var(--accent-bright)]">mymap://oauth2redirect/…?code=…</code>
+                    {" "}→ gesamte Adresse kopieren.
+                  </li>
+                  <li>
+                    Oder im Netzwerk-Tab den Eintrag mit{" "}
+                    <code className="text-[var(--accent-bright)]">mymap://</code> /{" "}
+                    <code className="text-[var(--accent-bright)]">authorize</code> öffnen →
+                    Antwort-Header <strong className="text-[var(--fg)]">Location</strong>{" "}
+                    kopieren.
+                  </li>
+                  <li>
+                    Unten unter „Code einfügen“ einfügen →{" "}
+                    <strong className="text-[var(--fg)]">Code einlösen</strong>.
+                  </li>
+                </ol>
+              </>
             )}
           </div>
 
