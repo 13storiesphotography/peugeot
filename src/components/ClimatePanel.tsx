@@ -1,5 +1,6 @@
 "use client";
 
+import { RemotePinForm } from "@/components/RemotePinForm";
 import { SectionHeader } from "@/components/SectionHeader";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
 
@@ -12,6 +13,8 @@ interface ClimatePanelProps {
     opts?: { targetTempC?: number },
   ) => void;
   onOpenSchedule?: () => void;
+  /** Refresh vehicle bundle after one-time remote PIN setup. */
+  onRemoteReady?: () => void;
 }
 
 export function ClimatePanel({
@@ -20,6 +23,7 @@ export function ClimatePanel({
   remoteReady = false,
   onCommand,
   onOpenSchedule,
+  onRemoteReady,
 }: ClimatePanelProps) {
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
@@ -44,6 +48,14 @@ export function ClimatePanel({
         title="Klima"
         hint={`Kabine ${vehicle.cabinTempC}° · ${statusHint}`}
       />
+
+      {live && !remoteReady ? (
+        <RemotePinForm
+          ready={false}
+          compact
+          onReady={() => onRemoteReady?.()}
+        />
+      ) : null}
 
       <div className="flex flex-col items-center py-4">
         <div className="flex items-center gap-6">
@@ -86,7 +98,7 @@ export function ClimatePanel({
 
       {!climateRemoteOk ? (
         <p className="text-center text-xs text-[var(--fg-muted)]">
-          Unter Einstellungen die Fernbedienung einrichten.
+          Oben einmal freischalten — danach startet Klima mit einem Tippen.
         </p>
       ) : null}
 

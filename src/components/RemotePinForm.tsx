@@ -1,32 +1,66 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import {
   activateRemotePinAction,
   sendRemoteSmsAction,
   type RemotePinState,
 } from "@/app/actions/remote";
 
-export function RemotePinForm({ ready }: { ready: boolean }) {
+type Props = {
+  ready: boolean;
+  /** Compact layout for the Klima tab (default settings-style). */
+  compact?: boolean;
+  /** Called after PIN setup succeeds so the parent can unlock climate. */
+  onReady?: () => void;
+};
+
+export function RemotePinForm({ ready, compact = false, onReady }: Props) {
   const [state, action, pending] = useActionState(
     activateRemotePinAction,
     {} as RemotePinState,
   );
   const [smsMsg, setSmsMsg] = useState<string | null>(null);
   const [smsPending, startSms] = useTransition();
+  const notified = useRef(false);
+
+  useEffect(() => {
+    if ((state.success || state.ready) && !notified.current) {
+      notified.current = true;
+      onReady?.();
+    }
+  }, [state.success, state.ready, onReady]);
 
   return (
-    <section>
-      <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-        Fernbedienung
-      </h2>
-      <p className="mt-1 text-sm text-[var(--fg-muted)]">
-        {ready
-          ? "PIN eingerichtet — Vorklima An/Aus ist freigeschaltet."
-          : "SMS-Code und MyPeugeot-PIN einmalig hinterlegen."}
-      </p>
+    <section className={compact ? "ui-surface space-y-4 px-4 py-4" : undefined}>
+      {!compact ? (
+        <>
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+            Fernbedienung
+          </h2>
+          <p className="mt-1 text-sm text-[var(--fg-muted)]">
+            {ready
+              ? "Einmal eingerichtet — Klima und Aufwecken laufen ohne erneute PIN."
+              : "Einmalig SMS-Code + MyPeugeot-PIN (4 Ziffern). Danach Klima ohne PIN."}
+          </p>
+        </>
+      ) : (
+        <div>
+          <p className="font-semibold">Klima freischalten</p>
+          <p className="mt-1 text-xs text-[var(--fg-muted)]">
+            Peugeot verlangt einmalig SMS + deine MyPeugeot-PIN. Danach startet
+            Klima hier ohne erneute PIN — wie in der Original-App.
+          </p>
+        </div>
+      )}
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className={`${compact ? "" : "mt-4 "}flex flex-wrap gap-2`}>
         <button
           type="button"
           disabled={smsPending}
@@ -39,7 +73,7 @@ export function RemotePinForm({ ready }: { ready: boolean }) {
             });
           }}
         >
-          {smsPending ? "Sende…" : "SMS anfordern"}
+          {smsPending ? "Sende…" : "1. SMS anfordern"}
         </button>
         {ready ? (
           <span className="self-center text-xs font-semibold text-[var(--accent-bright)]">
@@ -51,7 +85,10 @@ export function RemotePinForm({ ready }: { ready: boolean }) {
         <p className="mt-2 text-xs text-[var(--fg-muted)]">{smsMsg}</p>
       ) : null}
 
-      <form action={action} className="mt-4 grid gap-3 sm:grid-cols-2">
+      <form
+        action={action}
+        className={`${compact ? "mt-1" : "mt-4"} grid gap-3 sm:grid-cols-2`}
+      >
         <label className="block text-sm">
           <span className="text-[var(--fg-muted)]">SMS-Code</span>
           <input
@@ -64,7 +101,7 @@ export function RemotePinForm({ ready }: { ready: boolean }) {
           />
         </label>
         <label className="block text-sm">
-          <span className="text-[var(--fg-muted)]">PIN (4 Ziffern)</span>
+          <span className="text-[var(--fg-muted)]">MyPeugeot-PIN</span>
           <input
             name="pin"
             type="password"
@@ -81,7 +118,11 @@ export function RemotePinForm({ ready }: { ready: boolean }) {
           disabled={pending}
           className="action-btn btn-primary sm:col-span-2 rounded-full px-5 py-3 text-sm font-semibold"
         >
-          {pending ? "Richte ein…" : ready ? "Erneut einrichten" : "Einrichten"}
+          {pending
+            ? "Richte ein…"
+            : ready
+              ? "Erneut einrichten"
+              : "2. Freischalten"}
         </button>
       </form>
 

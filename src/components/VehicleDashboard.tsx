@@ -415,6 +415,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             locked={vehicle.locked}
             climateOn={climateOn}
             busy={busy}
+            remoteReady={bundle.connection.remoteReady}
             onCommand={(command) => void runCommand(command)}
             onOpenClimate={() => selectTab("climate")}
           />
@@ -430,6 +431,17 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           remoteReady={bundle.connection.remoteReady}
           onCommand={(command, opts) => void runCommand(command, opts)}
           onOpenSchedule={() => selectTab("schedule")}
+          onRemoteReady={() => {
+            setBundle((prev) => ({
+              ...prev,
+              connection: { ...prev.connection, remoteReady: true },
+            }));
+            setToast({
+              text: "Fernbedienung aktiv — Klima ist freigeschaltet.",
+              ok: true,
+            });
+            void refresh(true, { silent: true });
+          }}
         />
       ) : null}
 

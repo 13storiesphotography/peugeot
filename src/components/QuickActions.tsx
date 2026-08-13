@@ -7,6 +7,7 @@ interface QuickActionsProps {
   locked: boolean;
   climateOn: boolean;
   busy: boolean;
+  remoteReady?: boolean;
   onCommand: (command: VehicleCommand) => void;
   onOpenClimate?: () => void;
 }
@@ -24,6 +25,7 @@ export function QuickActions({
   locked,
   climateOn,
   busy,
+  remoteReady = true,
   onCommand,
   onOpenClimate,
 }: QuickActionsProps) {
@@ -37,13 +39,23 @@ export function QuickActions({
     },
     {
       id: "climate",
-      label: climateOn ? "Klima aus" : "Klimatisieren",
+      label: climateOn
+        ? "Klima aus"
+        : remoteReady
+          ? "Klimatisieren"
+          : "Klima einrichten",
       active: climateOn,
       icon: <IconClimate />,
       onClick: () => {
-        if (climateOn) onCommand("climate_stop");
-        else if (onOpenClimate) onOpenClimate();
-        else onCommand("climate_start");
+        if (climateOn) {
+          onCommand("climate_stop");
+          return;
+        }
+        if (!remoteReady && onOpenClimate) {
+          onOpenClimate();
+          return;
+        }
+        onCommand("climate_start");
       },
     },
     {
