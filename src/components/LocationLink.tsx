@@ -15,28 +15,18 @@ export function LocationLink({ location, className }: Props) {
 
   const body = (
     <>
-      <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-        Standort
-      </p>
+      <p className="eyebrow">Standort</p>
       <p className="mt-1 text-sm font-medium leading-snug">{location.address}</p>
       {href ? (
-        <p className="mt-1.5 text-[11px] font-medium text-[var(--accent-bright)]">
-          Navigation öffnen →
+        <p className="mt-1.5 text-xs font-medium text-[var(--accent-bright)]">
+          Navigation öffnen
         </p>
       ) : null}
     </>
   );
 
   if (!href) {
-    return (
-      <div
-        className={
-          className ?? "rounded-2xl border border-[var(--line)] px-4 py-3"
-        }
-      >
-        {body}
-      </div>
-    );
+    return <div className={className ?? "ui-surface px-4 py-4"}>{body}</div>;
   }
 
   return (
@@ -46,7 +36,7 @@ export function LocationLink({ location, className }: Props) {
       rel="noopener noreferrer"
       className={
         className ??
-        "block rounded-2xl border border-[var(--line)] px-4 py-3 transition hover:border-[var(--accent-bright)]/40"
+        "ui-surface block px-4 py-4 transition hover:border-[var(--accent-bright)]/40"
       }
       aria-label={`Navigation zu ${location.address}`}
     >

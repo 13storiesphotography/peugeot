@@ -203,15 +203,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             title="Jetzt aktualisieren"
           >
             Stand {formatUpdated(vehicle.lastUpdatedAt)}
-            {bundle.connection.lastSyncAt
-              ? ` · Abruf ${formatUpdated(bundle.connection.lastSyncAt)}`
-              : ""}
             {isPending ? "…" : ""}
           </button>
         </div>
         <Link
           href="/control/settings"
-          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-[var(--line)] px-3 text-[var(--fg-muted)]"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)]"
           aria-label="Einstellungen"
           title="Einstellungen"
         >
@@ -228,7 +225,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="text-xs font-medium">Einstellungen</span>
         </Link>
       </header>
 
@@ -269,30 +265,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             onOpenClimate={() => selectTab("climate")}
             onOpenCharge={() => selectTab("charge")}
           />
-          <button
-            type="button"
-            onClick={() => selectTab("charge")}
-            className="flex w-full items-center justify-between rounded-2xl border border-[var(--line)] px-4 py-3 text-left"
-            style={{ background: "rgba(14,28,40,0.4)" }}
-          >
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-                Laden
-              </p>
-              <p className="mt-1 text-sm font-semibold">
-                {charging
-                  ? `Lädt${vehicle.chargePowerKw != null ? ` · ${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW` : ""}${vehicle.chargeRateKmh != null ? ` (${Math.round(vehicle.chargeRateKmh)} km/h)` : ""}`
-                  : plugged
-                    ? vehicle.chargeLimitKnown
-                      ? `Bereit · Limit ${vehicle.chargeLimitPercent}%`
-                      : "Bereit · Limit unbekannt"
-                    : "Nicht angeschlossen"}
-              </p>
-            </div>
-            <span className="text-[var(--accent-bright)]">→</span>
-          </button>
           <LocationLink location={vehicle.location} />
-          <ActivityLog items={bundle.activity.slice(0, 5)} />
+          <ActivityLog items={bundle.activity.slice(0, 3)} />
         </div>
       ) : null}
 
@@ -300,10 +274,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         <ClimatePanel
           vehicle={vehicle}
           busy={busy}
-          schedules={bundle.schedules}
           remoteReady={bundle.connection.remoteReady}
           onCommand={(command, opts) => void runCommand(command, opts)}
-          onSchedulesChanged={() => void refresh()}
+          onOpenSchedule={() => selectTab("schedule")}
         />
       ) : null}
 
@@ -325,13 +298,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "schedule" ? (
-        <div className="animate-rise space-y-4 pt-2">
+        <div className="animate-rise space-y-6 pt-2">
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
               Planen
             </h2>
             <p className="mt-1 text-sm text-[var(--fg-muted)]">
-              Zeitpläne für Laden, Vorklima und Batterie-Vorwärmung.
+              Laden, Vorklima und Batterie
             </p>
           </div>
           <SchedulePanel

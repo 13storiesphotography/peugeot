@@ -14,8 +14,8 @@ export function SettingsForm({ vehicle }: { vehicle: VehicleState }) {
 
   return (
     <form action={action} className="space-y-8">
-      <section className="panel rounded-[1.5rem] p-5 sm:p-6">
-        <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
+      <section className="ui-surface p-5">
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
           Fahrzeugprofil
         </h2>
         <p className="mt-1 text-sm text-[var(--fg-muted)]">
@@ -75,11 +75,7 @@ export function SettingsForm({ vehicle }: { vehicle: VehicleState }) {
         <button
           type="submit"
           disabled={pending}
-          className="action-btn mt-6 rounded-full px-6 py-3 text-sm font-semibold"
-          style={{
-            background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-            color: "#031016",
-          }}
+          className="action-btn btn-primary mt-6 rounded-full px-6 py-3 text-sm font-semibold"
         >
           {pending ? "Speichern…" : "Profil speichern"}
         </button>

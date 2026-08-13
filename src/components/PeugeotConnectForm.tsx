@@ -56,15 +56,12 @@ export function PeugeotConnectForm({
   };
 
   return (
-    <section className="panel rounded-[1.5rem] p-5 sm:p-6">
-      <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
+    <section className="ui-surface p-5">
+      <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
         MyPeugeot verbinden
       </h2>
       <p className="mt-1 text-sm text-[var(--fg-muted)]">
-        Wenn „Weiter“ nichts tut: Peugeot will die{" "}
-        <strong className="text-[var(--fg)]">MyPeugeot-App</strong> öffnen (
-        <code className="text-[var(--accent-bright)]">mymap://…</code>). Am PC
-        gibt es die nicht — der Code steckt trotzdem in dem Redirect.
+        Fahrzeugkonto verbinden, damit Status und Fernbedienung funktionieren.
       </p>
 
       {connection.needsReconnect ? (
@@ -80,74 +77,44 @@ export function PeugeotConnectForm({
             Anmeldung abgelaufen
           </p>
           <p className="mt-1 text-[var(--fg-muted)]">
-            Peugeot hat den Zugriff widerrufen („grant invalid“). Bitte erneut
-            bei Peugeot anmelden und den neuen Code hier speichern — danach
-            kommen wieder frische Fahrzeugdaten.
+            Bitte erneut bei Peugeot anmelden und den neuen Code speichern.
           </p>
         </div>
       ) : connection.connected ? (
         <p className="mt-4 text-xs text-[var(--fg-muted)]">
-          Die Peugeot-Sitzung wird im Hintergrund alle ~25 Minuten erneuert,
-          damit du nicht ständig neu anmelden musst. Die App-Anmeldung selbst
-          bleibt davon unberührt.
+          Sitzung wird im Hintergrund automatisch erneuert.
         </p>
       ) : null}
 
-      <div
-        className="mt-5 rounded-2xl border px-4 py-4 text-sm"
-        style={{
-          borderColor: "rgba(232,184,109,0.45)",
-          background: "rgba(232,184,109,0.08)",
-        }}
-      >
-        <p className="font-semibold text-[var(--warn)]">
-          So holst du den Code (Chrome / Edge)
-        </p>
+      <details className="mt-5 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm">
+        <summary className="cursor-pointer font-semibold text-[var(--warn)]">
+          So holst du den Anmeldecode
+        </summary>
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-[var(--fg-muted)]">
           <li>
             Auf der Peugeot-Seite <kbd className="text-[var(--fg)]">F12</kbd> →
-            Tab <strong className="text-[var(--fg)]">Netzwerk</strong> /
-            Network
+            Tab Netzwerk / Network
           </li>
           <li>
-            Haken setzen:{" "}
-            <strong className="text-[var(--fg)]">Protokoll beibehalten</strong>{" "}
-            / Preserve log
+            Haken: Protokoll beibehalten / Preserve log
           </li>
           <li>
-            Jetzt erst auf <strong className="text-[var(--fg)]">WEITER</strong>{" "}
-            klicken
+            Auf <strong className="text-[var(--fg)]">WEITER</strong> klicken
           </li>
           <li>
-            In der Liste nach{" "}
-            <code className="text-[var(--accent-bright)]">oauth2redirect</code>{" "}
-            oder einem fehlgeschlagenen Aufruf mit{" "}
-            <code className="text-[var(--accent-bright)]">mymap://</code> suchen
+            Nach <code className="text-[var(--accent-bright)]">mymap://</code>{" "}
+            oder oauth2redirect suchen und die URL kopieren
           </li>
-          <li>
-            Rechtsklick → Copy →{" "}
-            <strong className="text-[var(--fg)]">Copy URL</strong> / Linkadresse
-            kopieren
-          </li>
-          <li>Die ganze URL unten einfügen (wir extrahieren den code=…)</li>
+          <li>URL unten einfügen</li>
         </ol>
-        <p className="mt-3 text-xs text-[var(--fg-muted)]">
-          Alternative in Firefox: Nach „Weiter“ erscheint oft direkt die
-          Fehlermeldung mit der <code>mymap://…?code=…</code>-Adresse — die
-          komplette Zeile kopieren.
-        </p>
-      </div>
+      </details>
 
       <div className="mt-6 flex flex-wrap gap-3">
         <a
           href={authorizeUrl}
           target="_blank"
           rel="noreferrer"
-          className="action-btn rounded-full px-5 py-3 text-sm font-semibold"
-          style={{
-            background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-            color: "#031016",
-          }}
+          className="action-btn btn-primary rounded-full px-5 py-3 text-sm font-semibold"
         >
           Bei Peugeot anmelden
         </a>
@@ -158,7 +125,7 @@ export function PeugeotConnectForm({
             disabled={syncing}
             className="action-btn rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold"
           >
-            {syncing ? "Sync…" : "Status jetzt syncen"}
+            {syncing ? "Aktualisiere…" : "Jetzt aktualisieren"}
           </button>
         ) : null}
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { SectionHeader } from "@/components/SectionHeader";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
 
 interface ControlsPanelProps {
@@ -12,9 +13,6 @@ interface ControlsPanelProps {
 type ControlTile = {
   id: string;
   label: string;
-  hint?: string;
-  active?: boolean;
-  disabled?: boolean;
   onClick: () => void;
   icon: ReactNode;
 };
@@ -31,53 +29,43 @@ export function ControlsPanel({
     {
       id: "flash",
       label: "Lichter",
-      hint: "Blinken / Finden",
       onClick: () => onCommand("flash"),
       icon: <IconFlash />,
     },
     {
       id: "horn",
       label: "Hupe",
-      hint: "Kurz",
       onClick: () => onCommand("horn"),
       icon: <IconHorn />,
     },
     {
       id: "wakeup",
-      label: "Aufwecken",
-      hint: "Online holen",
+      label: "Wecken",
       onClick: () => onCommand("wakeup"),
       icon: <IconWake />,
     },
   ];
 
   return (
-    <section className="animate-rise space-y-7">
-      <div>
-        <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Steuern
-        </h2>
-        <p className="mt-1 text-sm text-[var(--fg-muted)]">
-          Schloss und Signale
-        </p>
-      </div>
+    <section className="animate-rise space-y-6">
+      <SectionHeader title="Steuern" hint="Schloss und Signale" />
 
       <button
         type="button"
         disabled={busy}
         onClick={() => onCommand(locked ? "unlock" : "lock")}
-        className="action-btn flex w-full flex-col items-center gap-3 rounded-[1.75rem] border px-5 py-7"
+        className="action-btn ui-surface flex w-full flex-col items-center gap-3 px-5 py-7"
         style={{
           borderColor: locked
             ? "rgba(95,227,192,0.45)"
             : "rgba(232,184,109,0.4)",
           background: locked
-            ? "linear-gradient(160deg, rgba(95,227,192,0.14), rgba(14,28,40,0.55))"
-            : "linear-gradient(160deg, rgba(232,184,109,0.12), rgba(14,28,40,0.55))",
+            ? "rgba(95,227,192,0.1)"
+            : "rgba(232,184,109,0.1)",
         }}
       >
         <span
-          className="grid h-16 w-16 place-items-center rounded-full"
+          className="grid h-14 w-14 place-items-center rounded-full"
           style={{
             background: locked
               ? "rgba(95,227,192,0.18)"
@@ -90,65 +78,34 @@ export function ControlsPanel({
         <span className="font-[family-name:var(--font-display)] text-xl font-semibold">
           {locked ? "Entriegeln" : "Verriegeln"}
         </span>
-        <span className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-          {locked ? "Türen geschlossen" : "Türen offen"}
+        <span className="text-xs text-[var(--fg-muted)]">
+          {locked ? "Verriegelt" : "Entriegelt"}
         </span>
       </button>
 
-      <div>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--fg-muted)]">
-          Signale
-        </p>
-        <div className="grid grid-cols-3 gap-3">
-          {actions.map((tile) => (
-            <TileButton key={tile.id} tile={tile} busy={busy} />
-          ))}
-        </div>
+      <div className="grid grid-cols-3 gap-3">
+        {actions.map((tile) => (
+          <button
+            key={tile.id}
+            type="button"
+            disabled={busy}
+            onClick={tile.onClick}
+            className="action-btn ui-surface flex flex-col items-center gap-2.5 px-2 py-5 text-center"
+          >
+            <span
+              className="grid h-12 w-12 place-items-center rounded-full"
+              style={{
+                background: "rgba(0,0,0,0.28)",
+                color: "var(--fg)",
+              }}
+            >
+              {tile.icon}
+            </span>
+            <span className="text-sm font-semibold">{tile.label}</span>
+          </button>
+        ))}
       </div>
     </section>
-  );
-}
-
-function TileButton({
-  tile,
-  busy,
-}: {
-  tile: ControlTile;
-  busy: boolean;
-}) {
-  const disabled = busy || tile.disabled;
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={tile.onClick}
-      className="action-btn flex flex-col items-center gap-2.5 rounded-2xl border px-2 py-5 text-center"
-      style={{
-        borderColor: tile.active ? "rgba(95,227,192,0.45)" : "var(--line)",
-        background: tile.active
-          ? "rgba(95,227,192,0.1)"
-          : "rgba(14,28,40,0.45)",
-        opacity: tile.disabled ? 0.5 : 1,
-      }}
-    >
-      <span
-        className="grid h-12 w-12 place-items-center rounded-full"
-        style={{
-          background: tile.active
-            ? "rgba(95,227,192,0.2)"
-            : "rgba(0,0,0,0.28)",
-          color: tile.active ? "var(--accent-bright)" : "var(--fg)",
-        }}
-      >
-        {tile.icon}
-      </span>
-      <span className="text-sm font-semibold">{tile.label}</span>
-      {tile.hint ? (
-        <span className="text-[11px] leading-tight text-[var(--fg-muted)]">
-          {tile.hint}
-        </span>
-      ) : null}
-    </button>
   );
 }
 

@@ -31,7 +31,7 @@ function formatDuration(startIso: string, endIso: string): string {
 export function ChargeCurve({ samples }: ChargeCurveProps) {
   if (samples.length < 2) {
     return (
-      <div className="rounded-2xl border border-dashed border-[var(--line)] px-4 py-5">
+      <div className="ui-surface px-4 py-4">
         <p className="text-sm font-semibold">Ladekurve</p>
         <p className="mt-1 text-xs text-[var(--fg-muted)]">
           Erscheint während des Ladens.
@@ -80,12 +80,11 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
       s.chargePowerKw != null && s.chargePowerKw > max ? s.chargePowerKw : max,
     0,
   );
-  const mode = last.chargingMode ?? first.chargingMode;
 
   const yTicks = [pMin, Math.round((pMin + pMax) / 2), pMax];
 
   return (
-    <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
+    <div className="ui-surface px-4 py-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">Ladekurve</p>
@@ -103,11 +102,10 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
           </p>
           {peakKw > 0 ? (
             <p>
-              Peak{" "}
+              Max.{" "}
               {peakKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW
             </p>
           ) : null}
-          {mode ? <p>{mode}</p> : null}
         </div>
       </div>
 

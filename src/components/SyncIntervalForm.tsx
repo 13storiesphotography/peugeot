@@ -52,11 +52,7 @@ export function SyncIntervalForm({
       <button
         type="submit"
         disabled={pending}
-        className="action-btn rounded-full px-5 py-2.5 text-sm font-semibold"
-        style={{
-          background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-          color: "#031016",
-        }}
+        className="action-btn btn-primary rounded-full px-5 py-2.5 text-sm font-semibold"
       >
         {pending ? "Speichern…" : "Speichern"}
       </button>

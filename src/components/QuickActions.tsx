@@ -119,7 +119,7 @@ export function QuickActions({
       : {
           kind: "status",
           id: "charge",
-          label: "Leer",
+          label: "Frei",
           icon: <IconCharge />,
         };
 

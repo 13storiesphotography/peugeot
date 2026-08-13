@@ -16,7 +16,7 @@ export function RemotePinForm({ ready }: { ready: boolean }) {
   const [smsPending, startSms] = useTransition();
 
   return (
-    <section className="rounded-2xl border border-[var(--line)] p-4">
+    <section>
       <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
         Fernbedienung
       </h2>
@@ -79,11 +79,7 @@ export function RemotePinForm({ ready }: { ready: boolean }) {
         <button
           type="submit"
           disabled={pending}
-          className="action-btn sm:col-span-2 rounded-full px-5 py-3 text-sm font-semibold"
-          style={{
-            background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-            color: "#031016",
-          }}
+          className="action-btn btn-primary sm:col-span-2 rounded-full px-5 py-3 text-sm font-semibold"
         >
           {pending ? "Richte ein…" : ready ? "Erneut einrichten" : "Einrichten"}
         </button>

@@ -39,40 +39,36 @@ export default async function SettingsPage() {
             </button>
           </form>
         </div>
-        <h1 className="mt-4 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight">
+        <h1 className="mt-4 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Einstellungen
         </h1>
         <p className="mt-2 text-sm text-[var(--fg-muted)]">{session.email}</p>
-        <div className="mt-8 space-y-6">
-          <section className="panel rounded-[1.75rem] p-6 sm:p-8">
-            <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
-              Zwei-Faktor-Authentifizierung
+        <div className="mt-8 space-y-4">
+          <section className="ui-surface p-5">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+              Zwei-Faktor
             </h2>
             <p className="mt-2 text-sm text-[var(--fg-muted)]">
               {mfa.status === "ok"
-                ? "MFA ist aktiv und für diese Sitzung bestätigt."
+                ? "Aktiv und für diese Sitzung bestätigt."
                 : mfa.status === "enroll_optional"
                   ? `Noch nicht eingerichtet. Spätestens nach ${MFA_GRACE_DAYS} Tagen Pflicht (noch ${mfa.daysLeft} Tag${mfa.daysLeft === 1 ? "" : "e"}).`
-                  : "MFA-Status prüfen oder Authenticator einrichten."}
+                  : "Status prüfen oder Authenticator einrichten."}
             </p>
             {mfa.status !== "ok" ? (
               <Link
                 href="/mfa"
-                className="action-btn mt-5 inline-flex rounded-full px-5 py-3 text-sm font-semibold"
-                style={{
-                  background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-                  color: "#031016",
-                }}
+                className="action-btn btn-primary mt-5 inline-flex rounded-full px-5 py-3 text-sm font-semibold"
               >
-                MFA einrichten
+                Einrichten
               </Link>
             ) : null}
           </section>
           <PeugeotConnectForm connection={bundle.connection} />
-          <div className="panel rounded-[1.75rem] p-6 sm:p-8">
+          <div className="ui-surface p-5">
             <RemotePinForm ready={bundle.connection.remoteReady} />
           </div>
-          <div className="panel rounded-[1.75rem] p-6 sm:p-8">
+          <div className="ui-surface p-5">
             <SyncIntervalForm
               syncIntervalSec={bundle.connection.syncIntervalSec}
             />

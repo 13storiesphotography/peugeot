@@ -177,17 +177,13 @@ export function SchedulePanel({
       )}
 
       {visible.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-[var(--line)] px-4 py-5 text-sm text-[var(--fg-muted)]">
+        <p className="ui-surface px-4 py-5 text-sm text-[var(--fg-muted)]">
           Noch kein Zeitplan — leg z.&nbsp;B. Mo–Fr morgens Vorklima an.
         </p>
       ) : null}
 
       {visible.map((schedule) => (
-        <div
-          key={schedule.id}
-          className="rounded-2xl border border-[var(--line)] px-4 py-4"
-          style={{ background: "rgba(14,28,40,0.4)" }}
-        >
+        <div key={schedule.id} className="ui-surface px-4 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-semibold">
@@ -202,16 +198,26 @@ export function SchedulePanel({
                   : ""}
               </p>
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={schedule.enabled}
-                onChange={(e) =>
-                  update(schedule.id, { enabled: e.target.checked })
-                }
+            <button
+              type="button"
+              role="switch"
+              aria-checked={schedule.enabled}
+              aria-label="Zeitplan aktiv"
+              onClick={() =>
+                update(schedule.id, { enabled: !schedule.enabled })
+              }
+              className="action-btn relative h-8 w-14 shrink-0 rounded-full transition"
+              style={{
+                background: schedule.enabled
+                  ? "linear-gradient(135deg, #5fe3c0, #3da8a0)"
+                  : "rgba(143,168,181,0.25)",
+              }}
+            >
+              <span
+                className="absolute top-1 h-6 w-6 rounded-full bg-white shadow transition"
+                style={{ left: schedule.enabled ? "1.75rem" : "0.25rem" }}
               />
-              An
-            </label>
+            </button>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">

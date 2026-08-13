@@ -20,7 +20,7 @@ export function normalizeChargeSpeedMode(
 export function chargeSpeedLabel(mode: ChargeSpeedMode): string {
   switch (mode) {
     case "slow":
-      return "Wechselstrom";
+      return "Wallbox";
     case "quick":
       return "Schnellladen";
     case "none":
@@ -33,7 +33,7 @@ export function chargeSpeedLabel(mode: ChargeSpeedMode): string {
 export function chargeSpeedHint(mode: ChargeSpeedMode): string {
   switch (mode) {
     case "slow":
-      return "Wallbox oder Haushaltsstrom";
+      return "Normale Ladeleistung";
     case "quick":
       return "Hohe Ladeleistung";
     case "none":

@@ -16,7 +16,7 @@ const TABS: {
 }[] = [
   {
     id: "home",
-    label: "Home",
+    label: "Übersicht",
     icon: (active) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
         <path
