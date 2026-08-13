@@ -316,9 +316,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         }
       : pendingConfirm === "climate_start"
         ? {
-            title: "Klima wirklich starten?",
-            body: "Die Klimaanlage schaltet sich ein und verbraucht Strom. Nur bestätigen, wenn das beabsichtigt ist.",
-            action: "Klima starten",
+            title: "Vorklima wirklich starten?",
+            body: "Die Fernvorklimatisierung schaltet sich ein und verbraucht Strom. Nur bestätigen, wenn das beabsichtigt ist.",
+            action: "Vorklima starten",
           }
         : pendingConfirm === "flash"
           ? {

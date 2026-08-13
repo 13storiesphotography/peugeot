@@ -14,7 +14,7 @@ interface ClimatePanelProps {
 
 function formatTemp(tempC: number): string {
   if (!Number.isFinite(tempC)) return "—";
-  return String(Math.round(tempC));
+  return `${Math.round(tempC)}°`;
 }
 
 export function ClimatePanel({
@@ -27,32 +27,32 @@ export function ClimatePanel({
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
   const climateRemoteOk = !live || remoteReady;
-  const outdoor = formatTemp(vehicle.outdoorTempC);
 
+  // Peugeot only reports remote preconditioning — not cabin AC while driving.
+  // Never imply "off" when inactive; that reads as wrong on the road.
   const statusHint = active
     ? vehicle.climateStatus === "heating"
-      ? "heizt"
+      ? "Vorklima · heizt"
       : vehicle.climateStatus === "cooling"
-        ? "kühlt"
-        : "aktiv"
-    : "aus";
+        ? "Vorklima · kühlt"
+        : "Vorklima aktiv"
+    : "Fernstart für Vorklima";
 
   return (
     <section className="animate-rise space-y-6 pt-2">
-      <SectionHeader title="Klima" hint={`Status · ${statusHint}`} />
+      <SectionHeader title="Klima" hint={statusHint} />
 
-      <div className="flex flex-col items-center py-4">
-        <p className="eyebrow mb-3">Außentemperatur</p>
-        <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tabular-nums leading-none">
-          {outdoor}
-          <span className="text-2xl text-[var(--accent-bright)]">°</span>
-        </p>
-        <p className="mt-3 max-w-xs text-center text-sm text-[var(--fg-muted)]">
-          {live
-            ? "Vom Fahrzeug gemessen — Innentemperatur liefert Peugeot nicht."
-            : "Demo-Wert"}
-        </p>
-      </div>
+      {active ? (
+        <div className="ui-surface px-4 py-4 text-center">
+          <p className="text-sm font-semibold text-[var(--accent-bright)]">
+            Vorklima läuft
+          </p>
+          <p className="mt-1 text-xs text-[var(--fg-muted)]">
+            Status kommt von der Fernvorklimatisierung — nicht von der Klima
+            während der Fahrt.
+          </p>
+        </div>
+      ) : null}
 
       <button
         type="button"
@@ -63,7 +63,7 @@ export function ClimatePanel({
         }`}
         style={{ opacity: climateRemoteOk ? 1 : 0.55 }}
       >
-        {active ? "Klima stoppen" : "Klima starten"}
+        {active ? "Vorklima stoppen" : "Vorklima starten"}
       </button>
 
       {!climateRemoteOk ? (
@@ -78,6 +78,11 @@ export function ClimatePanel({
           die Fernbedienung einrichten.
         </p>
       ) : null}
+
+      <p className="text-center text-xs text-[var(--fg-muted)]">
+        Außen {formatTemp(vehicle.outdoorTempC)}
+        {live ? " · Innentemperatur liefert Peugeot nicht" : " · Demo"}
+      </p>
 
       {onOpenSchedule ? (
         <button

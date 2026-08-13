@@ -39,7 +39,7 @@ export function QuickActions({
     },
     {
       id: "climate",
-      label: climateOn ? "Klima aus" : "Klimatisieren",
+      label: climateOn ? "Vorklima aus" : "Vorklima",
       active: climateOn,
       icon: <IconClimate />,
       onClick: () => {

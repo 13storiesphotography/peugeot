@@ -32,7 +32,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
   ];
   if (charging) statusParts.push("Lädt");
   else if (plugged) statusParts.push("Am Ladekabel");
-  if (climateOn) statusParts.push("Klima an");
+  if (climateOn) statusParts.push("Vorklima an");
 
   return (
     <div className="relative mx-auto w-full max-w-md overflow-hidden">
