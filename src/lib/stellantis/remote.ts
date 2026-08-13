@@ -1,4 +1,5 @@
-import mqtt from "mqtt";
+import tls from "node:tls";
+import mqttPacket from "mqtt-packet";
 import { getCountryConfig, MYPEUGEOT } from "@/lib/stellantis/peugeot-config";
 import {
   activateOtpSession,
@@ -202,6 +203,146 @@ function cryptoRandomHex(bytes: number): string {
   return [...arr].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function encodePacket(packet: mqttPacket.Packet): Buffer {
+  return mqttPacket.generate(packet);
+}
+
+/**
+ * PSA MessageSight MQTT: empty clientId + clean session (like paho default).
+ * Implemented with raw TLS + mqtt-packet so mqtt.js cannot inject a clientId.
+ */
+async function psaMqttPublish(input: {
+  remoteAccessToken: string;
+  publishTopic: string;
+  subscribeTopic: string;
+  payload: string;
+  ackTimeoutMs: number;
+}): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        socket.end();
+      } catch {
+        // ignore
+      }
+      fn();
+    };
+
+    const socket = tls.connect({
+      host: MQTT_HOST,
+      port: MQTT_PORT,
+      servername: MQTT_HOST,
+      minVersion: "TLSv1.2",
+      rejectUnauthorized: true,
+    });
+
+    const parser = mqttPacket.parser();
+    const timer = setTimeout(() => {
+      // Command may still succeed server-side even without ack.
+      finish(() => resolve());
+    }, input.ackTimeoutMs);
+
+    const write = (packet: mqttPacket.Packet) => {
+      socket.write(encodePacket(packet));
+    };
+
+    parser.on("packet", (packet) => {
+      if (packet.cmd === "connack") {
+        const code =
+          "returnCode" in packet
+            ? Number(packet.returnCode)
+            : "reasonCode" in packet
+              ? Number(packet.reasonCode)
+              : -1;
+        if (code !== 0) {
+          finish(() =>
+            reject(
+              new Error(
+                code === 2
+                  ? "Connection refused: Identifier rejected"
+                  : `MQTT connection refused (code ${code})`,
+              ),
+            ),
+          );
+          return;
+        }
+        write({
+          cmd: "subscribe",
+          messageId: 1,
+          subscriptions: [{ topic: input.subscribeTopic, qos: 0 }],
+        });
+        return;
+      }
+
+      if (packet.cmd === "suback") {
+        write({
+          cmd: "publish",
+          topic: input.publishTopic,
+          payload: input.payload,
+          qos: 0,
+          dup: false,
+          retain: false,
+        });
+        return;
+      }
+
+      if (packet.cmd === "publish" && packet.payload) {
+        try {
+          const data = JSON.parse(String(packet.payload)) as {
+            return_code?: string;
+          };
+          if (data.return_code && data.return_code !== "0") {
+            finish(() =>
+              reject(new Error(`Remote-Fehler ${data.return_code}`)),
+            );
+            return;
+          }
+          if (data.return_code === "0") {
+            finish(() => resolve());
+          }
+        } catch {
+          // ignore non-json
+        }
+      }
+    });
+
+    parser.on("error", (err) => {
+      finish(() => reject(err));
+    });
+
+    socket.on("secureConnect", () => {
+      write({
+        cmd: "connect",
+        protocolId: "MQTT",
+        protocolVersion: 4,
+        clean: true,
+        clientId: "",
+        keepalive: 60,
+        username: "IMA_OAUTH_ACCESS_TOKEN",
+        password: Buffer.from(input.remoteAccessToken, "utf8"),
+      });
+    });
+
+    socket.on("data", (chunk) => {
+      parser.parse(chunk);
+    });
+
+    socket.on("error", (err) => {
+      finish(() => reject(err));
+    });
+
+    socket.on("timeout", () => {
+      finish(() => reject(new Error("MQTT timeout")));
+    });
+
+    socket.setTimeout(Math.max(input.ackTimeoutMs + 2_000, 14_000));
+  });
+}
+
 /** Publish one virtual-key remote and wait briefly for MQTT ack. */
 async function publishRemoteCommand(input: {
   customerId: string;
@@ -223,74 +364,13 @@ async function publishRemoteCommand(input: {
     vin: input.vin,
     req_parameters: input.reqParameters,
   });
-  const ackTimeoutMs = input.ackTimeoutMs ?? 10_000;
 
-  await new Promise<void>((resolve, reject) => {
-    // PSA MessageSight rejects non-empty client IDs with CONNACK 2
-    // ("Identifier rejected"). Empty + clean session lets the broker assign one
-    // (same as paho-mqtt default used by psa_car_controller).
-    const client = mqtt.connect({
-      host: MQTT_HOST,
-      port: MQTT_PORT,
-      protocol: "mqtts",
-      protocolVersion: 4,
-      clean: true,
-      clientId: "",
-      username: "IMA_OAUTH_ACCESS_TOKEN",
-      password: input.remoteAccessToken,
-      connectTimeout: 12_000,
-      reconnectPeriod: 0,
-      keepalive: 60,
-    });
-
-    const timer = setTimeout(() => {
-      client.end(true);
-      // Command may still succeed server-side even without ack.
-      resolve();
-    }, ackTimeoutMs);
-
-    client.on("connect", () => {
-      client.subscribe(respTopic, { qos: 0 }, (err) => {
-        if (err) {
-          clearTimeout(timer);
-          client.end(true);
-          reject(err);
-          return;
-        }
-        client.publish(topic, payload, { qos: 0 }, (pubErr) => {
-          if (pubErr) {
-            clearTimeout(timer);
-            client.end(true);
-            reject(pubErr);
-          }
-        });
-      });
-    });
-
-    client.on("message", (_t, buf) => {
-      try {
-        const data = JSON.parse(buf.toString()) as { return_code?: string };
-        if (data.return_code && data.return_code !== "0") {
-          clearTimeout(timer);
-          client.end(true);
-          reject(new Error(`Remote-Fehler ${data.return_code}`));
-          return;
-        }
-        if (data.return_code === "0") {
-          clearTimeout(timer);
-          client.end(true);
-          resolve();
-        }
-      } catch {
-        // ignore non-json
-      }
-    });
-
-    client.on("error", (err) => {
-      clearTimeout(timer);
-      client.end(true);
-      reject(err);
-    });
+  await psaMqttPublish({
+    remoteAccessToken: input.remoteAccessToken,
+    publishTopic: topic,
+    subscribeTopic: respTopic,
+    payload,
+    ackTimeoutMs: input.ackTimeoutMs ?? 10_000,
   });
 }
 

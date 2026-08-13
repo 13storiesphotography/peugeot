@@ -156,6 +156,11 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               text: `Stand noch ${formatAge(data.vehicle.lastUpdatedAt)} — Aufwecken gesendet, Peugeot meldet sich langsam.`,
               ok: true,
             });
+          } else if (hard?.wakeAttempted && hard.wakeOk === false) {
+            setToast({
+              text: `Stand ${formatAge(data.vehicle.lastUpdatedAt)}. Aufwecken: ${hard.wakeSkippedReason ?? "fehlgeschlagen"}`,
+              ok: false,
+            });
           } else if (hard?.wakeSkippedReason) {
             setToast({
               text: `Stand ${formatAge(data.vehicle.lastUpdatedAt)}. ${hard.wakeSkippedReason}`,

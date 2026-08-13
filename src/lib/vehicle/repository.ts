@@ -1012,31 +1012,32 @@ async function ensureLiveRemoteSession(
     let remoteAccess = String(connection.remote_access_token ?? "");
     let remoteRefresh = String(connection.remote_refresh_token ?? "");
     let otpState = connection.otp_state as import("@/lib/stellantis/otp/session").OtpPersistedState;
-    const remoteAge = connection.remote_token_updated_at
-      ? Date.now() -
-        new Date(connection.remote_token_updated_at as string).getTime()
-      : Number.POSITIVE_INFINITY;
-
-    if (!remoteAccess || remoteAge > 14 * 60_000) {
-      const refreshed = await refreshRemoteToken({
-        oauthAccessToken: oauthToken,
-        countryCode,
-        remoteRefreshToken: remoteRefresh,
-        otpState,
-      });
-      remoteAccess = refreshed.remote.accessToken;
-      remoteRefresh = refreshed.remote.refreshToken;
-      otpState = refreshed.otpState;
-      await supabase
-        .from("peugeot_connections")
-        .update({
-          remote_access_token: remoteAccess,
-          remote_refresh_token: remoteRefresh,
-          remote_token_updated_at: refreshed.remote.updatedAt,
-          otp_state: otpState,
-        })
-        .eq("user_id", userId);
+    // MQTT tokens last ~15 min; refresh before every remote command so wake /
+    // climate never reuse a nearly-expired or rotated access token.
+    if (!remoteRefresh) {
+      return {
+        ok: false,
+        message: "Fernbedienung unvollständig — bitte PIN erneut einrichten.",
+      };
     }
+    const refreshed = await refreshRemoteToken({
+      oauthAccessToken: oauthToken,
+      countryCode,
+      remoteRefreshToken: remoteRefresh,
+      otpState,
+    });
+    remoteAccess = refreshed.remote.accessToken;
+    remoteRefresh = refreshed.remote.refreshToken;
+    otpState = refreshed.otpState;
+    await supabase
+      .from("peugeot_connections")
+      .update({
+        remote_access_token: remoteAccess,
+        remote_refresh_token: remoteRefresh,
+        remote_token_updated_at: refreshed.remote.updatedAt,
+        otp_state: otpState,
+      })
+      .eq("user_id", userId);
 
     return {
       ok: true,
