@@ -37,11 +37,13 @@ export function PeugeotConnectForm({
   compact = false,
   initialOAuthCode = null,
   initialOAuthCountry = null,
+  initialOAuthError = null,
 }: {
   connection: PeugeotConnection;
   compact?: boolean;
   initialOAuthCode?: string | null;
   initialOAuthCountry?: string | null;
+  initialOAuthError?: string | null;
 }) {
   const isIos = useIsIos();
   const [countryCode, setCountryCode] = useState(
@@ -60,10 +62,15 @@ export function PeugeotConnectForm({
   const [open, setOpen] = useState(
     !connection.connected ||
       connection.needsReconnect ||
-      Boolean(initialOAuthCode),
+      Boolean(initialOAuthCode) ||
+      Boolean(initialOAuthError),
   );
   const [oauthCode, setOauthCode] = useState(initialOAuthCode ?? "");
-  const [pasteHint, setPasteHint] = useState<string | null>(null);
+  const [pasteHint, setPasteHint] = useState<string | null>(
+    initialOAuthError
+      ? decodeURIComponent(initialOAuthError)
+      : null,
+  );
   const [jsCopied, setJsCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [origin, setOrigin] = useState("");
@@ -87,6 +94,12 @@ export function PeugeotConnectForm({
       countryCode,
     });
   }, [origin, countryCode]);
+
+  useEffect(() => {
+    if (initialOAuthError) {
+      window.history.replaceState({}, "", "/control/settings");
+    }
+  }, [initialOAuthError]);
 
   useEffect(() => {
     if (!initialOAuthCode || autoStarted) return;
@@ -285,8 +298,10 @@ export function PeugeotConnectForm({
                   </li>
                 </ol>
                 <p className="mt-2">
-                  Wenn „Kurzbefehl“ trotzdem nicht erscheint: Weg A am Computer nutzen —
-                  das ist am iPhone der zuverlässigste Weg.
+                  Wichtig: Nach einem Update in der App das{" "}
+                  <strong className="text-[var(--fg)]">JS neu kopieren</strong> und im
+                  Kurzbefehl ersetzen. Wenn der Kurzbefehl keinen Code findet, nutze Weg
+                  A am Computer — am iPhone ist das weiterhin der sicherste Weg.
                 </p>
               </>
             ) : (

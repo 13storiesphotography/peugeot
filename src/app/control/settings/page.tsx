@@ -44,13 +44,19 @@ export default async function SettingsPage({
   }
 
   const params = (await searchParams) ?? {};
-  const handoff = params.peugeot_oauth === "1" || params.peugeot_oauth === "true";
+  const oauthFlag = Array.isArray(params.peugeot_oauth)
+    ? params.peugeot_oauth[0]
+    : params.peugeot_oauth;
+  const handoff = oauthFlag === "1" || oauthFlag === "true";
+  const handoffError = oauthFlag === "error";
   const rawCode = handoff ? params.code : undefined;
-  const rawCountry = handoff ? params.country : undefined;
+  const rawCountry = handoff || handoffError ? params.country : undefined;
+  const rawMsg = handoffError ? params.msg : undefined;
   const initialOAuthCode = Array.isArray(rawCode) ? rawCode[0] : rawCode;
   const initialOAuthCountry = Array.isArray(rawCountry)
     ? rawCountry[0]
     : rawCountry;
+  const initialOAuthError = Array.isArray(rawMsg) ? rawMsg[0] : rawMsg;
 
   const bundle = await getSettingsBundle(session.supabase, session.userId);
   const mfa = session.mfa;
@@ -169,6 +175,7 @@ export default async function SettingsPage({
               compact
               initialOAuthCode={initialOAuthCode ?? null}
               initialOAuthCountry={initialOAuthCountry ?? null}
+              initialOAuthError={initialOAuthError ?? null}
             />
           </section>
 

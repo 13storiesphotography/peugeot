@@ -6,7 +6,16 @@ function returnSettingsUrl(returnBaseUrl: string, countryCode: string, codeUrl: 
   return `${base}/control/settings?peugeot_oauth=1&country=${encodeURIComponent(country)}&code=${encodeURIComponent(codeUrl)}`;
 }
 
-/** iOS Shortcuts: „JavaScript auf Webseite ausführen“ — calls completion(appUrl|null). */
+function returnErrorUrl(returnBaseUrl: string, message: string) {
+  const base = returnBaseUrl.replace(/\/$/, "");
+  return `${base}/control/settings?peugeot_oauth=error&msg=${encodeURIComponent(message)}`;
+}
+
+/**
+ * iOS Shortcuts: „JavaScript auf Webseite ausführen“.
+ * Always calls completion(httpsUrl) so „URLs öffnen“ never gets empty input.
+ * Intercepts mymap:// and follows HTTPS redirect chains with redirect:manual.
+ */
 export function buildIosShortcutJavaScript(input: {
   returnBaseUrl: string;
   countryCode: string;
@@ -17,15 +26,67 @@ export function buildIosShortcutJavaScript(input: {
   var returnBase = ${JSON.stringify(returnBase)};
   var country = ${JSON.stringify(country)};
   var done = false;
-  function finish(u) {
+  function appOk(codeUrl) {
+    return returnBase + "/control/settings?peugeot_oauth=1&country=" + encodeURIComponent(country) + "&code=" + encodeURIComponent(String(codeUrl));
+  }
+  function appErr(msg) {
+    return returnBase + "/control/settings?peugeot_oauth=error&msg=" + encodeURIComponent(String(msg || "Kein Code"));
+  }
+  function finishOk(u) {
     if (done) return;
     done = true;
-    if (!u) { completion(null); return; }
-    completion(returnBase + "/control/settings?peugeot_oauth=1&country=" + encodeURIComponent(country) + "&code=" + encodeURIComponent(String(u)));
+    completion(appOk(u));
   }
-  function capture(u) {
+  function finishErr(msg) {
+    if (done) return;
+    done = true;
+    completion(appErr(msg));
+  }
+  function isCodeUrl(u) {
     var s = String(u || "");
-    if (/mymap:/i.test(s) || /[?&#]code=/.test(s)) { finish(s); return true; }
+    return /mymap:/i.test(s) || /[?&#]code=([^&#]+)/i.test(s);
+  }
+  function absUrl(u, base) {
+    try { return new URL(String(u), base || location.href).href; } catch (e) { return String(u || ""); }
+  }
+  function followRedirects(startUrl, cb) {
+    var url = String(startUrl || "");
+    var hops = 0;
+    function step() {
+      if (isCodeUrl(url)) { cb(null, url); return; }
+      if (hops++ > 8) { cb("Zu viele Redirects", null); return; }
+      if (!/^https?:/i.test(url)) { cb("Unerwartete URL", null); return; }
+      fetch(url, { method: "GET", credentials: "include", redirect: "manual", cache: "no-store" })
+        .then(function (res) {
+          var loc = res.headers.get("Location") || res.headers.get("location") || "";
+          if (loc) {
+            url = absUrl(loc, url);
+            if (isCodeUrl(url)) { cb(null, url); return; }
+            step();
+            return;
+          }
+          if (res.type === "opaqueredirect" || res.status === 0) {
+            cb("Redirect nicht lesbar (Safari). Bitte am Computer anmelden.", null);
+            return;
+          }
+          cb("Kein OAuth-Code in Redirect.", null);
+        })
+        .catch(function () {
+          cb("Fetch fehlgeschlagen. Bitte am Computer anmelden.", null);
+        });
+    }
+    step();
+  }
+  function handleNav(u) {
+    var s = absUrl(u, location.href);
+    if (isCodeUrl(s)) { finishOk(s); return true; }
+    if (/^https?:/i.test(s) && /oauth|authorize|redirect|consent|oidc|gigya|idpcvs|id-dcr/i.test(s)) {
+      followRedirects(s, function (err, codeUrl) {
+        if (codeUrl) finishOk(codeUrl);
+        else finishErr(err || "Kein Code gefunden");
+      });
+      return true;
+    }
     return false;
   }
   try {
@@ -35,32 +96,69 @@ export function buildIosShortcutJavaScript(input: {
         configurable: true,
         enumerable: true,
         get: function () { return d.get.call(this); },
-        set: function (v) { if (!capture(v)) d.set.call(this, v); }
+        set: function (v) { if (!handleNav(v)) d.set.call(this, v); }
       });
     }
   } catch (e) {}
   try {
     var assign = location.assign.bind(location);
-    location.assign = function (u) { if (!capture(u)) assign(u); };
+    location.assign = function (u) { if (!handleNav(u)) assign(u); };
     var replace = location.replace.bind(location);
-    location.replace = function (u) { if (!capture(u)) replace(u); };
+    location.replace = function (u) { if (!handleNav(u)) replace(u); };
   } catch (e2) {}
-  function clickWeiter() {
+
+  function tryForm(form) {
+    try {
+      var method = (form.method || "GET").toUpperCase();
+      var action = form.action || location.href;
+      var fd = new FormData(form);
+      if (method === "GET") {
+        var q = new URLSearchParams(fd);
+        var url = action + (action.indexOf("?") >= 0 ? "&" : "?") + q.toString();
+        if (handleNav(url)) return true;
+        return false;
+      }
+      fetch(action, { method: method, body: fd, credentials: "include", redirect: "manual", cache: "no-store" })
+        .then(function (res) {
+          var loc = res.headers.get("Location") || res.headers.get("location") || "";
+          if (loc && handleNav(absUrl(loc, action))) return;
+          if (isCodeUrl(action)) { finishOk(action); return; }
+          finishErr("WEITER-Redirect ohne lesbaren Code. Bitte am Computer anmelden.");
+        })
+        .catch(function () {
+          finishErr("Formular-Submit blockiert. Bitte am Computer anmelden.");
+        });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function findWeiter() {
     var nodes = Array.prototype.slice.call(document.querySelectorAll("button, a, input[type=submit], [role=button]"));
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
       var t = ((el.innerText || el.value || el.getAttribute("aria-label") || "") + "").replace(/\\s+/g, " ").trim();
-      if (/^(weiter|ok|continue|continuer|next)$/i.test(t) || /^weiter$/i.test(t)) {
-        el.click();
-        return true;
-      }
+      if (/^(weiter|ok|continue|continuer|next)$/i.test(t) || /^weiter$/i.test(t)) return el;
     }
-    return false;
+    return null;
   }
-  clickWeiter();
-  setTimeout(clickWeiter, 400);
-  setTimeout(clickWeiter, 1200);
-  setTimeout(function () { finish(null); }, 7000);
+
+  var weiter = findWeiter();
+  if (!weiter) {
+    finishErr("Kein WEITER-Button gefunden. Erst bis zur Erfolgsseite anmelden, dann Kurzbefehl.");
+    return;
+  }
+  var href = weiter.getAttribute && weiter.getAttribute("href");
+  if (href && handleNav(href)) return;
+  var form = weiter.form || (weiter.closest && weiter.closest("form"));
+  if (form && tryForm(form)) return;
+
+  // Last resort: click and hope location hooks catch navigation.
+  try { weiter.click(); } catch (e3) {}
+  setTimeout(function () {
+    if (!done) finishErr("Kein Code nach WEITER. Am iPhone bitte Login-Link am Computer nutzen.");
+  }, 6500);
 })();`;
 }
 
@@ -71,7 +169,7 @@ export function buildCodeCatcherBookmarklet(input: {
 }): string {
   const country = (input.countryCode || "DE").toUpperCase();
   const returnBase = input.returnBaseUrl.replace(/\/$/, "");
-  const js = `(()=>{var R=${JSON.stringify(`${returnBase}/control/settings`)},C=${JSON.stringify(country)};function go(u){var s=String(u||"");if(!/mymap:/i.test(s)&&!/[?&#]code=/.test(s))return!1;location.href=R+"?peugeot_oauth=1&country="+encodeURIComponent(C)+"&code="+encodeURIComponent(s);return!0}try{var d=Object.getOwnPropertyDescriptor(Location.prototype,"href");d&&d.set&&Object.defineProperty(Location.prototype,"href",{configurable:!0,enumerable:!0,get:function(){return d.get.call(this)},set:function(v){go(v)||d.set.call(this,v)}})}catch(e){}var a=location.assign.bind(location);location.assign=function(u){go(u)||a(u)};var r=location.replace.bind(location);location.replace=function(u){go(u)||r(u)};document.addEventListener("click",function(e){var t=e.target&&e.target.closest&&e.target.closest("a[href],button,input[type=submit]");if(!t)return;var label=((t.innerText||t.value||t.getAttribute("aria-label")||"")+"").replace(/\\s+/g," ").trim();var href=t.getAttribute&&t.getAttribute("href");if(href&&go(href)){e.preventDefault();e.stopPropagation();return}if(!/^(weiter|ok|continue|continuer|next)$/i.test(label)&&!/weiter/i.test(label))return;var form=t.form||t.closest&&t.closest("form");if(!form)return;e.preventDefault();e.stopPropagation();try{var fd=new FormData(form);var method=(form.method||"GET").toUpperCase();var action=form.action||location.href;if(method==="GET"){var q=new URLSearchParams(fd);var url=action+(action.indexOf("?")>=0?"&":"?")+q.toString();if(go(url))return;location.href=url;return}fetch(action,{method:method,body:fd,credentials:"include",redirect:"manual"}).then(function(res){var loc=res.headers.get("Location")||"";if(go(loc))return;form.submit()}).catch(function(){form.submit()})}catch(err){form.submit()}},!0);alert("Code-Fänger aktiv.\\nJetzt WEITER tippen.");})()`;
+  const js = `(()=>{var R=${JSON.stringify(`${returnBase}/control/settings`)},C=${JSON.stringify(country)};function go(u){var s=String(u||"");if(!/mymap:/i.test(s)&&!/[?&#]code=/.test(s))return!1;location.href=R+"?peugeot_oauth=1&country="+encodeURIComponent(C)+"&code="+encodeURIComponent(s);return!0}try{var d=Object.getOwnPropertyDescriptor(Location.prototype,"href");d&&d.set&&Object.defineProperty(Location.prototype,"href",{configurable:!0,enumerable:!0,get:function(){return d.get.call(this)},set:function(v){go(v)||d.set.call(this,v)}})}catch(e){}alert("Code-Fänger aktiv.");})()`;
   return `javascript:${encodeURIComponent(js)}`;
 }
 
@@ -81,4 +179,8 @@ export function buildHandoffSettingsUrl(input: {
   codeUrl: string;
 }): string {
   return returnSettingsUrl(input.returnBaseUrl, input.countryCode, input.codeUrl);
+}
+
+export function buildHandoffErrorUrl(returnBaseUrl: string, message: string): string {
+  return returnErrorUrl(returnBaseUrl, message);
 }
