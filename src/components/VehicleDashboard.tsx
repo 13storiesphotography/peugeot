@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { ActivityLog } from "@/components/ActivityLog";
 import { ChargePanel } from "@/components/ChargePanel";
 import { ClimatePanel } from "@/components/ClimatePanel";
@@ -21,15 +27,18 @@ function formatUpdated(iso: string): string {
   return new Intl.DateTimeFormat("de-DE", {
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
   }).format(new Date(iso));
 }
 
-function formatAge(iso: string): string {
-  const mins = Math.max(
+function ageMinutes(iso: string, nowMs = Date.now()): number {
+  return Math.max(
     0,
-    Math.round((Date.now() - new Date(iso).getTime()) / 60_000),
+    Math.round((nowMs - new Date(iso).getTime()) / 60_000),
   );
+}
+
+function formatAge(iso: string, nowMs = Date.now()): string {
+  const mins = ageMinutes(iso, nowMs);
   if (mins < 1) return "gerade eben";
   if (mins === 1) return "vor 1 Min.";
   if (mins < 60) return `vor ${mins} Min.`;
@@ -59,20 +68,37 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     null,
   );
   const [isPending, startTransition] = useTransition();
+  const [refreshing, setRefreshing] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<ControlTab>("home");
   const [unlockConfirmOpen, setUnlockConfirmOpen] = useState(false);
+  const refreshInFlight = useRef(false);
+  const followUpTimer = useRef<number | null>(null);
 
   useEffect(() => {
     setTab(readTab());
   }, []);
 
   useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     if (!toast) return;
-    const ms = /neu verbinden|abgelaufen/i.test(toast.text) ? 6000 : 2500;
+    const ms = /neu verbinden|abgelaufen|Ruhemodus/i.test(toast.text)
+      ? 5500
+      : 2500;
     const id = window.setTimeout(() => setToast(null), ms);
     return () => window.clearTimeout(id);
   }, [toast]);
+
+  useEffect(() => {
+    return () => {
+      if (followUpTimer.current) window.clearTimeout(followUpTimer.current);
+    };
+  }, []);
 
   const selectTab = (next: ControlTab) => {
     setToast(null);
@@ -85,22 +111,66 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
   const vehicle = bundle.vehicle;
 
-  const refresh = useCallback(async (forceSync = false) => {
-    const qs = forceSync ? "?sync=1" : "";
-    const res = await fetch(`/api/vehicle${qs}`, { cache: "no-store" });
-    if (!res.ok) {
-      setToast({
-        text: "Aktualisierung fehlgeschlagen.",
-        ok: false,
-      });
-      return;
-    }
-    const data = (await res.json()) as VehicleBundle;
-    startTransition(() => setBundle(data));
-    if (data.syncError) {
-      setToast({ text: data.syncError, ok: false });
-    }
-  }, []);
+  const refresh = useCallback(
+    async (
+      forceSync = false,
+      opts?: { silent?: boolean; feedback?: boolean },
+    ): Promise<VehicleBundle | null> => {
+      if (refreshInFlight.current) {
+        return null;
+      }
+      refreshInFlight.current = true;
+      if (!opts?.silent) setRefreshing(true);
+      try {
+        const qs = forceSync ? "?sync=1" : "";
+        const res = await fetch(`/api/vehicle${qs}`, { cache: "no-store" });
+        if (!res.ok) {
+          if (!opts?.silent) {
+            setToast({
+              text: "Aktualisierung fehlgeschlagen.",
+              ok: false,
+            });
+          }
+          return null;
+        }
+        const data = (await res.json()) as VehicleBundle;
+        startTransition(() => setBundle(data));
+        setNowMs(Date.now());
+        if (data.syncError) {
+          setToast({ text: data.syncError, ok: false });
+        } else if (opts?.feedback) {
+          const age = ageMinutes(data.vehicle.lastUpdatedAt);
+          if (age >= 5) {
+            setToast({
+              text: `Stand noch ${formatAge(data.vehicle.lastUpdatedAt)} — Fahrzeug evtl. im Ruhemodus.`,
+              ok: true,
+            });
+          } else {
+            setToast({
+              text: `Aktualisiert (${formatAge(data.vehicle.lastUpdatedAt)}).`,
+              ok: true,
+            });
+          }
+        }
+        return data;
+      } finally {
+        refreshInFlight.current = false;
+        if (!opts?.silent) setRefreshing(false);
+      }
+    },
+    [],
+  );
+
+  const manualRefresh = useCallback(async () => {
+    if (refreshInFlight.current) return;
+    const data = await refresh(true, { feedback: true });
+    if (!data || data.syncError) return;
+    // Peugeot cache sometimes catches up a few seconds later.
+    if (followUpTimer.current) window.clearTimeout(followUpTimer.current);
+    followUpTimer.current = window.setTimeout(() => {
+      void refresh(true, { silent: true });
+    }, 8_000);
+  }, [refresh]);
 
   useEffect(() => {
     // Immediate live pull once on mount when connected (and auth still valid).
@@ -114,16 +184,30 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     if (live && bundle.connection.needsReconnect) {
       return;
     }
+
     const intervalSec = Math.max(
       15,
       bundle.connection.syncIntervalSec || 45,
     );
-    // Demo tick stays snappy; live uses the configured interval.
     const intervalMs = live ? intervalSec * 1000 : 10_000;
-    const id = window.setInterval(() => {
+
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
       void refresh(live);
-    }, intervalMs);
-    return () => window.clearInterval(id);
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      // Catch up immediately when returning to the app.
+      void refresh(live);
+    };
+
+    const id = window.setInterval(tick, intervalMs);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [
     bundle.connection.connected,
     bundle.connection.needsReconnect,
@@ -167,7 +251,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         ].slice(0, 12),
       }));
       setToast({ text: data.message, ok: data.ok });
-      void refresh();
+      // Force Peugeot pull after remotes; status often lags a few seconds.
+      window.setTimeout(() => {
+        void refresh(true, { silent: true });
+      }, 2_500);
     } catch {
       setToast({
         text: "Befehl fehlgeschlagen – bitte erneut versuchen.",
@@ -206,27 +293,46 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           <h1 className="mt-1 truncate font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight">
             {vehicle.nickname}
           </h1>
-          <button
-            type="button"
-            onClick={() => void refresh(true)}
-            className="mt-1 block text-left text-xs text-[var(--fg-muted)]"
-            title="Tippen zum Aktualisieren"
-          >
-            <span className="block">
-              Fahrzeugdaten {formatUpdated(vehicle.lastUpdatedAt)}
+          <div className="mt-1.5 flex items-center gap-2">
+            <p className="min-w-0 text-xs text-[var(--fg-muted)]">
+              {formatUpdated(vehicle.lastUpdatedAt)}
               <span className="text-[var(--fg-muted)]/80">
                 {" "}
-                ({formatAge(vehicle.lastUpdatedAt)})
+                · {formatAge(vehicle.lastUpdatedAt, nowMs)}
               </span>
-            </span>
-            <span className="mt-0.5 block">
-              App-Abruf{" "}
-              {bundle.connection.lastSyncAt
-                ? formatUpdated(bundle.connection.lastSyncAt)
-                : "—"}
-              {isPending ? "…" : ""}
-            </span>
-          </button>
+            </p>
+            <button
+              type="button"
+              onClick={() => void manualRefresh()}
+              disabled={refreshing || busy || bundle.connection.needsReconnect}
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] disabled:opacity-50"
+              aria-label="Fahrzeugdaten aktualisieren"
+              title="Jetzt aktualisieren"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden
+                className={refreshing || isPending ? "animate-spin" : undefined}
+              >
+                <path
+                  d="M20 12a8 8 0 1 1-2.2-5.5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M20 5v5h-5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
         <Link
           href="/control/settings"
@@ -328,7 +434,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </div>
           <SchedulePanel
             schedules={bundle.schedules}
-            onChanged={() => void refresh()}
+            onChanged={() => void refresh(true, { silent: true })}
           />
         </div>
       ) : null}

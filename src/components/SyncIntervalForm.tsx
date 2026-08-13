@@ -32,7 +32,10 @@ export function SyncIntervalForm({
           Aktualisierung
         </h2>
         <p className="mt-1 text-sm text-[var(--fg-muted)]">
-          Wie oft der Fahrzeugstand geladen wird, solange die App offen ist.
+          Wie oft die App den Stand von Peugeot holt, solange sie geöffnet und
+          sichtbar ist. Zusätzlich kannst du oben rechts neben der Uhrzeit
+          jederzeit manuell aktualisieren. Wenn das Auto schläft, kann der
+          Peugeot-Stand trotzdem einige Minuten alt bleiben.
         </p>
       </div>
       <label className="block text-sm">
