@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+:root {
+  --bg-deep: #071018;
+  --bg-mid: #0d1b28;
+  --bg-panel: rgba(14, 28, 40, 0.72);
+  --fg: #eef6f8;
+  --fg-muted: #8fa8b5;
+  --accent: #3da8a0;
+  --accent-bright: #5fe3c0;
+  --accent-dim: #1f6f5f;
+  --warn: #e8b86d;
+  --danger: #e07a6a;
+  --line: rgba(143, 168, 181, 0.18);
+  --glow: rgba(95, 227, 192, 0.28);
+  --background: var(--bg-deep);
+  --foreground: var(--fg);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--fg);
+  background:
+    radial-gradient(1200px 700px at 80% -10%, rgba(63, 140, 170, 0.22), transparent 55%),
+    radial-gradient(900px 600px at 10% 20%, rgba(31, 111, 95, 0.28), transparent 50%),
+    linear-gradient(165deg, #08131d 0%, #0a1622 42%, #071018 100%);
+  background-attachment: fixed;
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+::selection {
+  background: rgba(95, 227, 192, 0.35);
+  color: #031016;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-ring {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes charge-flow {
+  from {
+    stroke-dashoffset: 40;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes soft-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.animate-rise {
+  animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-rise-delay-1 {
+  animation: rise-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+.animate-rise-delay-2 {
+  animation: rise-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.16s both;
+}
+
+.animate-rise-delay-3 {
+  animation: rise-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
+}
+
+.battery-glow {
+  animation: soft-breathe 4.5s ease-in-out infinite;
+}
+
+.charging-arc {
+  animation: charge-flow 1.4s linear infinite;
+}
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(16px);
+}
+
+.action-btn {
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(95, 227, 192, 0.45);
+}
+
+.action-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+
+.action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
