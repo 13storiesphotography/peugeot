@@ -476,9 +476,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           vehicle={vehicle}
           busy={busy}
           remoteReady={bundle.connection.remoteReady}
-          schedules={bundle.schedules}
           onCommand={(command) => void runCommand(command)}
-          onSchedulesChanged={() => void refresh(true, { silent: true })}
         />
       ) : null}
 
@@ -499,11 +497,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         <div className="animate-rise space-y-6 pt-2">
           <SectionHeader
             title="Planen"
-            hint="Vorklima: Speichern sync’t ans Auto; „Laden“ holt MyPeugeot-Pläne"
+            hint="Ladezeiten in der App — Vorklima bitte in MyPeugeot planen"
           />
           <SchedulePanel
             schedules={bundle.schedules}
             onChanged={() => void refresh(true, { silent: true })}
+            kinds={["charge"]}
           />
         </div>
       ) : null}

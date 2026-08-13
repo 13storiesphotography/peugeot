@@ -13,14 +13,11 @@ const KIND_LABEL: Partial<Record<VehicleSchedule["kind"], string>> = {
 interface SchedulePanelProps {
   schedules: VehicleSchedule[];
   onChanged: () => void;
-  /** Limit to these kinds (e.g. climate-only under Klima). */
+  /** Limit to these kinds (e.g. charge-only under Planen). */
   kinds?: VehicleSchedule["kind"][];
   title?: string;
   hint?: string;
   compact?: boolean;
-  /** Pull onboard Peugeot Vorklima programs into the app. */
-  onImportFromVehicle?: () => Promise<void>;
-  importBusy?: boolean;
 }
 
 export function SchedulePanel({
@@ -30,8 +27,6 @@ export function SchedulePanel({
   title,
   hint,
   compact = false,
-  onImportFromVehicle,
-  importBusy = false,
 }: SchedulePanelProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -46,14 +41,14 @@ export function SchedulePanel({
   const visible = useMemo(() => {
     const base = kinds
       ? local.filter((item) => kinds.includes(item.kind))
-      : local;
+      : local.filter((item) => item.kind !== "climate");
     return base.filter((item) => item.kind !== "battery_preheat");
   }, [local, kinds]);
 
   const addableKinds = (kinds?.length
     ? kinds
-    : (["climate", "charge"] as VehicleSchedule["kind"][])
-  ).filter((kind) => kind !== "battery_preheat");
+    : (["charge"] as VehicleSchedule["kind"][])
+  ).filter((kind) => kind !== "battery_preheat" && kind !== "climate");
 
   const kindCounts = useMemo(() => {
     const counts: Partial<Record<VehicleSchedule["kind"], number>> = {};
@@ -71,9 +66,6 @@ export function SchedulePanel({
         .findIndex((item) => item.id === schedule.id) + 1;
     return ` ${n}`;
   };
-
-  const isFromVehicle = (schedule: VehicleSchedule) =>
-    schedule.payload?.source === "vehicle";
 
   const applyWarning = (data: { vehicleSyncWarning?: string | null }) => {
     if (data.vehicleSyncWarning) {
@@ -144,7 +136,7 @@ export function SchedulePanel({
     setNotice(null);
     try {
       const payload =
-        kind === "charge" ? { chargeLimitPercent: 80 } : { source: "app" };
+        kind === "charge" ? { chargeLimitPercent: 80 } : {};
       const res = await fetch("/api/vehicle/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -199,21 +191,9 @@ export function SchedulePanel({
         </div>
       )}
 
-      {onImportFromVehicle ? (
-        <button
-          type="button"
-          disabled={importBusy}
-          onClick={() => void onImportFromVehicle()}
-          className="action-btn w-full rounded-full border border-[var(--line)] px-4 py-3 text-sm font-semibold"
-        >
-          {importBusy ? "Lade vom Fahrzeug…" : "Pläne vom Fahrzeug laden"}
-        </button>
-      ) : null}
-
       {visible.length === 0 ? (
         <p className="ui-surface px-4 py-5 text-sm text-[var(--fg-muted)]">
-          Noch kein Zeitplan — in MyPeugeot anlegen und hier laden, oder neu
-          hinzufügen.
+          Noch kein Ladezeitplan — neu hinzufügen.
         </p>
       ) : null}
 
@@ -227,7 +207,6 @@ export function SchedulePanel({
               </p>
               <p className="text-xs text-[var(--fg-muted)]">
                 {schedule.enabled ? "Aktiv" : "Pausiert"}
-                {isFromVehicle(schedule) ? " · vom Fahrzeug" : ""}
               </p>
             </div>
             <button

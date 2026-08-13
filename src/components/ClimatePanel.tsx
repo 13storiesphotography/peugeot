@@ -1,19 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { SectionHeader } from "@/components/SectionHeader";
-import { SchedulePanel } from "@/components/SchedulePanel";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
-import type { VehicleSchedule } from "@/lib/vehicle/repository";
 
 interface ClimatePanelProps {
   vehicle: VehicleState;
   busy: boolean;
   remoteReady?: boolean;
-  schedules: VehicleSchedule[];
   onCommand: (command: VehicleCommand) => void;
-  onSchedulesChanged: () => void;
 }
 
 function formatTemp(tempC: number): string {
@@ -25,15 +20,11 @@ export function ClimatePanel({
   vehicle,
   busy,
   remoteReady = false,
-  schedules,
   onCommand,
-  onSchedulesChanged,
 }: ClimatePanelProps) {
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
   const climateRemoteOk = !live || remoteReady;
-  const [importBusy, setImportBusy] = useState(false);
-  const [importMsg, setImportMsg] = useState<string | null>(null);
 
   const statusHint = active
     ? vehicle.climateStatus === "heating"
@@ -42,27 +33,6 @@ export function ClimatePanel({
         ? "Vorklima · kühlt"
         : "Vorklima aktiv"
     : "Fernstart für Vorklima";
-
-  const importFromVehicle = async () => {
-    setImportBusy(true);
-    setImportMsg(null);
-    try {
-      const res = await fetch("/api/vehicle/schedules/import-climate", {
-        method: "POST",
-      });
-      const data = (await res.json()) as {
-        error?: string;
-        message?: string;
-      };
-      if (!res.ok) throw new Error(data.error ?? "Import fehlgeschlagen");
-      setImportMsg(data.message ?? "Übernommen.");
-      onSchedulesChanged();
-    } catch (err) {
-      setImportMsg(err instanceof Error ? err.message : "Fehler");
-    } finally {
-      setImportBusy(false);
-    }
-  };
 
   return (
     <section className="animate-rise space-y-6 pt-2">
@@ -105,25 +75,6 @@ export function ClimatePanel({
         Außen {formatTemp(vehicle.outdoorTempC)}
         {live ? null : " · Demo"}
       </p>
-
-      <SchedulePanel
-        schedules={schedules}
-        onChanged={onSchedulesChanged}
-        kinds={["climate"]}
-        compact
-        title="Vorklima-Pläne"
-        hint={
-          live
-            ? "Speichern / Löschen geht ans Fahrzeug. „Laden“ holt Pläne aus MyPeugeot."
-            : "Demo: Pläne nur in der App."
-        }
-        onImportFromVehicle={live ? importFromVehicle : undefined}
-        importBusy={importBusy}
-      />
-
-      {importMsg ? (
-        <p className="text-center text-xs text-[var(--fg-muted)]">{importMsg}</p>
-      ) : null}
     </section>
   );
 }
