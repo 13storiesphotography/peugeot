@@ -50,6 +50,21 @@ export type ChargeSample = {
   chargeStatus: string;
 };
 
+export type HardRefreshInfo = {
+  /** Peugeot /status was pulled at least once. */
+  statusOk: boolean;
+  /** MQTT wake was attempted. */
+  wakeAttempted: boolean;
+  /** MQTT wake result (null if not attempted). */
+  wakeOk: boolean | null;
+  /** Why wake was skipped, if applicable. */
+  wakeSkippedReason?: string;
+  /** Age of vehicle.lastUpdatedAt after the hard refresh, in minutes. */
+  ageMinutes: number;
+  /** True when lastUpdatedAt moved forward vs the pre-wake snapshot. */
+  improved: boolean;
+};
+
 export type VehicleBundle = {
   vehicleId: string;
   vehicle: VehicleState;
@@ -59,6 +74,8 @@ export type VehicleBundle = {
   chargeCurve: ChargeSample[];
   /** Last Peugeot sync error, if any. */
   syncError?: string | null;
+  /** Present after a manual hard refresh (`?hard=1`). */
+  hardRefresh?: HardRefreshInfo;
 };
 
 function mapSchedule(row: {
@@ -323,6 +340,19 @@ async function loadChargeCurve(
 export async function getVehicleBundle(
   supabase: SupabaseClient,
   userId: string,
+  options: { forceSync?: boolean; hardRefresh?: boolean } = {},
+): Promise<VehicleBundle> {
+  if (options.hardRefresh) {
+    return hardRefreshVehicle(supabase, userId);
+  }
+  return loadVehicleBundle(supabase, userId, {
+    forceSync: options.forceSync,
+  });
+}
+
+async function loadVehicleBundle(
+  supabase: SupabaseClient,
+  userId: string,
   options: { forceSync?: boolean } = {},
 ): Promise<VehicleBundle> {
   const { vehicleId, vehicle: base } = await ensureVehicle(supabase, userId);
@@ -541,6 +571,110 @@ export async function getVehicleBundle(
   };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function ageMinutesFromIso(iso: string): number {
+  return Math.max(
+    0,
+    Math.round((Date.now() - new Date(iso).getTime()) / 60_000),
+  );
+}
+
+/**
+ * Manual hard refresh: pull Peugeot status, optionally wake the car via MQTT,
+ * wait, and pull again so sleeping vehicles can push a fresher snapshot.
+ */
+async function hardRefreshVehicle(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<VehicleBundle> {
+  const before = await loadVehicleBundle(supabase, userId, { forceSync: true });
+  const prevUpdatedAt = before.vehicle.lastUpdatedAt;
+
+  if (!before.connection.connected || before.connection.needsReconnect) {
+    return {
+      ...before,
+      hardRefresh: {
+        statusOk: !before.syncError,
+        wakeAttempted: false,
+        wakeOk: null,
+        wakeSkippedReason: before.connection.needsReconnect
+          ? "MyPeugeot-Anmeldung abgelaufen."
+          : "Nicht mit MyPeugeot verbunden.",
+        ageMinutes: ageMinutesFromIso(before.vehicle.lastUpdatedAt),
+        improved: false,
+      },
+    };
+  }
+
+  if (before.vehicle.mode !== "live") {
+    return {
+      ...before,
+      hardRefresh: {
+        statusOk: true,
+        wakeAttempted: false,
+        wakeOk: null,
+        wakeSkippedReason: "Demo-Modus — kein Fahrzeug-Wake.",
+        ageMinutes: ageMinutesFromIso(before.vehicle.lastUpdatedAt),
+        improved: false,
+      },
+    };
+  }
+
+  let wakeAttempted = false;
+  let wakeOk: boolean | null = null;
+  let wakeSkippedReason: string | undefined;
+
+  const remote = await ensureLiveRemoteSession(supabase, userId, before);
+  if (!remote.ok) {
+    wakeSkippedReason = remote.message;
+  } else {
+    wakeAttempted = true;
+    try {
+      const { sendVehicleWakeup } = await import("@/lib/stellantis/remote");
+      await sendVehicleWakeup({
+        customerId: remote.customerId,
+        vin: remote.vin,
+        remoteAccessToken: remote.remoteAccessToken,
+      });
+      wakeOk = true;
+    } catch (error) {
+      wakeOk = false;
+      wakeSkippedReason =
+        error instanceof Error ? error.message : "Aufwecken fehlgeschlagen.";
+    }
+  }
+
+  // Give the car/cloud time to publish after wake (or catch a delayed status).
+  await sleep(wakeOk ? 10_000 : 4_000);
+  let after = await loadVehicleBundle(supabase, userId, { forceSync: true });
+  let improved =
+    new Date(after.vehicle.lastUpdatedAt).getTime() >
+    new Date(prevUpdatedAt).getTime();
+
+  if (wakeOk && !improved) {
+    await sleep(8_000);
+    after = await loadVehicleBundle(supabase, userId, { forceSync: true });
+    improved =
+      new Date(after.vehicle.lastUpdatedAt).getTime() >
+      new Date(prevUpdatedAt).getTime();
+  }
+
+  return {
+    ...after,
+    hardRefresh: {
+      statusOk: !after.syncError,
+      wakeAttempted,
+      wakeOk,
+      wakeSkippedReason,
+      ageMinutes: ageMinutesFromIso(after.vehicle.lastUpdatedAt),
+      improved,
+    },
+  };
+}
+
 function asOAuthMeta(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -703,6 +837,19 @@ export async function runVehicleCommand(
     return live;
   }
 
+  if (bundle.vehicle.mode === "live" && request.command === "wakeup") {
+    const live = await runLiveWakeupCommand(supabase, userId, bundle);
+    await saveState(supabase, userId, bundle.vehicleId, live.vehicle);
+    await supabase.from("activity_log").insert({
+      user_id: userId,
+      vehicle_id: bundle.vehicleId,
+      command: request.command,
+      message: live.message,
+      ok: live.ok,
+    });
+    return live;
+  }
+
   const result = applyCommandToState(bundle.vehicle, request);
   await saveState(supabase, userId, bundle.vehicleId, result.vehicle);
 
@@ -728,12 +875,20 @@ export async function runVehicleCommand(
   return result;
 }
 
-async function runLiveClimateCommand(
+type LiveRemoteSession =
+  | {
+      ok: true;
+      customerId: string;
+      vin: string;
+      remoteAccessToken: string;
+    }
+  | { ok: false; message: string };
+
+async function ensureLiveRemoteSession(
   supabase: SupabaseClient,
   userId: string,
   bundle: VehicleBundle,
-  activate: boolean,
-): Promise<CommandResult> {
+): Promise<LiveRemoteSession> {
   const { data: connection } = await supabase
     .from("peugeot_connections")
     .select(
@@ -745,24 +900,26 @@ async function runLiveClimateCommand(
   if (!connection?.connected || !connection.remote_ready) {
     return {
       ok: false,
-      message: "Fernbedienung noch nicht eingerichtet.",
-      vehicle: bundle.vehicle,
+      message:
+        "Fernbedienung noch nicht eingerichtet — unter Einstellungen PIN freischalten.",
     };
   }
   if (!connection.customer_id || !connection.otp_state) {
     return {
       ok: false,
       message: "Fernbedienung unvollständig — bitte PIN erneut einrichten.",
-      vehicle: bundle.vehicle,
+    };
+  }
+  if (!bundle.vehicle.vin || /x{4,}/i.test(bundle.vehicle.vin)) {
+    return {
+      ok: false,
+      message: "VIN fehlt — bitte Fahrzeugdaten aktualisieren.",
     };
   }
 
   try {
     const { refreshAccessToken } = await import("@/lib/stellantis/api");
-    const { refreshRemoteToken, sendThermalPreconditioning } = await import(
-      "@/lib/stellantis/remote"
-    );
-    const { touchClimate } = await import("@/lib/vehicle/commands");
+    const { refreshRemoteToken } = await import("@/lib/stellantis/remote");
 
     let oauthToken = String(connection.access_token ?? "");
     const countryCode = String(connection.country_code ?? "DE");
@@ -793,7 +950,8 @@ async function runLiveClimateCommand(
     let remoteRefresh = String(connection.remote_refresh_token ?? "");
     let otpState = connection.otp_state as import("@/lib/stellantis/otp/session").OtpPersistedState;
     const remoteAge = connection.remote_token_updated_at
-      ? Date.now() - new Date(connection.remote_token_updated_at as string).getTime()
+      ? Date.now() -
+        new Date(connection.remote_token_updated_at as string).getTime()
       : Number.POSITIVE_INFINITY;
 
     if (!remoteAccess || remoteAge > 14 * 60_000) {
@@ -817,10 +975,77 @@ async function runLiveClimateCommand(
         .eq("user_id", userId);
     }
 
-    await sendThermalPreconditioning({
+    return {
+      ok: true,
       customerId: String(connection.customer_id),
       vin: bundle.vehicle.vin,
       remoteAccessToken: remoteAccess,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Fernbedienung konnte nicht vorbereitet werden.",
+    };
+  }
+}
+
+async function runLiveWakeupCommand(
+  supabase: SupabaseClient,
+  userId: string,
+  bundle: VehicleBundle,
+): Promise<CommandResult> {
+  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+  if (!remote.ok) {
+    return { ok: false, message: remote.message, vehicle: bundle.vehicle };
+  }
+  try {
+    const { sendVehicleWakeup } = await import("@/lib/stellantis/remote");
+    await sendVehicleWakeup({
+      customerId: remote.customerId,
+      vin: remote.vin,
+      remoteAccessToken: remote.remoteAccessToken,
+    });
+    return {
+      ok: true,
+      message: "Aufweck-Befehl gesendet — Stand folgt in wenigen Sekunden.",
+      vehicle: bundle.vehicle,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Aufwecken fehlgeschlagen.",
+      vehicle: bundle.vehicle,
+    };
+  }
+}
+
+async function runLiveClimateCommand(
+  supabase: SupabaseClient,
+  userId: string,
+  bundle: VehicleBundle,
+  activate: boolean,
+): Promise<CommandResult> {
+  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+  if (!remote.ok) {
+    return { ok: false, message: remote.message, vehicle: bundle.vehicle };
+  }
+
+  try {
+    const { sendThermalPreconditioning } = await import(
+      "@/lib/stellantis/remote"
+    );
+    const { touchClimate } = await import("@/lib/vehicle/commands");
+
+    await sendThermalPreconditioning({
+      customerId: remote.customerId,
+      vin: remote.vin,
+      remoteAccessToken: remote.remoteAccessToken,
       activate,
     });
 
@@ -833,7 +1058,9 @@ async function runLiveClimateCommand(
     return {
       ok: false,
       message:
-        error instanceof Error ? error.message : "Vorklima-Befehl fehlgeschlagen.",
+        error instanceof Error
+          ? error.message
+          : "Vorklima-Befehl fehlgeschlagen.",
       vehicle: bundle.vehicle,
     };
   }

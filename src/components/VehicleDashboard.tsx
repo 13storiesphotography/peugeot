@@ -87,8 +87,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
   useEffect(() => {
     if (!toast) return;
-    const ms = /neu verbinden|abgelaufen|Ruhemodus/i.test(toast.text)
-      ? 5500
+    const ms = /neu verbinden|abgelaufen|Ruhemodus|Fernbedienung|Aufwecken|langsam/i.test(
+      toast.text,
+    )
+      ? 6500
       : 2500;
     const id = window.setTimeout(() => setToast(null), ms);
     return () => window.clearTimeout(id);
@@ -114,7 +116,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const refresh = useCallback(
     async (
       forceSync = false,
-      opts?: { silent?: boolean; feedback?: boolean },
+      opts?: { silent?: boolean; feedback?: boolean; hard?: boolean },
     ): Promise<VehicleBundle | null> => {
       if (refreshInFlight.current) {
         return null;
@@ -122,7 +124,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       refreshInFlight.current = true;
       if (!opts?.silent) setRefreshing(true);
       try {
-        const qs = forceSync ? "?sync=1" : "";
+        const params = new URLSearchParams();
+        if (opts?.hard) params.set("hard", "1");
+        else if (forceSync) params.set("sync", "1");
+        const qs = params.toString() ? `?${params}` : "";
         const res = await fetch(`/api/vehicle${qs}`, { cache: "no-store" });
         if (!res.ok) {
           if (!opts?.silent) {
@@ -139,8 +144,24 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         if (data.syncError) {
           setToast({ text: data.syncError, ok: false });
         } else if (opts?.feedback) {
-          const age = ageMinutes(data.vehicle.lastUpdatedAt);
-          if (age >= 5) {
+          const hard = data.hardRefresh;
+          const age = hard?.ageMinutes ?? ageMinutes(data.vehicle.lastUpdatedAt);
+          if (hard?.improved || age < 5) {
+            setToast({
+              text: `Aktualisiert (${formatAge(data.vehicle.lastUpdatedAt)}).`,
+              ok: true,
+            });
+          } else if (hard?.wakeAttempted && hard.wakeOk) {
+            setToast({
+              text: `Stand noch ${formatAge(data.vehicle.lastUpdatedAt)} — Aufwecken gesendet, Peugeot meldet sich langsam.`,
+              ok: true,
+            });
+          } else if (hard?.wakeSkippedReason) {
+            setToast({
+              text: `Stand ${formatAge(data.vehicle.lastUpdatedAt)}. ${hard.wakeSkippedReason}`,
+              ok: true,
+            });
+          } else if (age >= 5) {
             setToast({
               text: `Stand noch ${formatAge(data.vehicle.lastUpdatedAt)} — Fahrzeug evtl. im Ruhemodus.`,
               ok: true,
@@ -163,13 +184,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
   const manualRefresh = useCallback(async () => {
     if (refreshInFlight.current) return;
-    const data = await refresh(true, { feedback: true });
-    if (!data || data.syncError) return;
-    // Peugeot cache sometimes catches up a few seconds later.
-    if (followUpTimer.current) window.clearTimeout(followUpTimer.current);
-    followUpTimer.current = window.setTimeout(() => {
-      void refresh(true, { silent: true });
-    }, 8_000);
+    setToast({ text: "Hole Fahrzeugdaten…", ok: true });
+    await refresh(true, { feedback: true, hard: true });
   }, [refresh]);
 
   useEffect(() => {
@@ -251,10 +267,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         ].slice(0, 12),
       }));
       setToast({ text: data.message, ok: data.ok });
-      // Force Peugeot pull after remotes; status often lags a few seconds.
+      // Force Peugeot pull after remotes; wakeup needs longer for a fresh stand.
       window.setTimeout(() => {
-        void refresh(true, { silent: true });
-      }, 2_500);
+        void refresh(true, {
+          silent: true,
+          hard: command === "wakeup",
+        });
+      }, command === "wakeup" ? 8_000 : 2_500);
     } catch {
       setToast({
         text: "Befehl fehlgeschlagen – bitte erneut versuchen.",
@@ -307,7 +326,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               disabled={refreshing || busy || bundle.connection.needsReconnect}
               className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] disabled:opacity-50"
               aria-label="Fahrzeugdaten aktualisieren"
-              title="Jetzt aktualisieren"
+              title="Fahrzeug wecken und Daten holen"
             >
               <svg
                 width="15"
@@ -427,6 +446,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         <ControlsPanel
           vehicle={vehicle}
           busy={busy}
+          remoteReady={bundle.connection.remoteReady}
           onCommand={(command) => void runCommand(command)}
         />
       ) : null}

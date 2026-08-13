@@ -33,9 +33,10 @@ export function SyncIntervalForm({
         </h2>
         <p className="mt-1 text-sm text-[var(--fg-muted)]">
           Wie oft die App den Stand von Peugeot holt, solange sie geöffnet und
-          sichtbar ist. Zusätzlich kannst du oben rechts neben der Uhrzeit
-          jederzeit manuell aktualisieren. Wenn das Auto schläft, kann der
-          Peugeot-Stand trotzdem einige Minuten alt bleiben.
+          sichtbar ist. Der Aktualisieren-Button oben weckt das Auto (wenn die
+          Fernbedienung eingerichtet ist) und holt danach erneut echte Daten.
+          Wenn das Auto tief schläft, kann Peugeot trotzdem kurz alten Stand
+          liefern.
         </p>
       </div>
       <label className="block text-sm">

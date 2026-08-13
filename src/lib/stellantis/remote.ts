@@ -202,14 +202,18 @@ function cryptoRandomHex(bytes: number): string {
   return [...arr].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Publish one ThermalPrecond command and wait briefly for MQTT ack. */
-export async function sendThermalPreconditioning(input: {
+/** Publish one virtual-key remote and wait briefly for MQTT ack. */
+async function publishRemoteCommand(input: {
   customerId: string;
   vin: string;
   remoteAccessToken: string;
-  activate: boolean;
+  /** Topic suffix after `/from/cid/{customerId}` e.g. `/ThermalPrecond`. */
+  topicSuffix: string;
+  reqParameters: Record<string, unknown>;
+  /** How long to wait for MQTT ack before resolving optimistically. */
+  ackTimeoutMs?: number;
 }): Promise<void> {
-  const topic = `psa/RemoteServices/from/cid/${input.customerId}/ThermalPrecond`;
+  const topic = `psa/RemoteServices/from/cid/${input.customerId}${input.topicSuffix}`;
   const respTopic = `psa/RemoteServices/to/cid/${input.customerId}/#`;
   const payload = JSON.stringify({
     access_token: input.remoteAccessToken,
@@ -217,11 +221,9 @@ export async function sendThermalPreconditioning(input: {
     correlation_id: correlationId(),
     req_date: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
     vin: input.vin,
-    req_parameters: {
-      asap: input.activate ? "activate" : "deactivate",
-      programs: DEFAULT_PRECONDITIONING_PROGRAM,
-    },
+    req_parameters: input.reqParameters,
   });
+  const ackTimeoutMs = input.ackTimeoutMs ?? 10_000;
 
   await new Promise<void>((resolve, reject) => {
     const client = mqtt.connect({
@@ -240,7 +242,7 @@ export async function sendThermalPreconditioning(input: {
       client.end(true);
       // Command may still succeed server-side even without ack.
       resolve();
-    }, 10_000);
+    }, ackTimeoutMs);
 
     client.on("connect", () => {
       client.subscribe(respTopic, { qos: 0 }, (err) => {
@@ -284,5 +286,43 @@ export async function sendThermalPreconditioning(input: {
       client.end(true);
       reject(err);
     });
+  });
+}
+
+/** Publish one ThermalPrecond command and wait briefly for MQTT ack. */
+export async function sendThermalPreconditioning(input: {
+  customerId: string;
+  vin: string;
+  remoteAccessToken: string;
+  activate: boolean;
+}): Promise<void> {
+  await publishRemoteCommand({
+    customerId: input.customerId,
+    vin: input.vin,
+    remoteAccessToken: input.remoteAccessToken,
+    topicSuffix: "/ThermalPrecond",
+    reqParameters: {
+      asap: input.activate ? "activate" : "deactivate",
+      programs: DEFAULT_PRECONDITIONING_PROGRAM,
+    },
+  });
+}
+
+/**
+ * Ask the vehicle to push a fresh state (same as MyPeugeot wake).
+ * Mirrors psa_car_controller: VehCharge/state with action "state".
+ */
+export async function sendVehicleWakeup(input: {
+  customerId: string;
+  vin: string;
+  remoteAccessToken: string;
+}): Promise<void> {
+  await publishRemoteCommand({
+    customerId: input.customerId,
+    vin: input.vin,
+    remoteAccessToken: input.remoteAccessToken,
+    topicSuffix: "/VehCharge/state",
+    reqParameters: { action: "state" },
+    ackTimeoutMs: 8_000,
   });
 }

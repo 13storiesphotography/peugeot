@@ -7,6 +7,7 @@ import type { VehicleCommand, VehicleState } from "@/lib/types";
 interface ControlsPanelProps {
   vehicle: VehicleState;
   busy: boolean;
+  remoteReady?: boolean;
   onCommand: (command: VehicleCommand) => void;
 }
 
@@ -15,15 +16,19 @@ type ControlTile = {
   label: string;
   onClick: () => void;
   icon: ReactNode;
+  disabled?: boolean;
 };
 
 /** Vehicle controls only — Klima/Laden live in their own tabs. */
 export function ControlsPanel({
   vehicle,
   busy,
+  remoteReady = false,
   onCommand,
 }: ControlsPanelProps) {
   const locked = vehicle.locked;
+  const live = vehicle.mode === "live";
+  const wakeDisabled = live && !remoteReady;
 
   const actions: ControlTile[] = [
     {
@@ -43,12 +48,20 @@ export function ControlsPanel({
       label: "Wecken",
       onClick: () => onCommand("wakeup"),
       icon: <IconWake />,
+      disabled: wakeDisabled,
     },
   ];
 
   return (
     <section className="animate-rise space-y-6">
-      <SectionHeader title="Steuern" hint="Schloss und Signale" />
+      <SectionHeader
+        title="Steuern"
+        hint={
+          wakeDisabled
+            ? "Wecken braucht Fernbedienung (Einstellungen)"
+            : "Schloss und Signale"
+        }
+      />
 
       <button
         type="button"
@@ -88,9 +101,14 @@ export function ControlsPanel({
           <button
             key={tile.id}
             type="button"
-            disabled={busy}
+            disabled={busy || tile.disabled}
+            title={
+              tile.disabled
+                ? "Fernbedienung unter Einstellungen einrichten"
+                : undefined
+            }
             onClick={tile.onClick}
-            className="action-btn ui-surface flex flex-col items-center gap-2.5 px-2 py-5 text-center"
+            className="action-btn ui-surface flex flex-col items-center gap-2.5 px-2 py-5 text-center disabled:opacity-55"
           >
             <span
               className="grid h-12 w-12 place-items-center rounded-full"
