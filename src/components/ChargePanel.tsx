@@ -2,7 +2,7 @@
 
 import { ChargeCurve } from "@/components/ChargeCurve";
 import { SectionHeader } from "@/components/SectionHeader";
-import type { VehicleCommand, VehicleState } from "@/lib/types";
+import type { VehicleState } from "@/lib/types";
 import type { ChargeSample } from "@/lib/vehicle/repository";
 import {
   chargeSpeedLabel,
@@ -11,12 +11,7 @@ import {
 
 interface ChargePanelProps {
   vehicle: VehicleState;
-  busy: boolean;
   chargeCurve?: ChargeSample[];
-  onCommand: (
-    command: VehicleCommand,
-    opts?: { chargeLimitPercent?: number },
-  ) => void;
 }
 
 function formatEta(iso: string | null): string {
@@ -37,12 +32,9 @@ const statusLabel: Record<VehicleState["chargeStatus"], string> = {
 
 export function ChargePanel({
   vehicle,
-  busy,
   chargeCurve = [],
-  onCommand,
 }: ChargePanelProps) {
   const charging = vehicle.chargeStatus === "charging";
-  const plugged = vehicle.chargeStatus !== "idle";
   const live = vehicle.mode === "live";
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
 
@@ -100,17 +92,6 @@ export function ChargePanel({
           </p>
         </div>
       ) : (
-        <button
-          type="button"
-          disabled={busy || !plugged || live}
-          onClick={() => onCommand("charge_start")}
-          className="action-btn btn-primary w-full rounded-full px-5 py-4 text-sm font-semibold"
-        >
-          Laden starten
-        </button>
-      )}
-
-      {!charging ? (
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div className="ui-surface px-4 py-4">
             <dt className="text-xs text-[var(--fg-muted)]">Fertig gegen</dt>
@@ -125,7 +106,7 @@ export function ChargePanel({
             </dd>
           </div>
         </dl>
-      ) : null}
+      )}
 
       <ChargeCurve samples={chargeCurve} live={live} />
     </section>
