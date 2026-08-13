@@ -42,7 +42,7 @@ export async function connectPeugeotWithCode(
   if (!oauthCode) {
     return {
       error:
-        "Kein Code gefunden. Nach „Weiter“ die mymap://…-URL (oder nur code=…) hier einfügen.",
+        "Kein Code gefunden. Nach „Weiter“ MyPeugeot-App abbrechen, die mymap://…-Adresse aus der Adresszeile kopieren und hier einfügen.",
     };
   }
 
