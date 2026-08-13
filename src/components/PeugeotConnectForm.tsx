@@ -243,39 +243,51 @@ export function PeugeotConnectForm({
                   <li>Hier unter „Code einfügen“ einlösen.</li>
                 </ol>
                 <p className="mt-2 font-semibold text-[var(--fg)]">
-                  B) Mit Kurzbefehl (ohne Lesezeichen-Hack)
+                  B) Mit Kurzbefehl (wenn Teilen → Kurzbefehl fehlt)
                 </p>
                 <ol className="mt-1 list-decimal space-y-1 pl-4">
                   <li>
-                    App <strong className="text-[var(--fg)]">Kurzbefehle</strong> öffnen →
-                    neuer Kurzbefehl.
-                  </li>
-                  <li>
-                    Aktion{" "}
+                    App <strong className="text-[var(--fg)]">Kurzbefehle</strong> →{" "}
+                    <strong className="text-[var(--fg)]">+</strong> → Aktion{" "}
                     <strong className="text-[var(--fg)]">
                       „JavaScript auf Webseite ausführen“
-                    </strong>{" "}
-                    hinzufügen.
+                    </strong>
+                    .
                   </li>
                   <li>
-                    Websites:{" "}
+                    Unten in der App <strong className="text-[var(--fg)]">JS kopieren</strong>{" "}
+                    und in diese Aktion einfügen. Bei Websites{" "}
                     <code className="text-[var(--accent-bright)]">peugeot.com</code>{" "}
-                    erlauben. Unten{" "}
-                    <strong className="text-[var(--fg)]">JS kopieren</strong> und in die
-                    Aktion einfügen.
+                    erlauben.
                   </li>
                   <li>
                     Danach Aktion{" "}
-                    <strong className="text-[var(--fg)]">„URLs öffnen“</strong> — als
-                    Eingabe das Ergebnis des JavaScript.
+                    <strong className="text-[var(--fg)]">„URLs öffnen“</strong> —
+                    Eingabe = Ergebnis des JavaScript.
                   </li>
                   <li>
-                    Peugeot-Login öffnen, Captcha + Login, auf „Anmeldung erfolgreich“:{" "}
-                    <strong className="text-[var(--fg)]">Teilen → Kurzbefehl</strong>{" "}
-                    (nicht WEITER tippen — der Kurzbefehl drückt WEITER und holt den
-                    Code).
+                    Oben im Kurzbefehl auf das <strong className="text-[var(--fg)]">ⓘ</strong>{" "}
+                    tippen → <strong className="text-[var(--fg)]">Im Teilen-Menü anzeigen</strong>{" "}
+                    einschalten → als Empfangstyp{" "}
+                    <strong className="text-[var(--fg)]">Safari-Webseiten</strong> / URLs
+                    wählen → Fertig.
+                  </li>
+                  <li>
+                    In Safari auf der Peugeot-Seite <strong className="text-[var(--fg)]">Teilen</strong>{" "}
+                    → ganz nach unten scrollen →{" "}
+                    <strong className="text-[var(--fg)]">Aktionen bearbeiten</strong> /
+                    „Edit Actions“ → <strong className="text-[var(--fg)]">Kurzbefehle</strong>{" "}
+                    bzw. deinen Kurzbefehl aktivieren.
+                  </li>
+                  <li>
+                    Danach erneut Teilen → deinen Kurzbefehl tippen (nicht selbst WEITER —
+                    der Kurzbefehl macht das).
                   </li>
                 </ol>
+                <p className="mt-2">
+                  Wenn „Kurzbefehl“ trotzdem nicht erscheint: Weg A am Computer nutzen —
+                  das ist am iPhone der zuverlässigste Weg.
+                </p>
               </>
             ) : (
               <ol className="mt-2 list-decimal space-y-1.5 pl-4">
