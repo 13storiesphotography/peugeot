@@ -226,16 +226,21 @@ async function publishRemoteCommand(input: {
   const ackTimeoutMs = input.ackTimeoutMs ?? 10_000;
 
   await new Promise<void>((resolve, reject) => {
+    // PSA MessageSight rejects non-empty client IDs with CONNACK 2
+    // ("Identifier rejected"). Empty + clean session lets the broker assign one
+    // (same as paho-mqtt default used by psa_car_controller).
     const client = mqtt.connect({
       host: MQTT_HOST,
       port: MQTT_PORT,
       protocol: "mqtts",
       protocolVersion: 4,
       clean: true,
+      clientId: "",
       username: "IMA_OAUTH_ACCESS_TOKEN",
       password: input.remoteAccessToken,
       connectTimeout: 12_000,
       reconnectPeriod: 0,
+      keepalive: 60,
     });
 
     const timer = setTimeout(() => {
