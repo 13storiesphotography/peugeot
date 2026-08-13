@@ -11,7 +11,6 @@ import type { PeugeotConnection } from "@/lib/vehicle/repository";
 const initial: ConnectState = {};
 
 function buildAuthorizeUrl(countryCode: string): string {
-  // Mirror server helper for immediate open without roundtrip.
   const configs: Record<string, { locale: string; client_id: string }> = {
     DE: { locale: "de-DE", client_id: "1eebc2d5-5df3-459b-a624-20abfcf82530" },
     AT: { locale: "de-AT", client_id: "1eebc2d5-5df3-459b-a624-20abfcf82530" },
@@ -62,31 +61,56 @@ export function PeugeotConnectForm({
         MyPeugeot verbinden
       </h2>
       <p className="mt-1 text-sm text-[var(--fg-muted)]">
-        Stellantis hat keine öffentliche Auto-API. Wir nutzen denselben Login
-        wie die MyPeugeot-App (Community-OAuth).
+        Wenn „Weiter“ nichts tut: Peugeot will die{" "}
+        <strong className="text-[var(--fg)]">MyPeugeot-App</strong> öffnen (
+        <code className="text-[var(--accent-bright)]">mymap://…</code>). Am PC
+        gibt es die nicht — der Code steckt trotzdem in dem Redirect.
       </p>
 
-      <ol className="mt-5 space-y-3 text-sm text-[var(--fg-muted)]">
-        <li>
-          <span className="font-semibold text-[var(--fg)]">1.</span> MyPeugeot
-          App muss funktionieren, E-Remote/Connect aktiv.
-        </li>
-        <li>
-          <span className="font-semibold text-[var(--fg)]">2.</span> Unten auf
-          „Bei Peugeot anmelden“ klicken und mit MyPeugeot-Account einloggen.
-        </li>
-        <li>
-          <span className="font-semibold text-[var(--fg)]">3.</span> Nach Login
-          erscheint oft ein Fehler wegen{" "}
-          <code className="text-[var(--accent-bright)]">mymap://…</code> — das
-          ist ok. In der Browser-Adresse / Network den Parameter{" "}
-          <code className="text-[var(--accent-bright)]">code=…</code> kopieren.
-        </li>
-        <li>
-          <span className="font-semibold text-[var(--fg)]">4.</span> Code hier
-          einfügen und verbinden.
-        </li>
-      </ol>
+      <div
+        className="mt-5 rounded-2xl border px-4 py-4 text-sm"
+        style={{
+          borderColor: "rgba(232,184,109,0.45)",
+          background: "rgba(232,184,109,0.08)",
+        }}
+      >
+        <p className="font-semibold text-[var(--warn)]">
+          So holst du den Code (Chrome / Edge)
+        </p>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-[var(--fg-muted)]">
+          <li>
+            Auf der Peugeot-Seite <kbd className="text-[var(--fg)]">F12</kbd> →
+            Tab <strong className="text-[var(--fg)]">Netzwerk</strong> /
+            Network
+          </li>
+          <li>
+            Haken setzen:{" "}
+            <strong className="text-[var(--fg)]">Protokoll beibehalten</strong>{" "}
+            / Preserve log
+          </li>
+          <li>
+            Jetzt erst auf <strong className="text-[var(--fg)]">WEITER</strong>{" "}
+            klicken
+          </li>
+          <li>
+            In der Liste nach{" "}
+            <code className="text-[var(--accent-bright)]">oauth2redirect</code>{" "}
+            oder einem fehlgeschlagenen Aufruf mit{" "}
+            <code className="text-[var(--accent-bright)]">mymap://</code> suchen
+          </li>
+          <li>
+            Rechtsklick → Copy →{" "}
+            <strong className="text-[var(--fg)]">Copy URL</strong> / Linkadresse
+            kopieren
+          </li>
+          <li>Die ganze URL unten einfügen (wir extrahieren den code=…)</li>
+        </ol>
+        <p className="mt-3 text-xs text-[var(--fg-muted)]">
+          Alternative in Firefox: Nach „Weiter“ erscheint oft direkt die
+          Fehlermeldung mit der <code>mymap://…?code=…</code>-Adresse — die
+          komplette Zeile kopieren.
+        </p>
+      </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
         <a
@@ -143,12 +167,13 @@ export function PeugeotConnectForm({
         </label>
         <label className="block sm:col-span-2">
           <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            OAuth-Code
+            Redirect-URL oder OAuth-Code
           </span>
-          <input
+          <textarea
             name="oauthCode"
             required
-            placeholder="Code aus mymap://oauth2redirect/…?code=…"
+            rows={3}
+            placeholder="mymap://oauth2redirect/de?code=…&scope=…  (komplette URL einfügen)"
             className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 outline-none focus:border-[var(--accent-bright)]"
           />
         </label>
@@ -192,12 +217,6 @@ export function PeugeotConnectForm({
           </p>
         ) : null}
       </div>
-
-      <p className="mt-5 text-xs text-[var(--fg-muted)]">
-        Hinweis: Fernbefehle (Verriegeln/Klima per MQTT) brauchen zusätzlich den
-        Sicherheits-PIN aus der MyPeugeot-App. Status & Laden-Info gehen nach dem
-        OAuth-Connect bereits live.
-      </p>
     </section>
   );
 }

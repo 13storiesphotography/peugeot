@@ -17,6 +17,25 @@ export type ConnectState = {
   authorizeUrl?: string;
 };
 
+/** Accept raw code or full mymap:// / https redirect URL. */
+export function extractOAuthCode(input: string): string {
+  const raw = input.trim();
+  if (!raw) return "";
+  if (!raw.includes("://") && !raw.includes("code=")) {
+    return raw;
+  }
+  try {
+    const normalized = raw.replace(/^mymap:/i, "https:");
+    const url = new URL(normalized);
+    const code = url.searchParams.get("code");
+    if (code) return code.trim();
+  } catch {
+    // fall through
+  }
+  const match = raw.match(/[?&#]code=([^&#\s]+)/i);
+  return match?.[1] ? decodeURIComponent(match[1]) : raw;
+}
+
 export async function getPeugeotAuthorizeUrl(
   countryCode: string,
 ): Promise<string> {
@@ -36,10 +55,13 @@ export async function connectPeugeotWithCode(
 
   const countryCode = String(formData.get("countryCode") ?? "DE").trim() || "DE";
   const mypeugeotEmail = String(formData.get("mypeugeotEmail") ?? "").trim();
-  const oauthCode = String(formData.get("oauthCode") ?? "").trim();
+  const oauthCode = extractOAuthCode(String(formData.get("oauthCode") ?? ""));
 
   if (!oauthCode) {
-    return { error: "Bitte den OAuth-Code aus dem Login-Redirect einfügen." };
+    return {
+      error:
+        "Kein Code gefunden. Nach „Weiter“ die mymap://…-URL (oder nur code=…) hier einfügen.",
+    };
   }
 
   try {
