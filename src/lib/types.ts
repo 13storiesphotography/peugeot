@@ -54,7 +54,8 @@ export interface VehicleState {
   estimatedFullAt: string | null;
   locked: boolean;
   climateStatus: ClimateStatus;
-  cabinTempC: number;
+  /** Outside air temperature from Peugeot `environment.air.temp` (°C). */
+  outdoorTempC: number;
   targetTempC: number;
   batteryPreheat: boolean;
   mileageKm: number;

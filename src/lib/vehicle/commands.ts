@@ -15,9 +15,8 @@ function touch(
 /** Apply local climate status after a successful live remote. */
 export function touchClimate(state: VehicleState, activate: boolean): VehicleState {
   if (!activate) return touch(state, { climateStatus: "off" });
-  const target = state.targetTempC;
   return touch(state, {
-    climateStatus: state.cabinTempC < target ? "heating" : "cooling",
+    climateStatus: "preconditioning",
   });
 }
 
@@ -131,7 +130,7 @@ export function applyCommandToState(
         ok: true,
         message: `Vorklimatisierung gestartet (${target}°C).`,
         vehicle: touch(state, {
-          climateStatus: state.cabinTempC < target ? "heating" : "cooling",
+          climateStatus: "preconditioning",
         }),
       };
     }
@@ -160,9 +159,7 @@ export function applyCommandToState(
         vehicle: touch(state, {
           targetTempC: target,
           climateStatus: climateOn
-            ? state.cabinTempC < target
-              ? "heating"
-              : "cooling"
+            ? "preconditioning"
             : state.climateStatus,
         }),
       };

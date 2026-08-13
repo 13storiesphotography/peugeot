@@ -308,8 +308,8 @@ export function mapStatusToVehicleState(
   const mileageKm = Number(
     dig(status, ["odometer", "mileage"]) ?? base.mileageKm,
   );
-  const cabinTempC = Number(
-    dig(status, ["environment", "air", "temp"]) ?? base.cabinTempC,
+  const outdoorTempC = Number(
+    dig(status, ["environment", "air", "temp"]) ?? base.outdoorTempC,
   );
 
   const lockRaw = String(
@@ -378,14 +378,8 @@ export function mapStatusToVehicleState(
     precondRaw.includes("progress") ||
     precondRaw === "on"
   ) {
-    const cabin = Number.isFinite(cabinTempC) ? cabinTempC : base.cabinTempC;
-    const target = base.targetTempC;
-    climateStatus =
-      cabin < target - 0.5
-        ? "heating"
-        : cabin > target + 0.5
-          ? "cooling"
-          : "preconditioning";
+    // API does not expose cabin setpoint vs interior — only that preconditioning runs.
+    climateStatus = "preconditioning";
   }
 
   const limitFromApi = Number(
@@ -569,7 +563,7 @@ export function mapStatusToVehicleState(
     mileageKm: Number.isFinite(mileageKm)
       ? Math.round(mileageKm)
       : base.mileageKm,
-    cabinTempC: Number.isFinite(cabinTempC) ? cabinTempC : base.cabinTempC,
+    outdoorTempC: Number.isFinite(outdoorTempC) ? outdoorTempC : base.outdoorTempC,
     locked,
     climateStatus,
     chargeStatus,

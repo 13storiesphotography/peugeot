@@ -27,7 +27,7 @@ export function createDefaultVehicleState(
     estimatedFullAt: null,
     locked: true,
     climateStatus: "off",
-    cabinTempC: 18,
+    outdoorTempC: 18,
     targetTempC: 21,
     batteryPreheat: false,
     mileageKm: 12480,

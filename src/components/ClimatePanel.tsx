@@ -12,7 +12,7 @@ interface ClimatePanelProps {
   onOpenSchedule?: () => void;
 }
 
-function formatCabinTemp(tempC: number): string {
+function formatTemp(tempC: number): string {
   if (!Number.isFinite(tempC)) return "—";
   return String(Math.round(tempC));
 }
@@ -27,7 +27,7 @@ export function ClimatePanel({
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
   const climateRemoteOk = !live || remoteReady;
-  const cabin = formatCabinTemp(vehicle.cabinTempC);
+  const outdoor = formatTemp(vehicle.outdoorTempC);
 
   const statusHint = active
     ? vehicle.climateStatus === "heating"
@@ -42,13 +42,15 @@ export function ClimatePanel({
       <SectionHeader title="Klima" hint={`Status · ${statusHint}`} />
 
       <div className="flex flex-col items-center py-4">
-        <p className="eyebrow mb-3">Innentemperatur</p>
+        <p className="eyebrow mb-3">Außentemperatur</p>
         <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tabular-nums leading-none">
-          {cabin}
+          {outdoor}
           <span className="text-2xl text-[var(--accent-bright)]">°</span>
         </p>
-        <p className="mt-3 text-sm text-[var(--fg-muted)]">
-          {live ? "Aktueller Wert vom Fahrzeug" : "Demo-Wert"}
+        <p className="mt-3 max-w-xs text-center text-sm text-[var(--fg-muted)]">
+          {live
+            ? "Vom Fahrzeug gemessen — Innentemperatur liefert Peugeot nicht."
+            : "Demo-Wert"}
         </p>
       </div>
 

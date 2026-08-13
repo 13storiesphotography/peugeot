@@ -210,6 +210,12 @@ async function ensureVehicle(
     chargingType: vehicle.chargingType ?? null,
     colorHex: vehicle.colorHex ?? null,
     pictureUrl: vehicle.pictureUrl ?? null,
+    outdoorTempC: (() => {
+      if (typeof vehicle.outdoorTempC === "number") return vehicle.outdoorTempC;
+      const legacy = vehicle as unknown as { cabinTempC?: number };
+      if (typeof legacy.cabinTempC === "number") return legacy.cabinTempC;
+      return 18;
+    })(),
   };
 
   return { vehicleId: existing.id, vehicle };
