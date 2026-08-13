@@ -621,7 +621,8 @@ async function ensurePeugeotAccessToken(
       current.countryCode,
       refreshToken,
     );
-    await supabase
+    // Compare-and-swap: only write if another request did not rotate first.
+    const { data: updated, error: updateError } = await supabase
       .from("peugeot_connections")
       .update({
         access_token: refreshed.accessToken,
@@ -634,7 +635,20 @@ async function ensurePeugeotAccessToken(
         },
         updated_at: new Date().toISOString(),
       })
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("refresh_token", refreshToken)
+      .select("access_token")
+      .maybeSingle();
+    if (updateError) throw new Error(updateError.message);
+    if (!updated?.access_token) {
+      // Lost the race — read the winner's token.
+      const { data: winner } = await supabase
+        .from("peugeot_connections")
+        .select("access_token, token_expires_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (winner?.access_token) return String(winner.access_token);
+    }
     return refreshed.accessToken;
   } catch (error) {
     const raw = error instanceof Error ? error.message : String(error);

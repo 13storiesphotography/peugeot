@@ -85,6 +85,12 @@ export function PeugeotConnectForm({
             kommen wieder frische Fahrzeugdaten.
           </p>
         </div>
+      ) : connection.connected ? (
+        <p className="mt-4 text-xs text-[var(--fg-muted)]">
+          Die Peugeot-Sitzung wird im Hintergrund alle ~25 Minuten erneuert,
+          damit du nicht ständig neu anmelden musst. Die App-Anmeldung selbst
+          bleibt davon unberührt.
+        </p>
       ) : null}
 
       <div
