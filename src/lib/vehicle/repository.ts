@@ -929,6 +929,30 @@ export async function runVehicleCommand(
     return live;
   }
 
+  if (
+    bundle.vehicle.mode === "live" &&
+    (request.command === "lock" ||
+      request.command === "unlock" ||
+      request.command === "horn" ||
+      request.command === "flash")
+  ) {
+    const live = await runLiveRemoteSignalCommand(
+      supabase,
+      userId,
+      bundle,
+      request.command,
+    );
+    await saveState(supabase, userId, bundle.vehicleId, live.vehicle);
+    await supabase.from("activity_log").insert({
+      user_id: userId,
+      vehicle_id: bundle.vehicleId,
+      command: request.command,
+      message: live.message,
+      ok: live.ok,
+    });
+    return live;
+  }
+
   const result = applyCommandToState(bundle.vehicle, request);
   await saveState(supabase, userId, bundle.vehicleId, result.vehicle);
 
@@ -1103,6 +1127,85 @@ async function runLiveWakeupCommand(
       vehicle: bundle.vehicle,
     };
   }
+}
+
+async function runLiveRemoteSignalCommand(
+  supabase: SupabaseClient,
+  userId: string,
+  bundle: VehicleBundle,
+  command: "lock" | "unlock" | "horn" | "flash",
+): Promise<CommandResult> {
+  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+  if (!remote.ok) {
+    return { ok: false, message: remote.message, vehicle: bundle.vehicle };
+  }
+
+  try {
+    const { sendDoorLock, sendHorn, sendLights } = await import(
+      "@/lib/stellantis/remote"
+    );
+    const { touchLock } = await import("@/lib/vehicle/commands");
+
+    if (command === "lock" || command === "unlock") {
+      await sendDoorLock({
+        customerId: remote.customerId,
+        vin: remote.vin,
+        remoteAccessToken: remote.remoteAccessToken,
+        lock: command === "lock",
+      });
+      return {
+        ok: true,
+        message:
+          command === "lock" ? "Türen verriegelt." : "Türen entriegelt.",
+        vehicle: touchLock(bundle.vehicle, command === "lock"),
+      };
+    }
+
+    if (command === "horn") {
+      await sendHorn({
+        customerId: remote.customerId,
+        vin: remote.vin,
+        remoteAccessToken: remote.remoteAccessToken,
+        count: 2,
+      });
+      return {
+        ok: true,
+        message: "Hupe ausgelöst.",
+        vehicle: bundle.vehicle,
+      };
+    }
+
+    await sendLights({
+      customerId: remote.customerId,
+      vin: remote.vin,
+      remoteAccessToken: remote.remoteAccessToken,
+      durationSec: 10,
+    });
+    return {
+      ok: true,
+      message: "Lichter geblinkt.",
+      vehicle: bundle.vehicle,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? humanizeRemoteSignalError(error.message)
+          : "Fernbefehl fehlgeschlagen.",
+      vehicle: bundle.vehicle,
+    };
+  }
+}
+
+function humanizeRemoteSignalError(message: string): string {
+  if (/no\.matching\.service\.key|authorization\.denied/i.test(message)) {
+    return "Fernbedienung für Schloss/Signal nicht freigeschaltet (Connect Plus / Remote Control).";
+  }
+  if (/Remote-Fehler 400/i.test(message)) {
+    return "Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";
+  }
+  return message;
 }
 
 async function runLiveClimateCommand(

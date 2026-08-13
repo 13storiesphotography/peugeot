@@ -483,10 +483,15 @@ async function psaMqttPublish(input: {
         try {
           const data = JSON.parse(String(packet.payload)) as {
             return_code?: string;
+            reason?: string;
           };
           if (data.return_code && data.return_code !== "0") {
+            const reason =
+              typeof data.reason === "string" && data.reason
+                ? `: ${data.reason}`
+                : "";
             finish(() =>
-              reject(new Error(`Remote-Fehler ${data.return_code}`)),
+              reject(new Error(`Remote-Fehler ${data.return_code}${reason}`)),
             );
             return;
           }
@@ -619,5 +624,59 @@ export async function sendVehicleWakeup(input: {
     topicSuffix: "/VehCharge/state",
     reqParameters: { action: "state" },
     ackTimeoutMs: 8_000,
+  });
+}
+
+/** Lock or unlock doors via MQTT `/Doors`. */
+export async function sendDoorLock(input: {
+  customerId: string;
+  vin: string;
+  remoteAccessToken: string;
+  lock: boolean;
+}): Promise<void> {
+  await publishRemoteCommand({
+    customerId: input.customerId,
+    vin: input.vin,
+    remoteAccessToken: input.remoteAccessToken,
+    topicSuffix: "/Doors",
+    reqParameters: { action: input.lock ? "lock" : "unlock" },
+  });
+}
+
+/** Honk the horn (`nb_horn` times). */
+export async function sendHorn(input: {
+  customerId: string;
+  vin: string;
+  remoteAccessToken: string;
+  count?: number;
+}): Promise<void> {
+  await publishRemoteCommand({
+    customerId: input.customerId,
+    vin: input.vin,
+    remoteAccessToken: input.remoteAccessToken,
+    topicSuffix: "/Horn",
+    reqParameters: {
+      action: "activate",
+      nb_horn: Math.max(1, Math.min(10, input.count ?? 2)),
+    },
+  });
+}
+
+/** Flash exterior lights (~duration seconds; car often uses ~10s anyway). */
+export async function sendLights(input: {
+  customerId: string;
+  vin: string;
+  remoteAccessToken: string;
+  durationSec?: number;
+}): Promise<void> {
+  await publishRemoteCommand({
+    customerId: input.customerId,
+    vin: input.vin,
+    remoteAccessToken: input.remoteAccessToken,
+    topicSuffix: "/Lights",
+    reqParameters: {
+      action: "activate",
+      duration: Math.max(1, Math.min(30, input.durationSec ?? 10)),
+    },
   });
 }

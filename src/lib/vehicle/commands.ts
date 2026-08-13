@@ -20,6 +20,11 @@ export function touchClimate(state: VehicleState, activate: boolean): VehicleSta
   });
 }
 
+/** Apply local lock status after a successful live remote. */
+export function touchLock(state: VehicleState, locked: boolean): VehicleState {
+  return touch(state, { locked });
+}
+
 export function applyCommandToState(
   state: VehicleState,
   request: CommandRequest,
