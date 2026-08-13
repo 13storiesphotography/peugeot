@@ -187,15 +187,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
           ) : null}
         </div>
         <div className="text-right text-xs text-[var(--fg-muted)]">
-          <p className="flex items-center justify-end gap-2 uppercase tracking-[0.2em]">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full border border-[var(--line)]"
-              style={{ background: body }}
-              aria-hidden
-            />
-            {vehicle.color}
-          </p>
-          <p className="mt-1 tabular-nums">
+          <p className="tabular-nums">
             {vehicle.mileageKm.toLocaleString("de-DE")} km
           </p>
         </div>
