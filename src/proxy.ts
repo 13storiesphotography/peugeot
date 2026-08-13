@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isEmailAllowed } from "@/lib/auth/allowlist";
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -32,13 +33,27 @@ export async function proxy(request: NextRequest) {
 
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
+  const email = typeof user?.email === "string" ? user.email : null;
+  const allowed = Boolean(user && isEmailAllowed(email));
 
   const path = request.nextUrl.pathname;
   const isAuthPage = path === "/";
   const isProtected =
     path.startsWith("/control") || path.startsWith("/api/vehicle");
 
-  if (isProtected && !user) {
+  // Signed in but not on allowlist → force sign-out cookie clear via redirect home
+  if (user && !allowed) {
+    await supabase.auth.signOut();
+    if (path.startsWith("/api/")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    url.searchParams.set("denied", "1");
+    return NextResponse.redirect(url);
+  }
+
+  if (isProtected && !allowed) {
     if (path.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -47,7 +62,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (isAuthPage && user) {
+  if (isAuthPage && allowed) {
     const url = request.nextUrl.clone();
     url.pathname = "/control";
     return NextResponse.redirect(url);

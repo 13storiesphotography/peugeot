@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { updateVehicleProfile } from "@/lib/vehicle/repository";
 
 export type SettingsState = {
@@ -13,10 +13,8 @@ export async function saveVehicleSettings(
   _prev: SettingsState,
   formData: FormData,
 ): Promise<SettingsState> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub;
-  if (!userId || typeof userId !== "string") {
+  const session = await assertOwnerSession();
+  if (!session) {
     return { error: "Nicht angemeldet." };
   }
 
@@ -29,7 +27,11 @@ export async function saveVehicleSettings(
   }
 
   try {
-    await updateVehicleProfile(supabase, userId, { nickname, color, vin });
+    await updateVehicleProfile(session.supabase, session.userId, {
+      nickname,
+      color,
+      vin,
+    });
     revalidatePath("/control");
     revalidatePath("/control/settings");
     return { success: "Profil gespeichert." };

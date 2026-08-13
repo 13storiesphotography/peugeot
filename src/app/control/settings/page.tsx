@@ -2,20 +2,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
 import { SettingsForm } from "@/components/SettingsForm";
-import { createClient } from "@/lib/supabase/server";
+import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub;
-  if (!userId || typeof userId !== "string") {
+  const session = await assertOwnerSession();
+  if (!session) {
     redirect("/");
   }
 
-  const bundle = await getVehicleBundle(supabase, userId);
+  const bundle = await getVehicleBundle(session.supabase, session.userId);
 
   return (
     <main className="min-h-full">

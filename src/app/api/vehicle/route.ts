@@ -1,22 +1,17 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireOwner } from "@/lib/auth/require-owner";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub;
-  if (!userId || typeof userId !== "string") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireOwner();
+  if (!auth.ok) return auth.response;
 
   try {
-    const bundle = await getVehicleBundle(supabase, userId);
-    return NextResponse.json(bundle);
+    const bundle = await getVehicleBundle(auth.supabase, auth.userId);
+    return Response.json(bundle);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Fehler";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return Response.json({ error: message }, { status: 500 });
   }
 }

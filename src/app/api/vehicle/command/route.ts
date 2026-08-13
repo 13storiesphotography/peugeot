@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireOwner } from "@/lib/auth/require-owner";
 import type { CommandRequest, VehicleCommand } from "@/lib/types";
 import { runVehicleCommand } from "@/lib/vehicle/repository";
 
@@ -21,35 +20,31 @@ const ALLOWED: VehicleCommand[] = [
 ];
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub;
-  if (!userId || typeof userId !== "string") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireOwner();
+  if (!auth.ok) return auth.response;
 
   let body: CommandRequest;
   try {
     body = (await request.json()) as CommandRequest;
   } catch {
-    return NextResponse.json(
+    return Response.json(
       { ok: false, message: "Ungültiger Request-Body." },
       { status: 400 },
     );
   }
 
   if (!body?.command || !ALLOWED.includes(body.command)) {
-    return NextResponse.json(
+    return Response.json(
       { ok: false, message: "Unbekannter oder fehlender Befehl." },
       { status: 400 },
     );
   }
 
   try {
-    const result = await runVehicleCommand(supabase, userId, body);
-    return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+    const result = await runVehicleCommand(auth.supabase, auth.userId, body);
+    return Response.json(result, { status: result.ok ? 200 : 409 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Fehler";
-    return NextResponse.json({ ok: false, message }, { status: 500 });
+    return Response.json({ ok: false, message }, { status: 500 });
   }
 }

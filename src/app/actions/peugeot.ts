@@ -9,7 +9,7 @@ import {
 } from "@/lib/stellantis/api";
 import { getAuthorizeUrl } from "@/lib/stellantis/peugeot-config";
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
-import { createClient } from "@/lib/supabase/server";
+import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
 
 export type ConnectState = {
@@ -28,12 +28,11 @@ export async function connectPeugeotWithCode(
   _prev: ConnectState,
   formData: FormData,
 ): Promise<ConnectState> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub;
-  if (!userId || typeof userId !== "string") {
+  const session = await assertOwnerSession();
+  if (!session) {
     return { error: "Nicht angemeldet." };
   }
+  const { supabase, userId } = session;
 
   const countryCode = String(formData.get("countryCode") ?? "DE").trim() || "DE";
   const mypeugeotEmail = String(formData.get("mypeugeotEmail") ?? "").trim();
@@ -141,12 +140,11 @@ export async function connectPeugeotWithCode(
 }
 
 export async function syncPeugeotStatus(): Promise<ConnectState> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub;
-  if (!userId || typeof userId !== "string") {
+  const session = await assertOwnerSession();
+  if (!session) {
     return { error: "Nicht angemeldet." };
   }
+  const { supabase, userId } = session;
 
   const bundle = await getVehicleBundle(supabase, userId);
   const { data: connection } = await supabase
