@@ -30,6 +30,10 @@ export interface VehicleState {
   model: string;
   nickname: string;
   color: string;
+  /** Approximate body color for UI accents / silhouette. */
+  colorHex: string | null;
+  /** Official Peugeot 3D render URL when available. */
+  pictureUrl: string | null;
   mode: "demo" | "live";
   batteryPercent: number;
   batteryCapacityKwh: number;

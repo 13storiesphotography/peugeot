@@ -10,6 +10,8 @@ export function createDefaultVehicleState(
     model: "Peugeot E-3008",
     nickname: "E-3008",
     color: "Obsession Blue",
+    colorHex: "#1a3f5c",
+    pictureUrl: null,
     mode: "demo",
     batteryPercent: 68,
     batteryCapacityKwh: 73,

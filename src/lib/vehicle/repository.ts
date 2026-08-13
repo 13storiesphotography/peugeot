@@ -166,6 +166,8 @@ async function ensureVehicle(
     vin: existing.vin ?? vehicle.vin,
     chargeRateKmh: vehicle.chargeRateKmh ?? null,
     chargePowerKw: vehicle.chargePowerKw ?? null,
+    colorHex: vehicle.colorHex ?? null,
+    pictureUrl: vehicle.pictureUrl ?? null,
   };
 
   return { vehicleId: existing.id, vehicle };
@@ -251,6 +253,7 @@ export async function getVehicleBundle(
   if (shouldSync && connection?.vehicle_api_id && connection.access_token) {
     try {
       const {
+        fetchVehicleDetails,
         fetchVehicleStatus,
         mapStatusToVehicleState,
         refreshAccessToken,
@@ -280,6 +283,42 @@ export async function getVehicleBundle(
           .eq("user_id", userId);
       }
 
+      const needsPaint =
+        options.forceSync ||
+        !vehicle.pictureUrl ||
+        !vehicle.colorHex ||
+        /obsession/i.test(vehicle.color);
+
+      let paintColor = vehicle.color;
+      let paintHex = vehicle.colorHex;
+      let pictureUrl = vehicle.pictureUrl;
+      if (needsPaint) {
+        try {
+          const details = await fetchVehicleDetails(
+            accessToken,
+            countryCode,
+            String(connection.vehicle_api_id),
+          );
+          if (details?.color) paintColor = details.color;
+          if (details?.colorHex) paintHex = details.colorHex;
+          if (details?.pictureUrl) pictureUrl = details.pictureUrl;
+          if (details?.vin) vehicle = { ...vehicle, vin: details.vin };
+          if (details?.color) {
+            await supabase
+              .from("vehicles")
+              .update({
+                color: details.color,
+                vin: details.vin ?? vehicle.vin,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", vehicleId)
+              .eq("user_id", userId);
+          }
+        } catch {
+          // Paint metadata is optional.
+        }
+      }
+
       const status = await fetchVehicleStatus(
         accessToken,
         countryCode,
@@ -287,12 +326,24 @@ export async function getVehicleBundle(
       );
       vehicle = mapStatusToVehicleState(
         status,
-        { ...vehicle, mode: "live" },
+        {
+          ...vehicle,
+          mode: "live",
+          color: paintColor,
+          colorHex: paintHex,
+          pictureUrl,
+        },
         {
           vehicleId: String(connection.vehicle_api_id),
           vin: vehicle.vin,
         },
       );
+      vehicle = {
+        ...vehicle,
+        color: paintColor,
+        colorHex: paintHex,
+        pictureUrl,
+      };
       await saveState(supabase, userId, vehicleId, vehicle);
       await supabase
         .from("peugeot_connections")

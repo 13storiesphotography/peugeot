@@ -1,6 +1,7 @@
 import type { VehicleState } from "@/lib/types";
 import { estimateFullAt } from "@/lib/vehicle/defaults";
 import { resolveChargePower } from "@/lib/stellantis/charge-power";
+import { extractPaintFromPictures } from "@/lib/stellantis/paint";
 import {
   getAuthorizeUrl,
   getBasicToken,
@@ -20,6 +21,11 @@ export type RemoteVehicle = {
   vehicleId: string;
   vin: string;
   motorization?: string;
+  brand?: string;
+  pictures?: string[];
+  color?: string;
+  colorHex?: string;
+  pictureUrl?: string | null;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -172,14 +178,52 @@ export async function listVehicles(
   return embedded.flatMap((item) => {
     const rec = asRecord(item);
     if (!rec?.id || !rec?.vin) return [];
+    const pictures = Array.isArray(rec.pictures)
+      ? rec.pictures.filter((p): p is string => typeof p === "string")
+      : [];
+    const paint = extractPaintFromPictures(pictures);
     const vehicle: RemoteVehicle = {
       vehicleId: String(rec.id),
       vin: String(rec.vin),
       motorization:
         typeof rec.motorization === "string" ? rec.motorization : undefined,
+      brand: typeof rec.brand === "string" ? rec.brand : undefined,
+      pictures,
+      color: paint?.label,
+      colorHex: paint?.hex,
+      pictureUrl: paint?.pictureUrl ?? null,
     };
     return [vehicle];
   });
+}
+
+export async function fetchVehicleDetails(
+  accessToken: string,
+  countryCode: string,
+  vehicleId: string,
+): Promise<RemoteVehicle | null> {
+  const data = await carApiGet(
+    `/connectedcar/v4/user/vehicles/${vehicleId}`,
+    accessToken,
+    countryCode,
+  );
+  const rec = asRecord(data);
+  if (!rec?.id || !rec?.vin) return null;
+  const pictures = Array.isArray(rec.pictures)
+    ? rec.pictures.filter((p): p is string => typeof p === "string")
+    : [];
+  const paint = extractPaintFromPictures(pictures);
+  return {
+    vehicleId: String(rec.id),
+    vin: String(rec.vin),
+    motorization:
+      typeof rec.motorization === "string" ? rec.motorization : undefined,
+    brand: typeof rec.brand === "string" ? rec.brand : undefined,
+    pictures,
+    color: paint?.label,
+    colorHex: paint?.hex,
+    pictureUrl: paint?.pictureUrl ?? null,
+  };
 }
 
 export async function fetchVehicleStatus(

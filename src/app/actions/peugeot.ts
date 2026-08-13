@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   exchangeAuthorizationCode,
+  fetchVehicleDetails,
   fetchVehicleStatus,
   listVehicles,
   mapStatusToVehicleState,
@@ -56,33 +57,54 @@ export async function connectPeugeotWithCode(
     }
 
     const remote = vehicles[0];
+    // Detail endpoint usually includes the official pictures (+ paint code).
+    let details = remote;
+    try {
+      const full = await fetchVehicleDetails(
+        tokens.accessToken,
+        countryCode,
+        remote.vehicleId,
+      );
+      if (full) details = { ...remote, ...full };
+    } catch {
+      // list payload may already include pictures
+    }
+
     const bundle = await getVehicleBundle(supabase, userId);
 
-    let liveState = bundle.vehicle;
+    let liveState: import("@/lib/types").VehicleState = {
+      ...bundle.vehicle,
+      vin: details.vin,
+      color: details.color ?? bundle.vehicle.color,
+      colorHex: details.colorHex ?? bundle.vehicle.colorHex ?? null,
+      pictureUrl: details.pictureUrl ?? bundle.vehicle.pictureUrl ?? null,
+      mode: "live",
+    };
     try {
       const status = await fetchVehicleStatus(
         tokens.accessToken,
         countryCode,
         remote.vehicleId,
       );
-      liveState = mapStatusToVehicleState(status, bundle.vehicle, {
-        vehicleId: remote.vehicleId,
-        vin: remote.vin,
-      });
-    } catch {
-      // Status can lag; connection still succeeds with vehicle id/vin.
       liveState = {
-        ...bundle.vehicle,
-        id: remote.vehicleId,
-        vin: remote.vin,
+        ...mapStatusToVehicleState(status, liveState, {
+          vehicleId: remote.vehicleId,
+          vin: details.vin,
+        }),
+        color: details.color ?? liveState.color,
+        colorHex: details.colorHex ?? liveState.colorHex,
+        pictureUrl: details.pictureUrl ?? liveState.pictureUrl,
         mode: "live",
       };
+    } catch {
+      // Status can lag; connection still succeeds with vehicle id/vin.
     }
 
     await supabase
       .from("vehicles")
       .update({
-        vin: remote.vin,
+        vin: details.vin,
+        color: details.color ?? bundle.vehicle.color,
         updated_at: new Date().toISOString(),
       })
       .eq("id", bundle.vehicleId)
@@ -109,8 +131,14 @@ export async function connectPeugeotWithCode(
         last_sync_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         oauth_meta: {
-          vin: remote.vin,
-          motorization: remote.motorization ?? null,
+          vin: details.vin,
+          motorization: details.motorization ?? null,
+          brand: details.brand ?? null,
+          color: details.color ?? null,
+          colorCode: details.pictures?.[0]
+            ? details.pictures[0]
+            : null,
+          pictureUrl: details.pictureUrl ?? null,
         },
       },
       { onConflict: "user_id" },
@@ -120,14 +148,14 @@ export async function connectPeugeotWithCode(
       user_id: userId,
       vehicle_id: bundle.vehicleId,
       command: "connect",
-      message: `MyPeugeot verbunden (${remote.vin}).`,
+      message: `MyPeugeot verbunden (${details.vin}${details.color ? ` · ${details.color}` : ""}).`,
       ok: true,
     });
 
     revalidatePath("/control");
     revalidatePath("/control/settings");
     return {
-      success: `Verbunden: VIN ${remote.vin}. Status wird live geladen.`,
+      success: `Verbunden: VIN ${details.vin}${details.color ? ` · ${details.color}` : ""}. Status wird live geladen.`,
     };
   } catch (error) {
     return {
@@ -194,14 +222,49 @@ export async function syncPeugeotStatus(): Promise<ConnectState> {
       countryCode,
       String(connection.vehicle_api_id),
     );
-    const vin =
-      bundle.vehicle.vin && !bundle.vehicle.vin.includes("xxx")
-        ? bundle.vehicle.vin
-        : bundle.vehicle.vin;
-    const liveState = mapStatusToVehicleState(status, bundle.vehicle, {
-      vehicleId: String(connection.vehicle_api_id),
-      vin,
-    });
+    const { fetchVehicleDetails } = await import("@/lib/stellantis/api");
+    let paint = {
+      color: bundle.vehicle.color,
+      colorHex: bundle.vehicle.colorHex,
+      pictureUrl: bundle.vehicle.pictureUrl,
+      vin: bundle.vehicle.vin,
+    };
+    try {
+      const details = await fetchVehicleDetails(
+        accessToken,
+        countryCode,
+        String(connection.vehicle_api_id),
+      );
+      if (details) {
+        paint = {
+          color: details.color ?? paint.color,
+          colorHex: details.colorHex ?? paint.colorHex,
+          pictureUrl: details.pictureUrl ?? paint.pictureUrl,
+          vin: details.vin || paint.vin,
+        };
+        await supabase
+          .from("vehicles")
+          .update({
+            color: paint.color,
+            vin: paint.vin,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", bundle.vehicleId)
+          .eq("user_id", userId);
+      }
+    } catch {
+      // optional
+    }
+
+    const liveState = {
+      ...mapStatusToVehicleState(status, bundle.vehicle, {
+        vehicleId: String(connection.vehicle_api_id),
+        vin: paint.vin,
+      }),
+      color: paint.color,
+      colorHex: paint.colorHex,
+      pictureUrl: paint.pictureUrl,
+    };
 
     await supabase.from("vehicle_state").upsert({
       vehicle_id: bundle.vehicleId,
