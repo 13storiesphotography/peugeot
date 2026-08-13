@@ -38,9 +38,7 @@ export function ClimatePanel({
           Klima
         </h2>
         <p className="mt-1 text-sm text-[var(--fg-muted)]">
-          {live
-            ? "Live: Kabinentemp vom Auto · Vorklima-Remote folgt noch."
-            : "Demo: Zieltemperatur und Vorklima lokal simuliert."}
+          Wunschtemperatur und Vorklima
         </p>
       </div>
 
@@ -80,18 +78,9 @@ export function ClimatePanel({
               : vehicle.climateStatus === "cooling"
                 ? " · kühlt"
                 : " · aktiv"
-            : " · gemessen"}
+            : ""}
         </p>
       </div>
-
-      {live ? (
-        <p className="rounded-xl border border-[var(--line)] px-4 py-3 text-sm text-[var(--fg-muted)]">
-          MyPeugeot erlaubt Vorklima typischerweise nur als An/Aus (ohne freies
-          °C). Die Wunschtemperatur hier speichern wir in der App — die
-          Komfort-Temperatur setzt du im Fahrzeug bzw. in der Peugeot-App.
-          Echte Remote-Vorklima (MQTT + PIN) können wir als Nächstes anbinden.
-        </p>
-      ) : null}
 
       <button
         type="button"
@@ -107,11 +96,7 @@ export function ClimatePanel({
           opacity: live ? 0.55 : 1,
         }}
       >
-        {live
-          ? "Vorklima: Peugeot-App (Remote folgt)"
-          : active
-            ? "Klima stoppen"
-            : "Klima starten"}
+        {active ? "Klima stoppen" : "Klima starten"}
       </button>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -138,11 +123,7 @@ export function ClimatePanel({
         >
           <p className="font-semibold">Batterie vorwärmen</p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            {live
-              ? "Live noch nicht angebunden"
-              : vehicle.batteryPreheat
-                ? "Aktiv — schnelleres Laden"
-                : "Aus"}
+            {vehicle.batteryPreheat ? "Aktiv" : "Aus"}
           </p>
         </button>
         <LocationLink
@@ -159,11 +140,7 @@ export function ClimatePanel({
           defaultTargetTempC={target}
           compact
           title="Vorklima planen"
-          hint={
-            live
-              ? "Nur in der App gespeichert — startet das Auto noch nicht. Live-Vorklima braucht noch Remote (MQTT + PIN); bis dahin Peugeot-App nutzen."
-              : "Demo: Pläne werden gespeichert und lokal simuliert. Live-Start am Auto folgt mit Remote."
-          }
+          hint="Zeit und Wochentage für die Vorklimatisierung."
         />
       </div>
     </section>

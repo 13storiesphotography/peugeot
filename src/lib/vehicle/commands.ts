@@ -49,8 +49,7 @@ export function applyCommandToState(
       if (state.mode === "live") {
         return {
           ok: false,
-          message:
-            "Live-Laden steuert das Fahrzeug über MyPeugeot. Status wird vom Auto gelesen — bitte am Wagen oder in der Peugeot-App starten.",
+          message: "Laden starten ist gerade nicht verfügbar.",
           vehicle: state,
         };
       }
@@ -64,7 +63,7 @@ export function applyCommandToState(
       const power = 11;
       return {
         ok: true,
-        message: "Laden gestartet (Demo).",
+        message: "Laden gestartet.",
         vehicle: touch(state, {
           chargeStatus: "charging",
           chargePowerKw: power,
@@ -82,8 +81,6 @@ export function applyCommandToState(
       const limit = Math.min(100, Math.max(50, request.chargeLimitPercent ?? 80));
       const next: Partial<VehicleState> = {
         preferredChargeLimitPercent: limit,
-        // Demo: preferred is the effective limit. Live: keep vehicle-reported
-        // chargeLimitPercent/known unless the car never reported one.
         ...(state.mode === "demo" || !state.chargeLimitKnown
           ? { chargeLimitPercent: limit, chargeLimitKnown: state.mode === "demo" }
           : {}),
@@ -101,23 +98,9 @@ export function applyCommandToState(
       return {
         ok: true,
         message:
-          state.mode === "live"
-            ? limit <= 80
-              ? `„Laden auf 80% begrenzen“ in der App aktiviert. Aktuell meldet das Auto ${
-                  state.chargeLimitKnown
-                    ? state.chargeLimitPercent <= 80
-                      ? "bereits 80%"
-                      : "noch Full/100%"
-                    : "kein klares Limit"
-                }. Den gleichen Schalter bitte in der Peugeot-App setzen, bis Remote durchgereicht wird.`
-              : `80%-Begrenzung in der App aus. Auto meldet ${
-                  state.chargeLimitKnown
-                    ? state.chargeLimitPercent >= 100
-                      ? "Full/100%"
-                      : `${state.chargeLimitPercent}%`
-                    : "kein klares Limit"
-                }.`
-            : `Ladelimit auf ${limit}% gesetzt (Demo).`,
+          limit <= 80
+            ? "Laden auf 80% begrenzt."
+            : "Ladeziel auf 100% gesetzt.",
         vehicle: touch(state, next),
       };
     }
@@ -125,15 +108,14 @@ export function applyCommandToState(
       if (state.mode === "live") {
         return {
           ok: false,
-          message:
-            "Live-Vorklima ist noch nicht angebunden (braucht Remote/MQTT + PIN). Bitte vorerst Peugeot-App nutzen.",
+          message: "Vorklima starten ist gerade nicht verfügbar.",
           vehicle: state,
         };
       }
       const target = state.targetTempC;
       return {
         ok: true,
-        message: `Vorklimatisierung gestartet (${target}°C, Demo).`,
+        message: `Vorklimatisierung gestartet (${target}°C).`,
         vehicle: touch(state, {
           climateStatus: state.cabinTempC < target ? "heating" : "cooling",
         }),
@@ -143,14 +125,13 @@ export function applyCommandToState(
       if (state.mode === "live") {
         return {
           ok: false,
-          message:
-            "Live-Vorklima-Stopp noch nicht angebunden. Bitte Peugeot-App nutzen.",
+          message: "Vorklima stoppen ist gerade nicht verfügbar.",
           vehicle: state,
         };
       }
       return {
         ok: true,
-        message: "Vorklimatisierung gestoppt (Demo).",
+        message: "Vorklimatisierung gestoppt.",
         vehicle: touch(state, { climateStatus: "off" }),
       };
     case "set_climate_temp": {
@@ -158,14 +139,10 @@ export function applyCommandToState(
         28,
         Math.max(16, Math.round(request.targetTempC ?? state.targetTempC)),
       );
-      // Preference is stored locally; Peugeot remotes don't take a °C setpoint.
       const climateOn = state.mode !== "live" && state.climateStatus !== "off";
       return {
         ok: true,
-        message:
-          state.mode === "live"
-            ? `Wunschtemperatur ${target}°C gespeichert (geht nicht an MyPeugeot — Auto nutzt seine Komfort-Temp).`
-            : `Zieltemperatur ${target}°C (Demo).`,
+        message: `Wunschtemperatur ${target}°C.`,
         vehicle: touch(state, {
           targetTempC: target,
           climateStatus: climateOn
@@ -180,27 +157,26 @@ export function applyCommandToState(
       if (state.mode === "live") {
         return {
           ok: false,
-          message:
-            "Live-Batterie-Vorwärmung noch nicht angebunden. Bitte Peugeot-App nutzen.",
+          message: "Batterie-Vorwärmung ist gerade nicht verfügbar.",
           vehicle: state,
         };
       }
       return {
         ok: true,
-        message: "Batterie-Vorwärmung gestartet (Demo).",
+        message: "Batterie-Vorwärmung gestartet.",
         vehicle: touch(state, { batteryPreheat: true }),
       };
     case "battery_preheat_stop":
       if (state.mode === "live") {
         return {
           ok: false,
-          message: "Live-Stopp Vorwärmung noch nicht angebunden.",
+          message: "Batterie-Vorwärmung ist gerade nicht verfügbar.",
           vehicle: state,
         };
       }
       return {
         ok: true,
-        message: "Batterie-Vorwärmung gestoppt (Demo).",
+        message: "Batterie-Vorwärmung gestoppt.",
         vehicle: touch(state, { batteryPreheat: false }),
       };
     default:

@@ -25,13 +25,6 @@ function formatUpdated(iso: string): string {
   }).format(new Date(iso));
 }
 
-function minutesSince(iso: string | null | undefined): number | null {
-  if (!iso) return null;
-  const ms = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(ms)) return null;
-  return Math.max(0, Math.round(ms / 60_000));
-}
-
 const TAB_QUERY = "tab";
 
 function readTab(): ControlTab {
@@ -175,12 +168,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const climateOn = vehicle.climateStatus !== "off";
   const charging = vehicle.chargeStatus === "charging";
   const plugged = vehicle.chargeStatus !== "idle";
-  const live = vehicle.mode === "live";
-  const telemetryAgeMin = minutesSince(vehicle.lastUpdatedAt);
-  const staleTelemetry = live && telemetryAgeMin != null && telemetryAgeMin >= 20;
-  const lastSyncLabel = bundle.connection.lastSyncAt
-    ? formatUpdated(bundle.connection.lastSyncAt)
-    : null;
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col px-4 pb-28 pt-2 sm:max-w-xl sm:px-6">
@@ -196,21 +183,11 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             type="button"
             onClick={() => void refresh(true)}
             className="mt-1 block text-left text-xs text-[var(--fg-muted)]"
-            title="Jetzt bei Peugeot abrufen"
+            title="Aktualisieren"
           >
-            {live ? "Live" : "Demo"} · Auto{" "}
-            {formatUpdated(vehicle.lastUpdatedAt)}
-            {lastSyncLabel ? ` · Abruf ${lastSyncLabel}` : ""}
-            {isPending ? " · sync…" : " · tippen zum Aktualisieren"}
+            Aktualisiert {formatUpdated(vehicle.lastUpdatedAt)}
+            {isPending ? "…" : ""}
           </button>
-          {staleTelemetry ? (
-            <p className="mt-1.5 max-w-sm text-[11px] leading-snug text-[var(--fg-muted)]">
-              Fahrzeugdaten sind ~{telemetryAgeMin} Min. alt — das Auto meldet
-              im Schlaf oft nichts Neues. MyPeugeot-App ist fürs Abrufen nicht
-              nötig; frische Werte kommen nach Fahrt, Laden oder wenn Peugeot das
-              Auto aufweckt.
-            </p>
-          ) : null}
         </div>
         <Link
           href="/control/settings"
@@ -303,15 +280,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               Planen
             </h2>
             <p className="mt-1 text-sm text-[var(--fg-muted)]">
-              Pläne werden in der App gespeichert (Zeit, Tage, Zieltemp). Live
-              am Auto starten sie noch nicht — das braucht Remote/MQTT. Bis dahin
-              Vorklima über die Peugeot-App planen oder starten.
+              Zeitpläne für Laden, Vorklima und Batterie-Vorwärmung.
             </p>
           </div>
           <SchedulePanel
             schedules={bundle.schedules}
             onChanged={() => void refresh()}
-            hint="Mehrere Vorklima-Pläne möglich (Werktag / Wochenende) — aktuell nur als Merkliste in dieser App."
           />
         </div>
       ) : null}

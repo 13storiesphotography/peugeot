@@ -24,9 +24,6 @@ export function LocationLink({ location, className }: Props) {
           Navigation öffnen →
         </p>
       ) : null}
-      <p className="mt-1 text-[10px] text-[var(--fg-muted)]/70">
-        Adresse © OpenStreetMap
-      </p>
     </>
   );
 

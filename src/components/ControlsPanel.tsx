@@ -25,7 +25,6 @@ export function ControlsPanel({
   busy,
   onCommand,
 }: ControlsPanelProps) {
-  const live = vehicle.mode === "live";
   const locked = vehicle.locked;
 
   const actions: ControlTile[] = [
@@ -60,7 +59,6 @@ export function ControlsPanel({
         </h2>
         <p className="mt-1 text-sm text-[var(--fg-muted)]">
           Schloss und Signale
-          {live ? " · Live" : " · Demo"}
         </p>
       </div>
 
@@ -99,7 +97,7 @@ export function ControlsPanel({
 
       <div>
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--fg-muted)]">
-          Signale & Verbindung
+          Signale
         </p>
         <div className="grid grid-cols-3 gap-3">
           {actions.map((tile) => (
@@ -107,17 +105,6 @@ export function ControlsPanel({
           ))}
         </div>
       </div>
-
-      {live ? (
-        <p className="text-center text-xs text-[var(--fg-muted)]">
-          Klima und Laden liegen in den eigenen Tabs. Schloss/Signale lokal,
-          bis MQTT-Remotes angebunden sind.
-        </p>
-      ) : (
-        <p className="text-center text-xs text-[var(--fg-muted)]">
-          Klima und Laden liegen in den eigenen Tabs.
-        </p>
-      )}
     </section>
   );
 }

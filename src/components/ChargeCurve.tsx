@@ -27,16 +27,14 @@ function formatDuration(startIso: string, endIso: string): string {
   return m ? `${h} Std. ${m} Min.` : `${h} Std.`;
 }
 
-/** SVG charge curve from recorded MyPeugeot/demo samples (SoC over time). */
-export function ChargeCurve({ samples, live = false }: ChargeCurveProps) {
+/** SVG charge curve from recorded samples (SoC over time). */
+export function ChargeCurve({ samples }: ChargeCurveProps) {
   if (samples.length < 2) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--line)] px-4 py-5">
         <p className="text-sm font-semibold">Ladekurve</p>
         <p className="mt-1 text-xs text-[var(--fg-muted)]">
-          {live
-            ? "Noch zu wenig Live-Punkte — während dem Laden sammeln wir SoC/kW alle ~30–60 s."
-            : "Sobald geladen wird, erscheint hier der Verlauf."}
+          Erscheint während des Ladens.
         </p>
       </div>
     );
@@ -92,10 +90,8 @@ export function ChargeCurve({ samples, live = false }: ChargeCurveProps) {
         <div>
           <p className="text-sm font-semibold">Ladekurve</p>
           <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
-            Aktuelle Session · {formatTime(first.recordedAt)}–
-            {formatTime(last.recordedAt)} ·{" "}
+            {formatTime(first.recordedAt)}–{formatTime(last.recordedAt)} ·{" "}
             {formatDuration(first.recordedAt, last.recordedAt)}
-            {live ? " · Live-Samples" : " · Demo"}
           </p>
         </div>
         <div className="text-right text-xs tabular-nums text-[var(--fg-muted)]">
@@ -197,11 +193,6 @@ export function ChargeCurve({ samples, live = false }: ChargeCurveProps) {
           {formatTime(last.recordedAt)} · {Math.round(last.batteryPercent)}%
         </text>
       </svg>
-
-      <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
-        {samples.length} Messpunkte aus Status-Syncs — keine fertige Kurve von
-        MyPeugeot, sondern echte SoC-Verläufe, die wir speichern.
-      </p>
     </div>
   );
 }

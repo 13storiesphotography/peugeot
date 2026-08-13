@@ -64,7 +64,6 @@ export function ChargePanel({
           </h2>
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
             {statusLabel[vehicle.chargeStatus]}
-            {live ? " · Live (MyPeugeot)" : " · Demo"}
           </p>
           {charging && vehicle.chargePowerKw != null ? (
             <p className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums text-[var(--accent-bright)]">
@@ -74,7 +73,7 @@ export function ChargePanel({
               kW
               {vehicle.chargeRateKmh != null ? (
                 <span className="ml-2 text-sm font-normal text-[var(--fg-muted)]">
-                  (API {Math.round(vehicle.chargeRateKmh)} km/h Reichweite)
+                  {Math.round(vehicle.chargeRateKmh)} km/h
                 </span>
               ) : null}
             </p>
@@ -111,8 +110,6 @@ export function ChargePanel({
         </p>
         <p className="mt-1 text-xs text-[var(--fg-muted)]">
           {chargeSpeedHint(speed)}
-          {vehicle.chargingMode ? ` · API „${vehicle.chargingMode}“` : ""}
-          {vehicle.chargingType ? ` · Typ „${vehicle.chargingType}“` : ""}
         </p>
       </div>
 
@@ -149,9 +146,7 @@ export function ChargePanel({
             color: speed === "quick" ? "var(--warn)" : "var(--accent-bright)",
           }}
         >
-          {live
-            ? `Lädt · ${chargeSpeedLabel(speed)} (Stopp nur in der Peugeot-App)`
-            : `Lädt · ${chargeSpeedLabel(speed)}`}
+          Lädt · {chargeSpeedLabel(speed)}
         </p>
       ) : (
         <button
@@ -162,20 +157,17 @@ export function ChargePanel({
           style={{
             background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
             color: "#031016",
-            opacity: live ? 0.55 : 1,
+            opacity: live || !plugged ? 0.55 : 1,
           }}
         >
-          {live ? "Start nur in Peugeot-App" : "Laden starten"}
+          Laden starten
         </button>
       )}
 
-      {/* Same control as MyPeugeot */}
       <div
         className="rounded-2xl border px-4 py-4"
         style={{
-          borderColor: eightyOn
-            ? "rgba(95,227,192,0.45)"
-            : "var(--line)",
+          borderColor: eightyOn ? "rgba(95,227,192,0.45)" : "var(--line)",
           background: eightyOn
             ? "rgba(95,227,192,0.1)"
             : "rgba(14,28,40,0.4)",
@@ -185,7 +177,7 @@ export function ChargePanel({
           <div className="min-w-0">
             <p className="font-semibold">Laden auf 80% begrenzen</p>
             <p className="mt-1 text-xs text-[var(--fg-muted)]">
-              Wie in der Peugeot-App · empfohlen für den Alltag
+              Schont die Batterie im Alltag
             </p>
           </div>
           <button
@@ -227,27 +219,15 @@ export function ChargePanel({
                   : "var(--fg-muted)",
             }}
           >
-            Auto: {vehicleTarget.label}
+            Fahrzeug: {vehicleTarget.label}
           </span>
           <span className="rounded-full bg-black/25 px-2.5 py-1 text-[var(--fg-muted)]">
-            App: {preferred <= 80 ? "80% an" : "aus (100%)"}
+            Ziel: {preferred <= 80 ? "80%" : "100%"}
           </span>
         </div>
-        <p className="mt-3 text-xs text-[var(--fg-muted)]">
-          {live
-            ? vehicleSaysFull && preferred <= 80
-              ? "Dein App-Schalter ist an, das Auto meldet noch „Full“. Bitte denselben Schalter in der Peugeot-App setzen — Remote-Durchreichen folgt."
-              : vehicleSaysEighty
-                ? "Auto meldet 80%-Begrenzung — Stand stimmt mit dem Schalter überein."
-                : "Wir lesen den echten Stand vom Auto (aktuell oft „Full“ = 100%). Der Schalter hier speichert dein Ziel und spiegelt die Peugeot-App."
-            : "Im Demo-Modus steuert dieser Schalter die Simulation (80% oder 100%)."}
-        </p>
       </div>
 
-      <ChargeCurve
-        samples={chargeCurve}
-        live={live}
-      />
+      <ChargeCurve samples={chargeCurve} live={live} />
 
       <dl className="grid grid-cols-2 gap-4 text-sm">
         <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
@@ -273,11 +253,6 @@ export function ChargePanel({
               ? `${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
               : "—"}
           </dd>
-          {vehicle.chargeRateKmh != null ? (
-            <p className="mt-1 text-xs text-[var(--fg-muted)]">
-              aus {Math.round(vehicle.chargeRateKmh)} km/h Laderate
-            </p>
-          ) : null}
         </div>
       </dl>
     </section>

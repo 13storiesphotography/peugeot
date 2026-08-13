@@ -20,9 +20,9 @@ export function normalizeChargeSpeedMode(
 export function chargeSpeedLabel(mode: ChargeSpeedMode): string {
   switch (mode) {
     case "slow":
-      return "AC · Slow";
+      return "Wechselstrom";
     case "quick":
-      return "DC · Quick";
+      return "Schnellladen";
     case "none":
       return "Kein Ladevorgang";
     default:
@@ -33,13 +33,13 @@ export function chargeSpeedLabel(mode: ChargeSpeedMode): string {
 export function chargeSpeedHint(mode: ChargeSpeedMode): string {
   switch (mode) {
     case "slow":
-      return "Wallbox / Haushaltsstrom (langsam)";
+      return "Wallbox oder Haushaltsstrom";
     case "quick":
-      return "Schnellladen (hohe Leistung)";
+      return "Hohe Ladeleistung";
     case "none":
-      return "Kabel kann stecken, Strom fließt nicht";
+      return "Kein Stromfluss";
     default:
-      return "MyPeugeot meldet keinen klaren Modus";
+      return "";
   }
 }
 
@@ -47,7 +47,7 @@ export function chargeSpeedHint(mode: ChargeSpeedMode): string {
 export function chargeTypeLabel(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const v = raw.trim().toLowerCase();
-  if (v.includes("full")) return "Bis voll (Full)";
+  if (v.includes("full")) return "Bis voll";
   if (v.includes("delay") || v.includes("deferred")) return "Zeitverzögert";
   if (v.includes("immediate") || v.includes("now")) return "Sofort";
   if (v.includes("stop")) return "Gestoppt";
@@ -58,37 +58,16 @@ export function describeVehicleChargeTarget(vehicle: VehicleState): {
   label: string;
   detail: string;
 } {
-  const typeLabel = chargeTypeLabel(vehicle.chargingType);
   if (vehicle.chargeLimitKnown && vehicle.chargeLimitPercent <= 80) {
-    return {
-      label: "Auf 80% begrenzt",
-      detail: typeLabel
-        ? `Vom Auto gemeldet · ${typeLabel}`
-        : "Wie „Laden auf 80% begrenzen“ in der Peugeot-App",
-    };
+    return { label: "80%", detail: "" };
   }
   if (vehicle.chargeLimitKnown && vehicle.chargeLimitPercent >= 100) {
-    return {
-      label: "Voll (100%)",
-      detail: typeLabel
-        ? `Vom Auto gemeldet · ${typeLabel} — 80%-Schalter aus`
-        : "Vom Auto gemeldet — 80%-Schalter aus / Full",
-    };
+    return { label: "100%", detail: "" };
   }
   if (vehicle.chargeLimitKnown) {
-    return {
-      label: `${vehicle.chargeLimitPercent}%`,
-      detail: typeLabel
-        ? `Vom Auto gemeldet · ${typeLabel}`
-        : "Vom Auto gemeldet",
-    };
+    return { label: `${vehicle.chargeLimitPercent}%`, detail: "" };
   }
-  return {
-    label: "Kein %-Limit vom Auto",
-    detail: typeLabel
-      ? `Status: ${typeLabel} — MyPeugeot sendet kein Zahlen-Limit`
-      : "MyPeugeot Status-API liefert kein Zahlen-Ladelimit",
-  };
+  return { label: "—", detail: "" };
 }
 
 /** Mirror of MyPeugeot „Laden auf 80% begrenzen“. */
