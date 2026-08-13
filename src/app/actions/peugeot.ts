@@ -37,12 +37,19 @@ export async function connectPeugeotWithCode(
 
   const countryCode = String(formData.get("countryCode") ?? "DE").trim() || "DE";
   const mypeugeotEmail = String(formData.get("mypeugeotEmail") ?? "").trim();
-  const oauthCode = extractOAuthCode(String(formData.get("oauthCode") ?? ""));
+  const oauthRaw = String(formData.get("oauthCode") ?? "");
+  const oauthCode = extractOAuthCode(oauthRaw);
 
   if (!oauthCode) {
+    if (/id-dcr\.peugeot\.com|authorize-consentments|gotoparam=/i.test(oauthRaw)) {
+      return {
+        error:
+          "Das ist noch die Peugeot-Login-Seite — darin steckt kein Code. Am iPhone zeigt Safari die mymap://-Adresse nicht. Login-Link am Computer öffnen, nach „Weiter“ die fehlgeschlagene mymap://-Adresse kopieren und hier einfügen.",
+      };
+    }
     return {
       error:
-        "Kein Code gefunden. MyPeugeot kurz deaktivieren, Anmeldung wiederholen, dann die mymap://…-Adresse aus der Browser-Adresszeile hier einfügen.",
+        "Kein Code gefunden. Am zuverlässigsten: Login-Link am Computer öffnen, nach „Weiter“ die mymap://…-Adresse kopieren und hier einfügen.",
     };
   }
 

@@ -232,72 +232,79 @@ export function PeugeotConnectForm({
         <>
           {isPhone ? (
             <div className="mt-4 rounded-2xl border border-[var(--line)]/80 bg-black/[0.03] p-3 text-xs leading-relaxed text-[var(--fg-muted)]">
-              <p className="font-semibold text-[var(--fg)]">
-                Keine Nachfrage „App öffnen?“ — so geht’s
-              </p>
-              <p className="mt-1.5">
-                Viele Handys öffnen MyPeugeot sofort ohne Frage. Dann ist der Code weg.
-                Deshalb zuerst die App kurz ausschalten:
-              </p>
-              <ol className="mt-2 list-decimal space-y-1.5 pl-4">
-                <li>
-                  {mobileOs === "ios" ? (
-                    <>
-                      <strong className="text-[var(--fg)]">MyPeugeot</strong> lange
-                      drücken → App entfernen →{" "}
-                      <strong className="text-[var(--fg)]">In App-Mediathek legen</strong>{" "}
-                      (nicht löschen). Sonst öffnet iOS die App und der Code ist weg.
-                    </>
-                  ) : mobileOs === "android" ? (
-                    <>
+              {mobileOs === "ios" ? (
+                <>
+                  <p className="font-semibold text-[var(--fg)]">
+                    Am iPhone geht der Code in Safari verloren
+                  </p>
+                  <p className="mt-1.5">
+                    Nach „Weiter“ meldet Safari „Adresse ungültig“, lässt die{" "}
+                    <code className="text-[var(--accent-bright)]">mymap://</code>-Adresse
+                    aber nicht in der Adresszeile stehen (nur noch{" "}
+                    <code className="text-[var(--fg)]">id-dcr.peugeot.com</code>). Darin
+                    steckt kein Anmeldecode.
+                  </p>
+                  <p className="mt-2 font-semibold text-[var(--fg)]">
+                    So holst du den Code (Computer)
+                  </p>
+                  <ol className="mt-2 list-decimal space-y-1.5 pl-4">
+                    <li>
+                      Unten <strong className="text-[var(--fg)]">Login-Link für PC kopieren</strong>{" "}
+                      und den Link am Mac/PC öffnen (Mail, Notizen, AirDrop).
+                    </li>
+                    <li>
+                      Am Computer einloggen und{" "}
+                      <strong className="text-[var(--fg)]">WEITER</strong> klicken.
+                    </li>
+                    <li>
+                      Der Browser zeigt einen Fehler wegen{" "}
+                      <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
+                      — gesamte Adresse aus der Adresszeile kopieren (oder F12 → Netzwerk →
+                      Location).
+                    </li>
+                    <li>
+                      Hier auf dem Handy einfügen →{" "}
+                      <strong className="text-[var(--fg)]">Code einlösen</strong>.
+                    </li>
+                  </ol>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-[var(--fg)]">
+                    Anmeldung am Handy
+                  </p>
+                  <p className="mt-1.5">
+                    Viele Handys öffnen MyPeugeot sofort ohne Frage. Dann ist der Code weg.
+                    Deshalb zuerst die App kurz ausschalten:
+                  </p>
+                  <ol className="mt-2 list-decimal space-y-1.5 pl-4">
+                    <li>
                       Einstellungen → Apps →{" "}
                       <strong className="text-[var(--fg)]">MyPeugeot</strong> →{" "}
                       <strong className="text-[var(--fg)]">Deaktivieren</strong> (nicht
                       deinstallieren).
-                    </>
-                  ) : (
-                    <>
-                      <strong className="text-[var(--fg)]">MyPeugeot</strong> vorübergehend
-                      deaktivieren / in die App-Mediathek legen (nicht löschen).
-                    </>
-                  )}
-                </li>
-                <li>
-                  Unten <strong className="text-[var(--fg)]">Bei Peugeot anmelden</strong>,
-                  einloggen, <strong className="text-[var(--fg)]">WEITER</strong>.
-                </li>
-                <li>
-                  {mobileOs === "ios" ? (
-                    <>
-                      Safari meldet „Adresse ungültig“ →{" "}
-                      <strong className="text-[var(--fg)]">OK</strong> tippen, dann oben
-                      in die <strong className="text-[var(--fg)]">Adresszeile</strong>{" "}
-                      tippen. Dort steht{" "}
-                      <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
-                      → Alles auswählen → Kopieren.
-                    </>
-                  ) : (
-                    <>
-                      Der Browser bleibt offen mit Fehler wie „Seite kann nicht geöffnet
-                      werden“. In der{" "}
-                      <strong className="text-[var(--fg)]">Adresszeile</strong> steht{" "}
+                    </li>
+                    <li>
+                      Unten <strong className="text-[var(--fg)]">Bei Peugeot anmelden</strong>,
+                      einloggen, <strong className="text-[var(--fg)]">WEITER</strong>.
+                    </li>
+                    <li>
+                      In der <strong className="text-[var(--fg)]">Adresszeile</strong> steht{" "}
                       <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
                       — gesamte Adresse kopieren.
-                    </>
-                  )}
-                </li>
-                <li>
-                  Hierher zurück → einfügen →{" "}
-                  <strong className="text-[var(--fg)]">Code einlösen</strong>.
-                </li>
-                <li>Danach MyPeugeot wieder aktivieren / aus der Mediathek holen.</li>
-              </ol>
-              <p className="mt-2">
-                Einfacher: denselben Link am <strong className="text-[var(--fg)]">PC</strong>{" "}
-                öffnen (unten kopieren) — dort erscheint die{" "}
-                <code className="text-[var(--accent-bright)]">mymap://</code>-Adresse als
-                Fehlerseite und lässt sich kopieren.
-              </p>
+                    </li>
+                    <li>
+                      Hierher zurück → einfügen →{" "}
+                      <strong className="text-[var(--fg)]">Code einlösen</strong>.
+                    </li>
+                    <li>Danach MyPeugeot wieder aktivieren.</li>
+                  </ol>
+                  <p className="mt-2">
+                    Oder denselben Link am <strong className="text-[var(--fg)]">PC</strong>{" "}
+                    öffnen (unten kopieren).
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <details className="mt-4 text-sm">
@@ -326,13 +333,25 @@ export function PeugeotConnectForm({
           {awaitingReturn ? (
             <div className="ui-alert mt-3" role="status">
               <p className="text-sm font-semibold text-[var(--fg)]">
-                Warte auf den Code aus dem Browser
+                Warte auf den Code
               </p>
               <p className="mt-1 text-xs text-[var(--fg-muted)]">
-                Wenn MyPeugeot ohne Nachfrage aufging: App deaktivieren und Anmeldung
-                wiederholen. Sonst{" "}
-                <code className="text-[var(--accent-bright)]">mymap://…</code> aus der
-                Adresszeile kopieren und hier einfügen.
+                {mobileOs === "ios" ? (
+                  <>
+                    Am iPhone bleibt nur die Peugeot-Seite in der Adresszeile — das ist{" "}
+                    <strong className="text-[var(--fg)]">kein</strong> Code. Bitte den
+                    Login-Link am Computer öffnen und die{" "}
+                    <code className="text-[var(--accent-bright)]">mymap://…</code>-Adresse
+                    von dort kopieren.
+                  </>
+                ) : (
+                  <>
+                    Wenn MyPeugeot ohne Nachfrage aufging: App deaktivieren und Anmeldung
+                    wiederholen. Sonst{" "}
+                    <code className="text-[var(--accent-bright)]">mymap://…</code> aus der
+                    Adresszeile kopieren und hier einfügen.
+                  </>
+                )}
               </p>
             </div>
           ) : null}
