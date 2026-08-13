@@ -228,7 +228,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="text-xs font-medium">Menü</span>
+          <span className="text-xs font-medium">Einstellungen</span>
         </Link>
       </header>
 
