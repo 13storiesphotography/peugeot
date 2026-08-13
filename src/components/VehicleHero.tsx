@@ -6,6 +6,10 @@ import type { VehicleState } from "@/lib/types";
 export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
   const locked = vehicle.locked;
   const charging = vehicle.chargeStatus === "charging";
+  const plugged =
+    vehicle.chargeStatus === "plugged" ||
+    vehicle.chargeStatus === "charging" ||
+    vehicle.chargeStatus === "complete";
   const climateOn = vehicle.climateStatus !== "off";
   const body = vehicle.colorHex ?? "#1a3a48";
   const bodyLight = lighten(body, 0.18);
@@ -15,84 +19,117 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
       <div
         className="pointer-events-none absolute inset-x-8 top-6 h-40 rounded-full opacity-70"
         style={{
-          background: `radial-gradient(ellipse at center, ${hexAlpha(body, 0.28)}, transparent 70%)`,
-          animation: "soft-breathe 5s ease-in-out infinite",
+          background: charging
+            ? "radial-gradient(ellipse at center, rgba(95,227,192,0.35), transparent 70%)"
+            : `radial-gradient(ellipse at center, ${hexAlpha(body, 0.28)}, transparent 70%)`,
+          animation: charging
+            ? "charge-halo 2.8s ease-in-out infinite"
+            : "soft-breathe 5s ease-in-out infinite",
         }}
       />
 
-      {vehicle.pictureUrl ? (
-        // Official Peugeot 3D asset (includes correct paint).
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={vehicle.pictureUrl}
-          alt={`${vehicle.model} ${vehicle.color}`}
-          className="relative z-[1] mx-auto h-auto w-full max-w-sm object-contain drop-shadow-lg"
-          style={{ animation: "rise-in 0.7s cubic-bezier(0.22,1,0.36,1) both" }}
-        />
-      ) : (
-        <svg
-          viewBox="0 0 640 280"
-          className="relative z-[1] h-auto w-full"
-          role="img"
-          aria-label={`${vehicle.model} ${vehicle.nickname}`}
-        >
-          <defs>
-            <linearGradient id="bodyGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor={bodyLight} />
-              <stop offset="45%" stopColor={body} />
-              <stop offset="100%" stopColor={body} />
-            </linearGradient>
-            <linearGradient id="glassGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7ec8d4" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#2a5a68" stopOpacity="0.25" />
-            </linearGradient>
-          </defs>
-          <ellipse cx="320" cy="248" rx="210" ry="14" fill="rgba(0,0,0,0.35)" />
-          <path
-            d="M92 188c8-38 28-62 58-78 42-22 96-34 168-36h78c54 2 98 14 128 42 18 16 34 40 42 68l6 16H86l6-12Z"
-            fill="url(#bodyGrad)"
-            stroke="rgba(143,168,181,0.35)"
-            strokeWidth="1.5"
+      <div className="relative">
+        {vehicle.pictureUrl ? (
+          // Official Peugeot 3D asset (includes correct paint).
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={vehicle.pictureUrl}
+            alt={`${vehicle.model} ${vehicle.color}`}
+            className="relative z-[1] mx-auto h-auto w-full max-w-sm object-contain drop-shadow-lg"
+            style={{ animation: "rise-in 0.7s cubic-bezier(0.22,1,0.36,1) both" }}
           />
-          <path
-            d="M168 112c28-28 68-42 122-44h54c48 2 86 16 108 42l8 12H176l-8-10Z"
-            fill="url(#glassGrad)"
-            stroke="rgba(143,168,181,0.28)"
-            strokeWidth="1"
-          />
-          <path
-            d="M110 168h430"
-            stroke="rgba(95,227,192,0.22)"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-          <path
-            d="M508 168c18 2 28 10 32 22h-48c0-10 6-18 16-22Z"
-            fill={locked ? "#5fe3c0" : "#e8b86d"}
-            opacity={0.85}
-          />
-          <path
-            d="M96 170c-8 2-12 10-12 20h36c-2-12-10-18-24-20Z"
-            fill="#e07a6a"
-            opacity={0.75}
-          />
-          <circle cx="180" cy="210" r="34" fill="#0a1218" stroke="#8fa8b5" strokeWidth="3" />
-          <circle cx="180" cy="210" r="14" fill="#1c2e38" stroke="rgba(95,227,192,0.35)" strokeWidth="2" />
-          <circle cx="460" cy="210" r="34" fill="#0a1218" stroke="#8fa8b5" strokeWidth="3" />
-          <circle cx="460" cy="210" r="14" fill="#1c2e38" stroke="rgba(95,227,192,0.35)" strokeWidth="2" />
-          {charging ? (
-            <circle cx="250" cy="175" r="8" fill="#5fe3c0" opacity="0.9">
-              <animate attributeName="opacity" values="0.4;1;0.4" dur="1.6s" repeatCount="indefinite" />
-            </circle>
-          ) : null}
-          {climateOn ? (
-            <g opacity="0.55" stroke="#5fe3c0" strokeWidth="1.5" fill="none">
-              <path d="M300 96c8-10 18-10 26 0" />
-              <path d="M312 88c8-10 18-10 26 0" />
-            </g>
-          ) : null}
-        </svg>
-      )}
+        ) : (
+          <svg
+            viewBox="0 0 640 280"
+            className="relative z-[1] h-auto w-full"
+            role="img"
+            aria-label={`${vehicle.model} ${vehicle.nickname}`}
+          >
+            <defs>
+              <linearGradient id="bodyGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor={bodyLight} />
+                <stop offset="45%" stopColor={body} />
+                <stop offset="100%" stopColor={body} />
+              </linearGradient>
+              <linearGradient id="glassGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#7ec8d4" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#2a5a68" stopOpacity="0.25" />
+              </linearGradient>
+            </defs>
+            <ellipse cx="320" cy="248" rx="210" ry="14" fill="rgba(0,0,0,0.35)" />
+            <path
+              d="M92 188c8-38 28-62 58-78 42-22 96-34 168-36h78c54 2 98 14 128 42 18 16 34 40 42 68l6 16H86l6-12Z"
+              fill="url(#bodyGrad)"
+              stroke="rgba(143,168,181,0.35)"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M168 112c28-28 68-42 122-44h54c48 2 86 16 108 42l8 12H176l-8-10Z"
+              fill="url(#glassGrad)"
+              stroke="rgba(143,168,181,0.28)"
+              strokeWidth="1"
+            />
+            <path
+              d="M110 168h430"
+              stroke="rgba(95,227,192,0.22)"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <path
+              d="M508 168c18 2 28 10 32 22h-48c0-10 6-18 16-22Z"
+              fill={locked ? "#5fe3c0" : "#e8b86d"}
+              opacity={0.85}
+            />
+            <path
+              d="M96 170c-8 2-12 10-12 20h36c-2-12-10-18-24-20Z"
+              fill="#e07a6a"
+              opacity={0.75}
+            />
+            <circle
+              cx="180"
+              cy="210"
+              r="34"
+              fill="#0a1218"
+              stroke="#8fa8b5"
+              strokeWidth="3"
+            />
+            <circle
+              cx="180"
+              cy="210"
+              r="14"
+              fill="#1c2e38"
+              stroke="rgba(95,227,192,0.35)"
+              strokeWidth="2"
+            />
+            <circle
+              cx="460"
+              cy="210"
+              r="34"
+              fill="#0a1218"
+              stroke="#8fa8b5"
+              strokeWidth="3"
+            />
+            <circle
+              cx="460"
+              cy="210"
+              r="14"
+              fill="#1c2e38"
+              stroke="rgba(95,227,192,0.35)"
+              strokeWidth="2"
+            />
+            {climateOn ? (
+              <g opacity="0.55" stroke="#5fe3c0" strokeWidth="1.5" fill="none">
+                <path d="M300 96c8-10 18-10 26 0" />
+                <path d="M312 88c8-10 18-10 26 0" />
+              </g>
+            ) : null}
+          </svg>
+        )}
+
+        {plugged ? (
+          <ChargeCableOverlay charging={charging} complete={vehicle.chargeStatus === "complete"} />
+        ) : null}
+      </div>
 
       <div className="relative z-[2] -mt-2 flex items-end justify-between gap-4 px-1">
         <div>
@@ -102,9 +139,20 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
           </p>
           <p className="mt-2 text-sm text-[var(--fg-muted)]">
             {vehicle.rangeKm} km · {locked ? "Verriegelt" : "Entriegelt"}
-            {charging ? " · Lädt" : ""}
+            {charging ? " · Lädt" : plugged ? " · Angeschlossen" : ""}
             {climateOn ? " · Klima an" : ""}
           </p>
+          {charging && vehicle.chargePowerKw != null ? (
+            <p
+              className="mt-1 text-xs font-semibold tabular-nums text-[var(--accent-bright)]"
+              style={{ animation: "soft-breathe 2.4s ease-in-out infinite" }}
+            >
+              {vehicle.chargePowerKw.toLocaleString("de-DE", {
+                maximumFractionDigits: 1,
+              })}{" "}
+              kW
+            </p>
+          ) : null}
         </div>
         <div className="text-right text-xs text-[var(--fg-muted)]">
           <p className="flex items-center justify-end gap-2 uppercase tracking-[0.2em]">
@@ -121,6 +169,218 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Animated CCS-style cable from ground post into the front charge port. */
+function ChargeCableOverlay({
+  charging,
+  complete,
+}: {
+  charging: boolean;
+  complete: boolean;
+}) {
+  const active = charging;
+  const cableColor = active
+    ? "#5fe3c0"
+    : complete
+      ? "rgba(95,227,192,0.55)"
+      : "rgba(143,168,181,0.65)";
+
+  return (
+    <svg
+      viewBox="0 0 400 220"
+      className="pointer-events-none absolute inset-0 z-[2] h-full w-full"
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id="cableSheath" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#1a2832" />
+          <stop offset="50%" stopColor="#2a3d4a" />
+          <stop offset="100%" stopColor="#1a2832" />
+        </linearGradient>
+        <linearGradient id="energyGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#5fe3c0" stopOpacity="0" />
+          <stop offset="40%" stopColor="#5fe3c0" stopOpacity="1" />
+          <stop offset="100%" stopColor="#a8fff0" stopOpacity="0.2" />
+        </linearGradient>
+        <filter id="cableGlow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="3.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id="portGlow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* Wall / charger post */}
+      <g transform="translate(18, 118)">
+        <rect
+          x="0"
+          y="0"
+          width="22"
+          height="78"
+          rx="4"
+          fill="#121c24"
+          stroke="rgba(143,168,181,0.35)"
+          strokeWidth="1.2"
+        />
+        <rect
+          x="5"
+          y="10"
+          width="12"
+          height="18"
+          rx="2"
+          fill={active ? "rgba(95,227,192,0.25)" : "rgba(143,168,181,0.12)"}
+          stroke={cableColor}
+          strokeWidth="1"
+        />
+        {active ? (
+          <circle cx="11" cy="19" r="3" fill="#5fe3c0" filter="url(#portGlow)">
+            <animate
+              attributeName="opacity"
+              values="0.45;1;0.45"
+              dur="1.4s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        ) : (
+          <circle cx="11" cy="19" r="2.5" fill={cableColor} opacity="0.7" />
+        )}
+        <text
+          x="11"
+          y="48"
+          textAnchor="middle"
+          fill="rgba(143,168,181,0.55)"
+          fontSize="7"
+          fontFamily="system-ui,sans-serif"
+        >
+          CCS
+        </text>
+      </g>
+
+      {/* Cable sheath (thick dark path) */}
+      <path
+        d="M40 145 C 70 168, 110 188, 155 192 C 210 196, 255 175, 292 148"
+        fill="none"
+        stroke="url(#cableSheath)"
+        strokeWidth="7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M40 145 C 70 168, 110 188, 155 192 C 210 196, 255 175, 292 148"
+        fill="none"
+        stroke="rgba(0,0,0,0.45)"
+        strokeWidth="8.5"
+        strokeLinecap="round"
+        opacity="0.35"
+      />
+
+      {/* Cable highlight edge */}
+      <path
+        d="M40 145 C 70 168, 110 188, 155 192 C 210 196, 255 175, 292 148"
+        fill="none"
+        stroke={cableColor}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        opacity={active ? 0.85 : 0.45}
+        filter={active ? "url(#cableGlow)" : undefined}
+      />
+
+      {/* Energy flow dashes along cable */}
+      {active ? (
+        <>
+          <path
+            d="M40 145 C 70 168, 110 188, 155 192 C 210 196, 255 175, 292 148"
+            fill="none"
+            stroke="url(#energyGrad)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray="10 18"
+            className="charging-cable-flow"
+          />
+          <path
+            d="M40 145 C 70 168, 110 188, 155 192 C 210 196, 255 175, 292 148"
+            fill="none"
+            stroke="#a8fff0"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeDasharray="4 22"
+            className="charging-cable-flow-fast"
+            opacity="0.9"
+          />
+        </>
+      ) : null}
+
+      {/* Connector / plug at charge port (front fender area) */}
+      <g transform="translate(286, 138)" filter={active ? "url(#portGlow)" : undefined}>
+        <rect
+          x="0"
+          y="0"
+          width="28"
+          height="16"
+          rx="3"
+          fill="#0e1820"
+          stroke={cableColor}
+          strokeWidth="1.5"
+        />
+        <rect
+          x="22"
+          y="3"
+          width="10"
+          height="10"
+          rx="2"
+          fill={active ? "#5fe3c0" : "#3a4d58"}
+          opacity={active ? 0.95 : 0.8}
+        />
+        {active ? (
+          <g>
+            <circle cx="14" cy="8" r="2.2" fill="#031016" />
+            <path
+              d="M12.6 8.8 L14 5.8 L15.4 8.8 Z"
+              fill="#031016"
+              opacity="0.9"
+            />
+          </g>
+        ) : null}
+      </g>
+
+      {/* Port pulse rings while charging */}
+      {active ? (
+        <g transform="translate(308, 146)">
+          <circle
+            r="10"
+            fill="none"
+            stroke="#5fe3c0"
+            strokeWidth="1.2"
+            className="charge-ring"
+          />
+          <circle
+            r="10"
+            fill="none"
+            stroke="#5fe3c0"
+            strokeWidth="1"
+            className="charge-ring charge-ring-delay"
+          />
+        </g>
+      ) : null}
+
+      {/* Sparks / energy ticks near port */}
+      {active ? (
+        <g fill="#5fe3c0" opacity="0.85">
+          <circle cx="320" cy="128" r="1.8" className="charge-spark" />
+          <circle cx="334" cy="136" r="1.4" className="charge-spark charge-spark-delay" />
+          <circle cx="318" cy="158" r="1.2" className="charge-spark charge-spark-delay-2" />
+        </g>
+      ) : null}
+    </svg>
   );
 }
 
