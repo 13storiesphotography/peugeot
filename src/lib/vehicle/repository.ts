@@ -31,6 +31,8 @@ export type PeugeotConnection = {
   vehicleApiId: string | null;
   hasAccessToken: boolean;
   lastSyncAt: string | null;
+  remoteReady: boolean;
+  customerId: string | null;
 };
 
 export type ChargeSample = {
@@ -324,7 +326,7 @@ export async function getVehicleBundle(
       supabase
         .from("peugeot_connections")
         .select(
-          "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, refresh_token, token_expires_at, last_sync_at",
+          "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, refresh_token, token_expires_at, last_sync_at, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at",
         )
         .eq("user_id", userId)
         .maybeSingle(),
@@ -505,6 +507,8 @@ export async function getVehicleBundle(
       vehicleApiId: connection?.vehicle_api_id ?? null,
       hasAccessToken: Boolean(connection?.access_token),
       lastSyncAt: connection?.last_sync_at ?? null,
+      remoteReady: Boolean(connection?.remote_ready),
+      customerId: connection?.customer_id ?? null,
     },
     schedules: (schedules ?? []).map(mapSchedule),
     activity: (activity ?? []).map((row) => ({
@@ -524,6 +528,28 @@ export async function runVehicleCommand(
   request: CommandRequest,
 ): Promise<CommandResult> {
   const bundle = await getVehicleBundle(supabase, userId);
+
+  if (
+    bundle.vehicle.mode === "live" &&
+    (request.command === "climate_start" || request.command === "climate_stop")
+  ) {
+    const live = await runLiveClimateCommand(
+      supabase,
+      userId,
+      bundle,
+      request.command === "climate_start",
+    );
+    await saveState(supabase, userId, bundle.vehicleId, live.vehicle);
+    await supabase.from("activity_log").insert({
+      user_id: userId,
+      vehicle_id: bundle.vehicleId,
+      command: request.command,
+      message: live.message,
+      ok: live.ok,
+    });
+    return live;
+  }
+
   const result = applyCommandToState(bundle.vehicle, request);
   await saveState(supabase, userId, bundle.vehicleId, result.vehicle);
 
@@ -547,6 +573,117 @@ export async function runVehicleCommand(
   });
 
   return result;
+}
+
+async function runLiveClimateCommand(
+  supabase: SupabaseClient,
+  userId: string,
+  bundle: VehicleBundle,
+  activate: boolean,
+): Promise<CommandResult> {
+  const { data: connection } = await supabase
+    .from("peugeot_connections")
+    .select(
+      "connected, country_code, access_token, refresh_token, token_expires_at, customer_id, remote_ready, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!connection?.connected || !connection.remote_ready) {
+    return {
+      ok: false,
+      message: "Fernbedienung noch nicht eingerichtet.",
+      vehicle: bundle.vehicle,
+    };
+  }
+  if (!connection.customer_id || !connection.otp_state) {
+    return {
+      ok: false,
+      message: "Fernbedienung unvollständig — bitte PIN erneut einrichten.",
+      vehicle: bundle.vehicle,
+    };
+  }
+
+  try {
+    const { refreshAccessToken } = await import("@/lib/stellantis/api");
+    const { refreshRemoteToken, sendThermalPreconditioning } = await import(
+      "@/lib/stellantis/remote"
+    );
+    const { touchClimate } = await import("@/lib/vehicle/commands");
+
+    let oauthToken = String(connection.access_token ?? "");
+    const countryCode = String(connection.country_code ?? "DE");
+    const expiresAt = connection.token_expires_at
+      ? new Date(connection.token_expires_at as string).getTime()
+      : 0;
+    if (
+      connection.refresh_token &&
+      expiresAt &&
+      expiresAt < Date.now() + 60_000
+    ) {
+      const refreshed = await refreshAccessToken(
+        countryCode,
+        String(connection.refresh_token),
+      );
+      oauthToken = refreshed.accessToken;
+      await supabase
+        .from("peugeot_connections")
+        .update({
+          access_token: refreshed.accessToken,
+          refresh_token: refreshed.refreshToken,
+          token_expires_at: refreshed.expiresAt,
+        })
+        .eq("user_id", userId);
+    }
+
+    let remoteAccess = String(connection.remote_access_token ?? "");
+    let remoteRefresh = String(connection.remote_refresh_token ?? "");
+    let otpState = connection.otp_state as import("@/lib/stellantis/otp/session").OtpPersistedState;
+    const remoteAge = connection.remote_token_updated_at
+      ? Date.now() - new Date(connection.remote_token_updated_at as string).getTime()
+      : Number.POSITIVE_INFINITY;
+
+    if (!remoteAccess || remoteAge > 14 * 60_000) {
+      const refreshed = await refreshRemoteToken({
+        oauthAccessToken: oauthToken,
+        countryCode,
+        remoteRefreshToken: remoteRefresh,
+        otpState,
+      });
+      remoteAccess = refreshed.remote.accessToken;
+      remoteRefresh = refreshed.remote.refreshToken;
+      otpState = refreshed.otpState;
+      await supabase
+        .from("peugeot_connections")
+        .update({
+          remote_access_token: remoteAccess,
+          remote_refresh_token: remoteRefresh,
+          remote_token_updated_at: refreshed.remote.updatedAt,
+          otp_state: otpState,
+        })
+        .eq("user_id", userId);
+    }
+
+    await sendThermalPreconditioning({
+      customerId: String(connection.customer_id),
+      vin: bundle.vehicle.vin,
+      remoteAccessToken: remoteAccess,
+      activate,
+    });
+
+    return {
+      ok: true,
+      message: activate ? "Vorklima gestartet." : "Vorklima gestoppt.",
+      vehicle: touchClimate(bundle.vehicle, activate),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "Vorklima-Befehl fehlgeschlagen.",
+      vehicle: bundle.vehicle,
+    };
+  }
 }
 
 export async function updateVehicleProfile(

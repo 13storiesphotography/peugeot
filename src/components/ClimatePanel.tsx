@@ -9,6 +9,7 @@ interface ClimatePanelProps {
   vehicle: VehicleState;
   busy: boolean;
   schedules: VehicleSchedule[];
+  remoteReady?: boolean;
   onCommand: (
     command: VehicleCommand,
     opts?: { targetTempC?: number },
@@ -20,12 +21,14 @@ export function ClimatePanel({
   vehicle,
   busy,
   schedules,
+  remoteReady = false,
   onCommand,
   onSchedulesChanged,
 }: ClimatePanelProps) {
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
   const target = vehicle.targetTempC;
+  const climateRemoteOk = !live || remoteReady;
 
   const nudge = (delta: number) => {
     onCommand("set_climate_temp", { targetTempC: target + delta });
@@ -72,7 +75,7 @@ export function ClimatePanel({
         </div>
         <p className="mt-4 text-sm text-[var(--fg-muted)]">
           Kabine {vehicle.cabinTempC}°
-          {!live && active
+          {active
             ? vehicle.climateStatus === "heating"
               ? " · heizt"
               : vehicle.climateStatus === "cooling"
@@ -84,7 +87,7 @@ export function ClimatePanel({
 
       <button
         type="button"
-        disabled={busy || live}
+        disabled={busy || !climateRemoteOk}
         onClick={() => onCommand(active ? "climate_stop" : "climate_start")}
         className="action-btn w-full rounded-full px-5 py-4 text-sm font-semibold"
         style={{
@@ -93,11 +96,17 @@ export function ClimatePanel({
             : "linear-gradient(135deg, #5fe3c0, #3da8a0)",
           color: active ? "var(--danger)" : "#031016",
           border: active ? "1px solid rgba(224,122,106,0.4)" : "none",
-          opacity: live ? 0.55 : 1,
+          opacity: climateRemoteOk ? 1 : 0.55,
         }}
       >
         {active ? "Klima stoppen" : "Klima starten"}
       </button>
+
+      {!climateRemoteOk ? (
+        <p className="text-center text-xs text-[var(--fg-muted)]">
+          Unter Einstellungen die Fernbedienung einrichten.
+        </p>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <button

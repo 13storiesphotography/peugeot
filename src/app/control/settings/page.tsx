@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions/auth";
 import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
+import { RemotePinForm } from "@/components/RemotePinForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { MFA_GRACE_DAYS } from "@/lib/auth/mfa-policy";
@@ -67,6 +68,9 @@ export default async function SettingsPage() {
             ) : null}
           </section>
           <PeugeotConnectForm connection={bundle.connection} />
+          <div className="panel rounded-[1.75rem] p-6 sm:p-8">
+            <RemotePinForm ready={bundle.connection.remoteReady} />
+          </div>
           <SettingsForm vehicle={bundle.vehicle} />
         </div>
       </div>

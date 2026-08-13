@@ -251,6 +251,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           vehicle={vehicle}
           busy={busy}
           schedules={bundle.schedules}
+          remoteReady={bundle.connection.remoteReady}
           onCommand={(command, opts) => void runCommand(command, opts)}
           onSchedulesChanged={() => void refresh()}
         />

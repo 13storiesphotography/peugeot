@@ -12,6 +12,15 @@ function touch(
   };
 }
 
+/** Apply local climate status after a successful live remote. */
+export function touchClimate(state: VehicleState, activate: boolean): VehicleState {
+  if (!activate) return touch(state, { climateStatus: "off" });
+  const target = state.targetTempC;
+  return touch(state, {
+    climateStatus: state.cabinTempC < target ? "heating" : "cooling",
+  });
+}
+
 export function applyCommandToState(
   state: VehicleState,
   request: CommandRequest,
