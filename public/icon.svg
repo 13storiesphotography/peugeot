@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="E-3008 Control">
+  <rect width="512" height="512" rx="116" fill="#071018"/>
+  <circle cx="256" cy="240" r="150" fill="#5fe3c0" fill-opacity="0.05"/>
+  <circle
+    cx="256"
+    cy="256"
+    r="138"
+    fill="none"
+    stroke="#5fe3c0"
+    stroke-width="10"
+  />
+  <!-- Slim open E with balanced bar lengths -->
+  <path
+    d="M300 186 H222 V326 H300 M222 256 H286"
+    fill="none"
+    stroke="#5fe3c0"
+    stroke-width="22"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
