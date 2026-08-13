@@ -246,8 +246,7 @@ export function PeugeotConnectForm({
                       <strong className="text-[var(--fg)]">MyPeugeot</strong> lange
                       drücken → App entfernen →{" "}
                       <strong className="text-[var(--fg)]">In App-Mediathek legen</strong>{" "}
-                      (nicht löschen). Oder: Einstellungen → Allgemein → iPhone-Speicher →
-                      MyPeugeot → App auslagern.
+                      (nicht löschen). Sonst öffnet iOS die App und der Code ist weg.
                     </>
                   ) : mobileOs === "android" ? (
                     <>
@@ -268,10 +267,24 @@ export function PeugeotConnectForm({
                   einloggen, <strong className="text-[var(--fg)]">WEITER</strong>.
                 </li>
                 <li>
-                  Der Browser bleibt offen mit Fehler wie „Seite kann nicht geöffnet
-                  werden“. In der <strong className="text-[var(--fg)]">Adresszeile</strong>{" "}
-                  steht <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
-                  — gesamte Adresse kopieren.
+                  {mobileOs === "ios" ? (
+                    <>
+                      Safari meldet „Adresse ungültig“ →{" "}
+                      <strong className="text-[var(--fg)]">OK</strong> tippen, dann oben
+                      in die <strong className="text-[var(--fg)]">Adresszeile</strong>{" "}
+                      tippen. Dort steht{" "}
+                      <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
+                      → Alles auswählen → Kopieren.
+                    </>
+                  ) : (
+                    <>
+                      Der Browser bleibt offen mit Fehler wie „Seite kann nicht geöffnet
+                      werden“. In der{" "}
+                      <strong className="text-[var(--fg)]">Adresszeile</strong> steht{" "}
+                      <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
+                      — gesamte Adresse kopieren.
+                    </>
+                  )}
                 </li>
                 <li>
                   Hierher zurück → einfügen →{" "}
