@@ -1,4 +1,8 @@
 import type { VehicleState } from "@/lib/types";
+import {
+  enrichVehicleLocationAddress,
+  isPlaceholderAddress,
+} from "@/lib/geo/reverse-geocode";
 import { estimateFullAt } from "@/lib/vehicle/defaults";
 import { resolveChargePower } from "@/lib/stellantis/charge-power";
 import { parseIsoDurationToMinutes } from "@/lib/stellantis/duration";
@@ -478,6 +482,15 @@ export function mapStatusToVehicleState(
       "",
   );
 
+  const nextLat = Number.isFinite(latitude) ? latitude : base.location.latitude;
+  const nextLng = Number.isFinite(longitude)
+    ? longitude
+    : base.location.longitude;
+  // Keep a known street address until reverse-geocode refreshes it.
+  const address = isPlaceholderAddress(base.location.address)
+    ? "Standort wird ermittelt…"
+    : base.location.address;
+
   return {
     ...base,
     id: base.id,
@@ -504,15 +517,19 @@ export function mapStatusToVehicleState(
     estimatedFullAt,
     lastUpdatedAt: updatedFromApi || new Date().toISOString(),
     location: {
-      latitude: Number.isFinite(latitude) ? latitude : base.location.latitude,
-      longitude: Number.isFinite(longitude)
-        ? longitude
-        : base.location.longitude,
-      address:
-        base.location.address.includes("Demo") || !base.location.address
-          ? "Live-Standort (MyPeugeot)"
-          : base.location.address,
+      latitude: nextLat,
+      longitude: nextLng,
+      address,
       updatedAt: updatedFromApi || new Date().toISOString(),
     },
   };
+}
+
+export async function mapStatusToVehicleStateWithAddress(
+  status: unknown,
+  base: VehicleState,
+  meta: { vehicleId: string; vin: string },
+): Promise<VehicleState> {
+  const mapped = mapStatusToVehicleState(status, base, meta);
+  return enrichVehicleLocationAddress(mapped, base);
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { LocationLink } from "@/components/LocationLink";
 import { SchedulePanel } from "@/components/SchedulePanel";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
 import type { VehicleSchedule } from "@/lib/vehicle/repository";
@@ -144,12 +145,10 @@ export function ClimatePanel({
                 : "Aus"}
           </p>
         </button>
-        <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            Standort
-          </p>
-          <p className="mt-2 text-sm font-medium">{vehicle.location.address}</p>
-        </div>
+        <LocationLink
+          location={vehicle.location}
+          className="block rounded-2xl border border-[var(--line)] px-4 py-4 transition hover:border-[var(--accent-bright)]/40"
+        />
       </div>
 
       <div className="border-t border-[var(--line)] pt-6">

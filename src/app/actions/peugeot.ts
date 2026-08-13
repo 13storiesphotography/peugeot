@@ -6,7 +6,7 @@ import {
   fetchVehicleDetails,
   fetchVehicleStatus,
   listVehicles,
-  mapStatusToVehicleState,
+  mapStatusToVehicleStateWithAddress,
 } from "@/lib/stellantis/api";
 import { getAuthorizeUrl } from "@/lib/stellantis/peugeot-config";
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
@@ -87,10 +87,10 @@ export async function connectPeugeotWithCode(
         remote.vehicleId,
       );
       liveState = {
-        ...mapStatusToVehicleState(status, liveState, {
+        ...(await mapStatusToVehicleStateWithAddress(status, liveState, {
           vehicleId: remote.vehicleId,
           vin: details.vin,
-        }),
+        })),
         color: details.color ?? liveState.color,
         colorHex: details.colorHex ?? liveState.colorHex,
         pictureUrl: details.pictureUrl ?? liveState.pictureUrl,
@@ -257,10 +257,10 @@ export async function syncPeugeotStatus(): Promise<ConnectState> {
     }
 
     const liveState = {
-      ...mapStatusToVehicleState(status, bundle.vehicle, {
+      ...(await mapStatusToVehicleStateWithAddress(status, bundle.vehicle, {
         vehicleId: String(connection.vehicle_api_id),
         vin: paint.vin,
-      }),
+      })),
       color: paint.color,
       colorHex: paint.colorHex,
       pictureUrl: paint.pictureUrl,

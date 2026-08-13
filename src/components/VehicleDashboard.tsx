@@ -10,6 +10,7 @@ import {
   type ControlTab,
 } from "@/components/ControlBottomNav";
 import { ControlsPanel } from "@/components/ControlsPanel";
+import { LocationLink } from "@/components/LocationLink";
 import { QuickActions } from "@/components/QuickActions";
 import { SchedulePanel } from "@/components/SchedulePanel";
 import { VehicleHero } from "@/components/VehicleHero";
@@ -236,12 +237,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             </div>
             <span className="text-[var(--accent-bright)]">→</span>
           </button>
-          <div className="rounded-2xl border border-[var(--line)] px-4 py-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-              Standort
-            </p>
-            <p className="mt-1 text-sm font-medium">{vehicle.location.address}</p>
-          </div>
+          <LocationLink location={vehicle.location} />
           <ActivityLog items={bundle.activity.slice(0, 5)} />
         </div>
       ) : null}

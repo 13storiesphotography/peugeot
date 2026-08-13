@@ -380,7 +380,7 @@ export async function getVehicleBundle(
       const {
         fetchVehicleDetails,
         fetchVehicleStatus,
-        mapStatusToVehicleState,
+        mapStatusToVehicleStateWithAddress,
         refreshAccessToken,
       } = await import("@/lib/stellantis/api");
       let accessToken = String(connection.access_token);
@@ -449,7 +449,7 @@ export async function getVehicleBundle(
         countryCode,
         String(connection.vehicle_api_id),
       );
-      vehicle = mapStatusToVehicleState(
+      vehicle = await mapStatusToVehicleStateWithAddress(
         status,
         {
           ...vehicle,
