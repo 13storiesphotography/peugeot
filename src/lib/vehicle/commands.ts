@@ -126,19 +126,35 @@ export function applyCommandToState(
       };
     }
     case "climate_start": {
+      if (state.mode === "live") {
+        return {
+          ok: false,
+          message:
+            "Live-Vorklima ist noch nicht angebunden (braucht Remote/MQTT + PIN). Bitte vorerst Peugeot-App nutzen.",
+          vehicle: state,
+        };
+      }
       const target = state.targetTempC;
       return {
         ok: true,
-        message: `Vorklimatisierung gestartet (${target}°C).`,
+        message: `Vorklimatisierung gestartet (${target}°C, Demo).`,
         vehicle: touch(state, {
           climateStatus: state.cabinTempC < target ? "heating" : "cooling",
         }),
       };
     }
     case "climate_stop":
+      if (state.mode === "live") {
+        return {
+          ok: false,
+          message:
+            "Live-Vorklima-Stopp noch nicht angebunden. Bitte Peugeot-App nutzen.",
+          vehicle: state,
+        };
+      }
       return {
         ok: true,
-        message: "Vorklimatisierung gestoppt.",
+        message: "Vorklimatisierung gestoppt (Demo).",
         vehicle: touch(state, { climateStatus: "off" }),
       };
     case "set_climate_temp": {
@@ -146,30 +162,49 @@ export function applyCommandToState(
         28,
         Math.max(16, Math.round(request.targetTempC ?? state.targetTempC)),
       );
-      const climateOn = state.climateStatus !== "off";
+      // Preference is stored locally; Peugeot remotes don't take a °C setpoint.
+      const climateOn = state.mode !== "live" && state.climateStatus !== "off";
       return {
         ok: true,
-        message: `Zieltemperatur ${target}°C.`,
+        message:
+          state.mode === "live"
+            ? `Wunschtemperatur ${target}°C gespeichert (geht nicht an MyPeugeot — Auto nutzt seine Komfort-Temp).`
+            : `Zieltemperatur ${target}°C (Demo).`,
         vehicle: touch(state, {
           targetTempC: target,
           climateStatus: climateOn
             ? state.cabinTempC < target
               ? "heating"
               : "cooling"
-            : "off",
+            : state.climateStatus,
         }),
       };
     }
     case "battery_preheat_start":
+      if (state.mode === "live") {
+        return {
+          ok: false,
+          message:
+            "Live-Batterie-Vorwärmung noch nicht angebunden. Bitte Peugeot-App nutzen.",
+          vehicle: state,
+        };
+      }
       return {
         ok: true,
-        message: "Batterie-Vorwärmung gestartet (E-3008).",
+        message: "Batterie-Vorwärmung gestartet (Demo).",
         vehicle: touch(state, { batteryPreheat: true }),
       };
     case "battery_preheat_stop":
+      if (state.mode === "live") {
+        return {
+          ok: false,
+          message: "Live-Stopp Vorwärmung noch nicht angebunden.",
+          vehicle: state,
+        };
+      }
       return {
         ok: true,
-        message: "Batterie-Vorwärmung gestoppt.",
+        message: "Batterie-Vorwärmung gestoppt (Demo).",
         vehicle: touch(state, { batteryPreheat: false }),
       };
     default:

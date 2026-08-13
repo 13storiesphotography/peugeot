@@ -12,6 +12,7 @@ interface ClimatePanelProps {
 }
 
 export function ClimatePanel({ vehicle, busy, onCommand }: ClimatePanelProps) {
+  const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
   const target = vehicle.targetTempC;
 
@@ -26,13 +27,15 @@ export function ClimatePanel({ vehicle, busy, onCommand }: ClimatePanelProps) {
           Klima
         </h2>
         <p className="mt-1 text-sm text-[var(--fg-muted)]">
-          Zieltemperatur, Vorklima und Batterie-Vorwärmung.
+          {live
+            ? "Live: Kabinentemp vom Auto · Vorklima-Remote folgt noch."
+            : "Demo: Zieltemperatur und Vorklima lokal simuliert."}
         </p>
       </div>
 
       <div className="flex flex-col items-center py-6">
         <p className="text-xs uppercase tracking-[0.28em] text-[var(--fg-muted)]">
-          Zieltemperatur
+          Wunschtemperatur
         </p>
         <div className="mt-4 flex items-center gap-6">
           <button
@@ -60,22 +63,29 @@ export function ClimatePanel({ vehicle, busy, onCommand }: ClimatePanelProps) {
         </div>
         <p className="mt-4 text-sm text-[var(--fg-muted)]">
           Kabine {vehicle.cabinTempC}°
-          {active
+          {!live && active
             ? vehicle.climateStatus === "heating"
               ? " · heizt"
               : vehicle.climateStatus === "cooling"
                 ? " · kühlt"
                 : " · aktiv"
-            : " · aus"}
+            : " · gemessen"}
         </p>
       </div>
 
+      {live ? (
+        <p className="rounded-xl border border-[var(--line)] px-4 py-3 text-sm text-[var(--fg-muted)]">
+          MyPeugeot erlaubt Vorklima typischerweise nur als An/Aus (ohne freies
+          °C). Die Wunschtemperatur hier speichern wir in der App — die
+          Komfort-Temperatur setzt du im Fahrzeug bzw. in der Peugeot-App.
+          Echte Remote-Vorklima (MQTT + PIN) können wir als Nächstes anbinden.
+        </p>
+      ) : null}
+
       <button
         type="button"
-        disabled={busy}
-        onClick={() =>
-          onCommand(active ? "climate_stop" : "climate_start")
-        }
+        disabled={busy || live}
+        onClick={() => onCommand(active ? "climate_stop" : "climate_start")}
         className="action-btn w-full rounded-full px-5 py-4 text-sm font-semibold"
         style={{
           background: active
@@ -83,15 +93,20 @@ export function ClimatePanel({ vehicle, busy, onCommand }: ClimatePanelProps) {
             : "linear-gradient(135deg, #5fe3c0, #3da8a0)",
           color: active ? "var(--danger)" : "#031016",
           border: active ? "1px solid rgba(224,122,106,0.4)" : "none",
+          opacity: live ? 0.55 : 1,
         }}
       >
-        {active ? "Klima stoppen" : "Klima starten"}
+        {live
+          ? "Vorklima: Peugeot-App (Remote folgt)"
+          : active
+            ? "Klima stoppen"
+            : "Klima starten"}
       </button>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || live}
           onClick={() =>
             onCommand(
               vehicle.batteryPreheat
@@ -107,11 +122,16 @@ export function ClimatePanel({ vehicle, busy, onCommand }: ClimatePanelProps) {
             background: vehicle.batteryPreheat
               ? "rgba(95,227,192,0.1)"
               : "rgba(14,28,40,0.4)",
+            opacity: live ? 0.55 : 1,
           }}
         >
           <p className="font-semibold">Batterie vorwärmen</p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            {vehicle.batteryPreheat ? "Aktiv — schnelleres Laden" : "Aus"}
+            {live
+              ? "Live noch nicht angebunden"
+              : vehicle.batteryPreheat
+                ? "Aktiv — schnelleres Laden"
+                : "Aus"}
           </p>
         </button>
         <div className="rounded-2xl border border-[var(--line)] px-4 py-4">
