@@ -13,6 +13,7 @@ import { ChargeCompleteBanner } from "@/components/ChargeCompleteBanner";
 import { ChargeLiveStrip } from "@/components/ChargeLiveStrip";
 import { ChargePanel } from "@/components/ChargePanel";
 import { ClimatePanel } from "@/components/ClimatePanel";
+import { ClimateProgressBanner } from "@/components/ClimateProgressBanner";
 import {
   ControlBottomNav,
   type ControlTab,
@@ -27,6 +28,48 @@ import {
   loadVehicleBundleCache,
   saveVehicleBundleCache,
 } from "@/lib/vehicle/offline-cache";
+
+type ClimateJob = {
+  action: "start" | "stop";
+  startedAt: number;
+};
+
+function climatePhase(job: ClimateJob, nowMs: number): {
+  progress: number;
+  phaseLabel: string;
+  detail?: string;
+} {
+  const elapsed = Math.max(0, nowMs - job.startedAt);
+  const windowMs = 70_000;
+  const progress = Math.min(0.97, elapsed / windowMs);
+  if (elapsed < 8_000) {
+    return {
+      progress,
+      phaseLabel: "Befehl wird gesendet…",
+      detail: "Fahrzeug wird zuerst geweckt.",
+    };
+  }
+  if (elapsed < 25_000) {
+    return {
+      progress,
+      phaseLabel: "Fahrzeug wird geweckt…",
+      detail: "Schlafende Autos brauchen oft einen Moment.",
+    };
+  }
+  if (elapsed < 55_000) {
+    return {
+      progress,
+      phaseLabel: "Warte auf Bestätigung vom Auto…",
+      detail: "Nicht erneut tippen — das dauert oft 30–60 Sekunden.",
+    };
+  }
+  return {
+    progress,
+    phaseLabel: "Noch keine Bestätigung",
+    detail:
+      "Befehl ist unterwegs. Kurz warten oder oben aktualisieren — bitte nicht doppelt starten.",
+  };
+}
 
 function ageMinutes(iso: string, nowMs = Date.now()): number {
   return Math.max(
@@ -70,11 +113,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<ControlTab>("home");
   const [offline, setOffline] = useState(false);
+  const [climateJob, setClimateJob] = useState<ClimateJob | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<
     null | "unlock" | "climate_start" | "flash"
   >(null);
   const refreshInFlight = useRef(false);
   const followUpTimer = useRef<number | null>(null);
+  const climatePollTimer = useRef<number | null>(null);
   const prevChargeStatus = useRef(initial.vehicle.chargeStatus);
 
   useEffect(() => {
@@ -94,9 +139,47 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   }, []);
 
   useEffect(() => {
-    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    const id = window.setInterval(() => setNowMs(Date.now()), 1_000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (climatePollTimer.current) window.clearInterval(climatePollTimer.current);
+    };
+  }, []);
+
+  // Clear pending banner once Peugeot reports the expected climate state.
+  useEffect(() => {
+    if (!climateJob) return;
+    const on = bundle.vehicle.climateStatus !== "off";
+    const matched =
+      climateJob.action === "start" ? on : !on;
+    if (!matched) return;
+    setClimateJob(null);
+    if (climatePollTimer.current) {
+      window.clearInterval(climatePollTimer.current);
+      climatePollTimer.current = null;
+    }
+    setToast({
+      text:
+        climateJob.action === "start"
+          ? "Vorklima bestätigt — läuft."
+          : "Vorklima ist aus.",
+      ok: true,
+    });
+  }, [bundle.vehicle.climateStatus, climateJob]);
+
+  useEffect(() => {
+    if (!climateJob) return;
+    const elapsed = Date.now() - climateJob.startedAt;
+    if (elapsed < 90_000) return;
+    setClimateJob(null);
+    if (climatePollTimer.current) {
+      window.clearInterval(climatePollTimer.current);
+      climatePollTimer.current = null;
+    }
+  }, [climateJob, nowMs]);
 
   useEffect(() => {
     if (!toast) return;
@@ -315,8 +398,23 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     command: VehicleCommand,
     opts?: { chargeLimitPercent?: number; targetTempC?: number },
   ) => {
+    const isClimate =
+      command === "climate_start" || command === "climate_stop";
     setBusy(true);
     setToast(null);
+
+    if (isClimate) {
+      const action = command === "climate_start" ? "start" : "stop";
+      setClimateJob({ action, startedAt: Date.now() });
+      if (climatePollTimer.current) {
+        window.clearInterval(climatePollTimer.current);
+      }
+      // Keep pulling status while we wait for the car to confirm.
+      climatePollTimer.current = window.setInterval(() => {
+        void refresh(true, { silent: true });
+      }, 8_000);
+    }
+
     try {
       const res = await fetch("/api/vehicle/command", {
         method: "POST",
@@ -331,6 +429,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         ok: boolean;
         message: string;
         vehicle: VehicleBundle["vehicle"];
+        climatePending?: boolean;
+        climateConfirmed?: boolean;
       };
       setBundle((prev) => ({
         ...prev,
@@ -359,8 +459,31 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           ...prev.activity,
         ].slice(0, 12),
       }));
-      setToast({ text: data.message, ok: data.ok });
-      // Force Peugeot pull after remotes; wakeup needs longer for a fresh stand.
+
+      if (isClimate) {
+        if (!data.ok) {
+          setClimateJob(null);
+          if (climatePollTimer.current) {
+            window.clearInterval(climatePollTimer.current);
+            climatePollTimer.current = null;
+          }
+          setToast({ text: data.message, ok: false });
+        } else if (data.climateConfirmed) {
+          setClimateJob(null);
+          if (climatePollTimer.current) {
+            window.clearInterval(climatePollTimer.current);
+            climatePollTimer.current = null;
+          }
+          setToast({ text: data.message, ok: true });
+        } else {
+          // Keep the progress banner; toast explains the wait.
+          setToast({ text: data.message, ok: true });
+        }
+      } else {
+        setToast({ text: data.message, ok: data.ok });
+      }
+
+      // Force Peugeot pull after remotes; wakeup / climate need longer.
       if (followUpTimer.current) window.clearTimeout(followUpTimer.current);
       followUpTimer.current = window.setTimeout(() => {
         followUpTimer.current = null;
@@ -368,8 +491,15 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           silent: true,
           hard: command === "wakeup",
         });
-      }, command === "wakeup" ? 8_000 : 2_500);
+      }, command === "wakeup" ? 8_000 : isClimate ? 6_000 : 2_500);
     } catch {
+      if (isClimate) {
+        setClimateJob(null);
+        if (climatePollTimer.current) {
+          window.clearInterval(climatePollTimer.current);
+          climatePollTimer.current = null;
+        }
+      }
       setToast({
         text: "Befehl fehlgeschlagen – bitte erneut versuchen.",
         ok: false,
@@ -423,6 +553,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           : null;
 
   const climateOn = vehicle.climateStatus !== "off";
+  const climateJobView = climateJob
+    ? { action: climateJob.action, ...climatePhase(climateJob, nowMs) }
+    : null;
+  const climateBusy = busy || Boolean(climateJob);
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6">
@@ -548,13 +682,21 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           <ChargeLiveStrip vehicle={vehicle} />
           <QuickActions
             locked={vehicle.locked}
-            climateOn={climateOn}
-            busy={busy}
+            climateOn={climateOn || climateJob?.action === "start"}
+            busy={climateBusy}
             remoteReady={bundle.connection.remoteReady}
             remoteSignalsOk={bundle.connection.remoteSignalsOk}
             onCommand={(command) => void runCommand(command)}
             onOpenClimate={() => selectTab("climate")}
           />
+          {climateJobView ? (
+            <ClimateProgressBanner
+              action={climateJobView.action}
+              progress={climateJobView.progress}
+              phaseLabel={climateJobView.phaseLabel}
+              detail={climateJobView.detail}
+            />
+          ) : null}
           <LocationLink location={vehicle.location} />
           <ActivityLog items={bundle.activity.slice(0, 3)} />
         </div>
@@ -563,8 +705,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       {tab === "climate" ? (
         <ClimatePanel
           vehicle={vehicle}
-          busy={busy}
+          busy={climateBusy}
           remoteReady={bundle.connection.remoteReady}
+          climateJob={climateJobView}
           onCommand={(command) => void runCommand(command)}
         />
       ) : null}
