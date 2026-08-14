@@ -13,6 +13,7 @@ import { getAuthorizeUrl } from "@/lib/stellantis/peugeot-config";
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
 import { capturePeugeotOAuthCode } from "@/lib/stellantis/oauth-auto-login";
 import { capturePeugeotOAuthCodeRemote } from "@/lib/stellantis/oauth-remote";
+import { encryptPeugeotPassword } from "@/lib/stellantis/credential-vault";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
 
@@ -35,6 +36,8 @@ async function persistPeugeotConnection(
     countryCode: string;
     mypeugeotEmail: string;
     oauthCode: string;
+    /** Optional: store encrypted for automatic session heal. */
+    mypeugeotPassword?: string;
   },
 ): Promise<ConnectState> {
   const tokens = await exchangeAuthorizationCode(
@@ -109,12 +112,17 @@ async function persistPeugeotConnection(
     updated_at: new Date().toISOString(),
   });
 
+  const passwordEnc = input.mypeugeotPassword?.trim()
+    ? encryptPeugeotPassword(input.mypeugeotPassword.trim())
+    : undefined;
+
   await supabase.from("peugeot_connections").upsert(
     {
       user_id: userId,
       vehicle_id: bundle.vehicleId,
       country_code: input.countryCode,
       mypeugeot_email: input.mypeugeotEmail || null,
+      ...(passwordEnc ? { mypeugeot_password_enc: passwordEnc } : {}),
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken || null,
       token_expires_at: tokens.expiresAt,
@@ -251,6 +259,7 @@ export async function connectPeugeotWithPassword(
       countryCode,
       mypeugeotEmail: email,
       oauthCode: captured.code,
+      mypeugeotPassword: password,
     });
   } catch (error) {
     return {

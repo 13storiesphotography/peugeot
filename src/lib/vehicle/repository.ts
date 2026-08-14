@@ -438,7 +438,7 @@ async function loadVehicleBundle(
       supabase
         .from("peugeot_connections")
         .select(
-          "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, refresh_token, token_expires_at, last_sync_at, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at, sync_interval_sec, oauth_meta",
+          "connected, country_code, mypeugeot_email, mypeugeot_password_enc, vehicle_api_id, access_token, refresh_token, token_expires_at, last_sync_at, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at, sync_interval_sec, oauth_meta",
         )
         .eq("user_id", userId)
         .maybeSingle(),
@@ -520,6 +520,12 @@ async function loadVehicleBundle(
           : null,
         countryCode,
         oauthMeta,
+        mypeugeotEmail: connection.mypeugeot_email
+          ? String(connection.mypeugeot_email)
+          : null,
+        mypeugeotPasswordEnc: connection.mypeugeot_password_enc
+          ? String(connection.mypeugeot_password_enc)
+          : null,
       });
 
       const needsPaint =
@@ -811,6 +817,8 @@ async function ensurePeugeotAccessToken(
     tokenExpiresAt: string | null;
     countryCode: string;
     oauthMeta: Record<string, unknown>;
+    mypeugeotEmail?: string | null;
+    mypeugeotPasswordEnc?: string | null;
   },
 ): Promise<string> {
   const {
@@ -818,8 +826,29 @@ async function ensurePeugeotAccessToken(
     isPeugeotAuthFailure,
     refreshAccessToken,
   } = await import("@/lib/stellantis/api");
+  const { healPeugeotSessionWithVault } = await import(
+    "@/lib/stellantis/session-heal"
+  );
+
+  const tryHeal = async (
+    email: string | null | undefined,
+    passwordEnc: string | null | undefined,
+  ) => {
+    const healed = await healPeugeotSessionWithVault(supabase, userId, {
+      countryCode: current.countryCode,
+      email,
+      passwordEnc,
+    });
+    if (healed.ok) return healed.accessToken;
+    return null;
+  };
 
   if (current.oauthMeta.needsReconnect) {
+    const healed = await tryHeal(
+      current.mypeugeotEmail,
+      current.mypeugeotPasswordEnc,
+    );
+    if (healed) return healed;
     throw new Error(
       typeof current.oauthMeta.authError === "string" &&
         current.oauthMeta.authError
@@ -835,6 +864,11 @@ async function ensurePeugeotAccessToken(
     return current.accessToken;
   }
   if (!current.refreshToken) {
+    const healed = await tryHeal(
+      current.mypeugeotEmail,
+      current.mypeugeotPasswordEnc,
+    );
+    if (healed) return healed;
     throw new Error(
       "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.",
     );
@@ -843,12 +877,23 @@ async function ensurePeugeotAccessToken(
   // Another request may have refreshed already — use the freshest row.
   const { data: fresh } = await supabase
     .from("peugeot_connections")
-    .select("access_token, refresh_token, token_expires_at, oauth_meta")
+    .select(
+      "access_token, refresh_token, token_expires_at, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
+    )
     .eq("user_id", userId)
     .maybeSingle();
 
   const freshMeta = asOAuthMeta(fresh?.oauth_meta);
+  const freshEmail =
+    (fresh?.mypeugeot_email as string | null | undefined) ??
+    current.mypeugeotEmail;
+  const freshPasswordEnc =
+    (fresh?.mypeugeot_password_enc as string | null | undefined) ??
+    current.mypeugeotPasswordEnc;
+
   if (freshMeta.needsReconnect) {
+    const healed = await tryHeal(freshEmail, freshPasswordEnc);
+    if (healed) return healed;
     throw new Error(
       typeof freshMeta.authError === "string" && freshMeta.authError
         ? freshMeta.authError
@@ -903,11 +948,10 @@ async function ensurePeugeotAccessToken(
     return refreshed.accessToken;
   } catch (error) {
     const raw = error instanceof Error ? error.message : String(error);
-    const message = humanizePeugeotOAuthError(raw);
-    // Persist reconnect only on confirmed OAuth rejection — never on
-    // transient network / body-read failures (those can leave a still-valid
-    // refresh token, or lose a successful rotation).
     if (isPeugeotAuthFailure(raw)) {
+      const healed = await tryHeal(freshEmail, freshPasswordEnc);
+      if (healed) return healed;
+      const message = humanizePeugeotOAuthError(raw);
       await supabase
         .from("peugeot_connections")
         .update({
@@ -919,8 +963,12 @@ async function ensurePeugeotAccessToken(
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", userId);
+      throw new Error(message);
     }
-    throw new Error(message);
+    // Persist reconnect only on confirmed OAuth rejection — never on
+    // transient network / body-read failures (those can leave a still-valid
+    // refresh token, or lose a successful rotation).
+    throw new Error(humanizePeugeotOAuthError(raw));
   }
 }
 
@@ -1320,7 +1368,7 @@ async function tryLoadVehiclePrograms(
     const { data: connection } = await supabase
       .from("peugeot_connections")
       .select(
-        "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta",
+        "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
       )
       .eq("user_id", userId)
       .maybeSingle();
@@ -1336,6 +1384,12 @@ async function tryLoadVehiclePrograms(
         : null,
       countryCode: String(connection.country_code ?? "DE"),
       oauthMeta: asOAuthMeta(connection.oauth_meta),
+      mypeugeotEmail: connection.mypeugeot_email
+        ? String(connection.mypeugeot_email)
+        : null,
+      mypeugeotPasswordEnc: connection.mypeugeot_password_enc
+        ? String(connection.mypeugeot_password_enc)
+        : null,
     });
     const { fetchVehicleStatus } = await import("@/lib/stellantis/api");
     const { programsFromVehicleStatus } = await import(
@@ -1439,7 +1493,7 @@ export async function importClimateSchedulesFromVehicle(
   const { data: connection } = await supabase
     .from("peugeot_connections")
     .select(
-      "connected, country_code, vehicle_api_id, access_token, refresh_token, token_expires_at, oauth_meta, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token",
+      "connected, country_code, vehicle_api_id, access_token, refresh_token, token_expires_at, oauth_meta, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token, mypeugeot_email, mypeugeot_password_enc",
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -1453,13 +1507,6 @@ export async function importClimateSchedulesFromVehicle(
   }
 
   const oauthMeta = asOAuthMeta(connection.oauth_meta);
-  if (oauthMeta.needsReconnect) {
-    return {
-      schedules: await listClimateSchedules(supabase, userId),
-      imported: 0,
-      message: "MyPeugeot-Anmeldung abgelaufen — bitte neu verbinden.",
-    };
-  }
 
   try {
     const { fetchVehicleStatus } = await import("@/lib/stellantis/api");
@@ -1474,6 +1521,12 @@ export async function importClimateSchedulesFromVehicle(
         : null,
       countryCode,
       oauthMeta,
+      mypeugeotEmail: connection.mypeugeot_email
+        ? String(connection.mypeugeot_email)
+        : null,
+      mypeugeotPasswordEnc: connection.mypeugeot_password_enc
+        ? String(connection.mypeugeot_password_enc)
+        : null,
     });
 
     // Wake so Peugeot pushes a fresh preconditioning snapshot when possible.
