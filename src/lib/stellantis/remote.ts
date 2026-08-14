@@ -586,6 +586,8 @@ export async function sendThermalPreconditioning(input: {
       asap: input.activate ? "activate" : "deactivate",
       programs: input.programs ?? emptyPrecondPrograms(),
     },
+    // Deep-sleep cars are slow to ack; don't treat silence as failure too early.
+    ackTimeoutMs: 18_000,
   });
 }
 
