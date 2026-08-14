@@ -331,18 +331,30 @@ export function mapStatusToVehicleState(
       ? Math.round((capacityWh / 1000) * 10) / 10
       : base.batteryCapacityKwh;
 
-  const batteryPercent = Number(
+  const batteryRaw = Number(
     dig(energy0, ["level"]) ??
-      dig(status, ["batteries", "main", "level"]) ??
-      base.batteryPercent,
+      dig(status, ["batteries", "main", "level"]),
   );
-  const rangeKm = Number(dig(energy0, ["autonomy"]) ?? base.rangeKm);
-  const mileageKm = Number(
-    dig(status, ["odometer", "mileage"]) ?? base.mileageKm,
-  );
-  const outdoorTempC = Number(
-    dig(status, ["environment", "air", "temp"]) ?? base.outdoorTempC,
-  );
+  const batteryPercent =
+    Number.isFinite(batteryRaw) && batteryRaw > 0
+      ? batteryRaw
+      : base.batteryPercent;
+
+  const rangeRaw = Number(dig(energy0, ["autonomy"]));
+  // Wake/partial payloads often report autonomy 0 — keep last known range.
+  const rangeKm =
+    Number.isFinite(rangeRaw) && rangeRaw > 0 ? rangeRaw : base.rangeKm;
+
+  const mileageRaw = Number(dig(status, ["odometer", "mileage"]));
+  const mileageKm =
+    Number.isFinite(mileageRaw) && mileageRaw > 0
+      ? mileageRaw
+      : base.mileageKm;
+
+  const outdoorRaw = Number(dig(status, ["environment", "air", "temp"]));
+  const outdoorTempC = Number.isFinite(outdoorRaw)
+    ? outdoorRaw
+    : base.outdoorTempC;
 
   const lockRaw = String(
     dig(status, ["privacy", "lockStatus"]) ??
@@ -397,21 +409,42 @@ export function mapStatusToVehicleState(
   }
 
   // Live preconditioning from Peugeot status (API spelling varies).
+  // IMPORTANT: do not use includes("enabled") — "disabled".includes("enabled") is true.
   const precondRaw = String(
     dig(status, ["preconditionning", "airConditioning", "status"]) ??
       dig(status, ["preconditioning", "airConditioning", "status"]) ??
       dig(status, ["preconditionning", "air_conditioning", "status"]) ??
+      dig(status, ["preconditioning", "air_conditioning", "status"]) ??
       "",
-  ).toLowerCase();
+  ).toLowerCase().trim();
   let climateStatus: VehicleState["climateStatus"] = "off";
   if (
     precondRaw === "enabled" ||
-    precondRaw.includes("enabled") ||
-    precondRaw.includes("progress") ||
-    precondRaw === "on"
+    precondRaw === "on" ||
+    precondRaw === "activated" ||
+    precondRaw === "active" ||
+    precondRaw === "inprogress" ||
+    precondRaw === "in_progress" ||
+    precondRaw === "progress"
   ) {
-    // API does not expose cabin setpoint vs interior — only that preconditioning runs.
     climateStatus = "preconditioning";
+  } else if (
+    !precondRaw ||
+    precondRaw === "disabled" ||
+    precondRaw === "off" ||
+    precondRaw === "deactivated" ||
+    precondRaw === "inactive" ||
+    precondRaw === "stopped"
+  ) {
+    climateStatus = "off";
+  } else if (
+    /\benabled\b|\bactiv/.test(precondRaw) &&
+    !/\bdisabled\b|\bdeactiv|\boff\b/.test(precondRaw)
+  ) {
+    climateStatus = "preconditioning";
+  } else {
+    // Unknown token — keep previous rather than flipping UI spuriously.
+    climateStatus = base.climateStatus;
   }
 
   const limitFromApi = Number(
