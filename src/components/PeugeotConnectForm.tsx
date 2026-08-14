@@ -206,7 +206,7 @@ export function PeugeotConnectForm({
             Neu anmelden erforderlich
           </p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            Am iPhone: E-Mail und Passwort — kein mymap:// nötig.
+            Mit E-Mail/Passwort verbinden — Sitzung hält sich danach automatisch.
           </p>
         </div>
       ) : null}
@@ -226,25 +226,25 @@ export function PeugeotConnectForm({
                 <p className="mt-1.5">
                   Safari kann den Peugeot-Code (
                   <code className="text-[var(--accent-bright)]">mymap://</code>
-                  ) nicht zuverlässig zurückgeben. Deshalb läuft der Login
-                  serverseitig über einen Community-OAuth-Helper — du gibst nur
-                  MyPeugeot E-Mail und Passwort ein.
+                  ) nicht zuverlässig zurückgeben. Deshalb: MyPeugeot E-Mail und
+                  Passwort eingeben — Login läuft serverseitig.
                 </p>
                 <p className="mt-2">
-                  E-Mail und Passwort gehen einmalig an{" "}
+                  Passwort wird verschlüsselt gespeichert, damit die Sitzung
+                  automatisch erneuert wird (kein erneutes Einloggen alle paar
+                  Stunden). Einmalig an{" "}
                   <span className="text-[var(--fg)]">stelloauth.tollet.me</span>{" "}
-                  (werden dort und bei uns nicht gespeichert). Alternative ohne
-                  Passwort: unten Code vom Computer einfügen.
+                  zum Holen des Codes.
                 </p>
               </>
             ) : (
               <>
                 <p className="mt-1.5">
-                  Am einfachsten: unten E-Mail und Passwort — der Login läuft
-                  serverseitig. Oder manuell: Peugeot-Login öffnen, nach WEITER
-                  die Adresse{" "}
-                  <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
-                  kopieren und einlösen.
+                  Am einfachsten: unten E-Mail und Passwort. Passwort wird
+                  verschlüsselt gespeichert, damit die Anmeldung im Hintergrund
+                  frisch bleibt. Alternativ manuell den{" "}
+                  <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>
+                  -Link einlösen.
                 </p>
                 {isMacSafari ? (
                   <details className="mt-2">
@@ -293,7 +293,7 @@ export function PeugeotConnectForm({
                 Mit E-Mail / Passwort
               </p>
               <p className="mt-1 text-xs text-[var(--fg-muted)]">
-                Empfohlen am iPhone. Kann bis zu einer Minute dauern.
+                Empfohlen. Sitzung erneuert sich danach automatisch.
               </p>
               <form action={passwordAction} className="mt-3 grid gap-3">
                 <input type="hidden" name="countryCode" value={countryCode} />

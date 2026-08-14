@@ -106,10 +106,23 @@ export async function refreshAccessToken(
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           Authorization: `Basic ${getBasicToken(countryCode)}`,
+          Accept: "application/json",
+          Connection: "close",
         },
       });
 
-      const data = (await res.json()) as Record<string, unknown>;
+      // Prefer arrayBuffer→text to avoid flaky streamed body reads.
+      const raw = Buffer.from(await res.arrayBuffer()).toString("utf8");
+      let data: Record<string, unknown> = {};
+      try {
+        data = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        throw new Error(
+          raw
+            ? `Token-Refresh Antwort ungültig (${res.status})`
+            : `Token-Refresh ohne Antwort (${res.status})`,
+        );
+      }
       if (!res.ok || !data.access_token) {
         throw new Error(
           formatOAuthErrorPayload(data, "Token-Refresh fehlgeschlagen"),
