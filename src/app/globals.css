@@ -323,3 +323,15 @@ body {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+@keyframes climate-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}

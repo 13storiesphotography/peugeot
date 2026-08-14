@@ -3,8 +3,8 @@ import type { CommandRequest, VehicleCommand } from "@/lib/types";
 import { runVehicleCommand } from "@/lib/vehicle/repository";
 
 export const dynamic = "force-dynamic";
-/** Live remotes use MQTT (~10–15s). */
-export const maxDuration = 30;
+/** Climate start wakes the car and polls status (~45s). */
+export const maxDuration = 60;
 
 const ALLOWED: VehicleCommand[] = [
   "lock",

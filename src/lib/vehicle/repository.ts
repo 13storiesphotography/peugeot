@@ -1319,8 +1319,21 @@ async function runLiveClimateCommand(
       climateSchedulesToPrograms,
       emptyPrecondPrograms,
       sendThermalPreconditioning,
+      sendVehicleWakeup,
     } = await import("@/lib/stellantis/remote");
     const { touchClimate } = await import("@/lib/vehicle/commands");
+
+    // Asleep cars often ignore the first ThermalPrecond — wake first.
+    try {
+      await sendVehicleWakeup({
+        customerId: remote.customerId,
+        vin: remote.vin,
+        remoteAccessToken: remote.remoteAccessToken,
+      });
+      await sleep(2_500);
+    } catch {
+      // Wake is best-effort; still try climate.
+    }
 
     const climateSchedules = await listClimateSchedules(supabase, userId);
     // Prefer app Klima plans; if none, keep Peugeot slots so start/stop
@@ -1339,10 +1352,39 @@ async function runLiveClimateCommand(
       programs,
     });
 
+    let vehicle = touchClimate(bundle.vehicle, activate);
+
+    // Poll Peugeot status until climate matches — cars often need 15–45s.
+    const confirmed = await pollClimateConfirmation(
+      supabase,
+      userId,
+      bundle,
+      activate,
+      vehicle,
+    );
+    if (confirmed) {
+      vehicle = confirmed.vehicle;
+      await saveState(supabase, userId, bundle.vehicleId, vehicle);
+      return {
+        ok: true,
+        message: activate
+          ? "Vorklima bestätigt — läuft."
+          : "Vorklima bestätigt — aus.",
+        vehicle,
+        climateConfirmed: true,
+        climatePending: false,
+      };
+    }
+
+    await saveState(supabase, userId, bundle.vehicleId, vehicle);
     return {
       ok: true,
-      message: activate ? "Vorklima gestartet." : "Vorklima gestoppt.",
-      vehicle: touchClimate(bundle.vehicle, activate),
+      message: activate
+        ? "Befehl gesendet — Auto braucht oft noch 30–60 Sekunden."
+        : "Stopp gesendet — Bestätigung folgt oft mit Verzögerung.",
+      vehicle,
+      climatePending: true,
+      climateConfirmed: false,
     };
   } catch (error) {
     return {
@@ -1354,6 +1396,87 @@ async function runLiveClimateCommand(
       vehicle: bundle.vehicle,
     };
   }
+}
+
+async function pollClimateConfirmation(
+  supabase: SupabaseClient,
+  userId: string,
+  bundle: VehicleBundle,
+  activate: boolean,
+  optimistic: import("@/lib/types").VehicleState,
+): Promise<{ vehicle: import("@/lib/types").VehicleState } | null> {
+  if (
+    bundle.vehicle.mode !== "live" ||
+    !bundle.connection.vehicleApiId ||
+    !bundle.connection.hasAccessToken
+  ) {
+    return { vehicle: optimistic };
+  }
+
+  const { data: connection } = await supabase
+    .from("peugeot_connections")
+    .select(
+      "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!connection?.access_token || !connection.vehicle_api_id) return null;
+
+  const countryCode = String(connection.country_code ?? "DE");
+  let accessToken: string;
+  try {
+    accessToken = await ensurePeugeotAccessToken(supabase, userId, {
+      accessToken: String(connection.access_token),
+      refreshToken: connection.refresh_token
+        ? String(connection.refresh_token)
+        : null,
+      tokenExpiresAt: connection.token_expires_at
+        ? String(connection.token_expires_at)
+        : null,
+      countryCode,
+      oauthMeta: asOAuthMeta(connection.oauth_meta),
+      mypeugeotEmail: connection.mypeugeot_email
+        ? String(connection.mypeugeot_email)
+        : null,
+      mypeugeotPasswordEnc: connection.mypeugeot_password_enc
+        ? String(connection.mypeugeot_password_enc)
+        : null,
+    });
+  } catch {
+    return null;
+  }
+
+  const {
+    fetchVehicleStatus,
+    mapStatusToVehicleStateWithAddress,
+  } = await import("@/lib/stellantis/api");
+
+  // ~4 tries × 6s ≈ 24s after the wake delay already spent.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await sleep(6_000);
+    try {
+      const status = await fetchVehicleStatus(
+        accessToken,
+        countryCode,
+        String(connection.vehicle_api_id),
+      );
+      const next = await mapStatusToVehicleStateWithAddress(
+        status,
+        optimistic,
+        {
+          vehicleId: String(connection.vehicle_api_id),
+          vin: optimistic.vin,
+        },
+      );
+      const on = next.climateStatus !== "off";
+      if (activate ? on : !on) {
+        return { vehicle: next };
+      }
+    } catch {
+      // keep waiting
+    }
+  }
+  return null;
 }
 
 async function tryLoadVehiclePrograms(

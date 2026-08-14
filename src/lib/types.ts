@@ -73,4 +73,8 @@ export interface CommandResult {
   ok: boolean;
   message: string;
   vehicle: VehicleState;
+  /** Climate start/stop still waiting for vehicle confirmation. */
+  climatePending?: boolean;
+  /** Climate status was confirmed from Peugeot after the command. */
+  climateConfirmed?: boolean;
 }
