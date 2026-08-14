@@ -1460,17 +1460,26 @@ async function pollClimateConfirmation(
         countryCode,
         String(connection.vehicle_api_id),
       );
+      // Always merge onto the pre-command vehicle so partial wake payloads
+      // cannot wipe range/mileage with zeros.
       const next = await mapStatusToVehicleStateWithAddress(
         status,
-        optimistic,
+        {
+          ...bundle.vehicle,
+          climateStatus: optimistic.climateStatus,
+        },
         {
           vehicleId: String(connection.vehicle_api_id),
           vin: optimistic.vin,
         },
       );
       const on = next.climateStatus !== "off";
-      if (activate ? on : !on) {
-        return { vehicle: next };
+      if (activate) {
+        // Only accept a clear "on" — never treat missing/disabled as success.
+        if (on) return { vehicle: next };
+      } else if (!on) {
+        // Require at least one poll cycle so we don't "confirm" from stale off.
+        if (attempt >= 1) return { vehicle: next };
       }
     } catch {
       // keep waiting

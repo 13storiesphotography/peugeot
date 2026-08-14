@@ -120,7 +120,17 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const refreshInFlight = useRef(false);
   const followUpTimer = useRef<number | null>(null);
   const climatePollTimer = useRef<number | null>(null);
+  const climateJobRef = useRef<ClimateJob | null>(null);
+  const lastVehicleRef = useRef(initial.vehicle);
   const prevChargeStatus = useRef(initial.vehicle.chargeStatus);
+
+  useEffect(() => {
+    climateJobRef.current = climateJob;
+  }, [climateJob]);
+
+  useEffect(() => {
+    lastVehicleRef.current = bundle.vehicle;
+  }, [bundle.vehicle]);
 
   useEffect(() => {
     setTab(readTab());
@@ -245,57 +255,78 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         }
         const data = (await res.json()) as VehicleBundle;
         setOffline(false);
-        saveVehicleBundleCache(data);
+        const prevVehicle = lastVehicleRef.current;
+        const patched: VehicleBundle = {
+          ...data,
+          vehicle: {
+            ...data.vehicle,
+            // Partial wake payloads can report 0 range/mileage — keep previous.
+            rangeKm:
+              data.vehicle.rangeKm > 0
+                ? data.vehicle.rangeKm
+                : prevVehicle.rangeKm,
+            mileageKm:
+              data.vehicle.mileageKm > 0
+                ? data.vehicle.mileageKm
+                : prevVehicle.mileageKm,
+            batteryPercent:
+              data.vehicle.batteryPercent > 0
+                ? data.vehicle.batteryPercent
+                : prevVehicle.batteryPercent,
+          },
+        };
+        lastVehicleRef.current = patched.vehicle;
+        saveVehicleBundleCache(patched);
         const wasCharging = prevChargeStatus.current === "charging";
-        prevChargeStatus.current = data.vehicle.chargeStatus;
-        startTransition(() => setBundle(data));
+        prevChargeStatus.current = patched.vehicle.chargeStatus;
+        startTransition(() => setBundle(patched));
         setNowMs(Date.now());
         if (
           wasCharging &&
-          data.vehicle.chargeStatus === "complete"
+          patched.vehicle.chargeStatus === "complete"
         ) {
           setToast({
-            text: `Laden fertig · ${Math.round(data.vehicle.batteryPercent)}%`,
+            text: `Laden fertig · ${Math.round(patched.vehicle.batteryPercent)}%`,
             ok: true,
           });
         } else if (data.syncError) {
           setToast({ text: data.syncError, ok: false });
         } else if (opts?.feedback) {
           const hard = data.hardRefresh;
-          const age = hard?.ageMinutes ?? ageMinutes(data.vehicle.lastUpdatedAt);
+          const age = hard?.ageMinutes ?? ageMinutes(patched.vehicle.lastUpdatedAt);
           if (hard?.improved || age < 5) {
             setToast({
-              text: `Aktualisiert (${formatAge(data.vehicle.lastUpdatedAt)}).`,
+              text: `Aktualisiert (${formatAge(patched.vehicle.lastUpdatedAt)}).`,
               ok: true,
             });
           } else if (hard?.wakeAttempted && hard.wakeOk) {
             setToast({
-              text: `Stand noch ${formatAge(data.vehicle.lastUpdatedAt)} — Aufwecken gesendet, Peugeot meldet sich langsam.`,
+              text: `Stand noch ${formatAge(patched.vehicle.lastUpdatedAt)} — Aufwecken gesendet, Peugeot meldet sich langsam.`,
               ok: true,
             });
           } else if (hard?.wakeAttempted && hard.wakeOk === false) {
             setToast({
-              text: `Stand ${formatAge(data.vehicle.lastUpdatedAt)}. Aufwecken: ${hard.wakeSkippedReason ?? "fehlgeschlagen"}`,
+              text: `Stand ${formatAge(patched.vehicle.lastUpdatedAt)}. Aufwecken: ${hard.wakeSkippedReason ?? "fehlgeschlagen"}`,
               ok: false,
             });
           } else if (hard?.wakeSkippedReason) {
             setToast({
-              text: `Stand ${formatAge(data.vehicle.lastUpdatedAt)}. ${hard.wakeSkippedReason}`,
+              text: `Stand ${formatAge(patched.vehicle.lastUpdatedAt)}. ${hard.wakeSkippedReason}`,
               ok: true,
             });
           } else if (age >= 5) {
             setToast({
-              text: `Stand noch ${formatAge(data.vehicle.lastUpdatedAt)} — Fahrzeug evtl. im Ruhemodus.`,
+              text: `Stand noch ${formatAge(patched.vehicle.lastUpdatedAt)} — Fahrzeug evtl. im Ruhemodus.`,
               ok: true,
             });
           } else {
             setToast({
-              text: `Aktualisiert (${formatAge(data.vehicle.lastUpdatedAt)}).`,
+              text: `Aktualisiert (${formatAge(patched.vehicle.lastUpdatedAt)}).`,
               ok: true,
             });
           }
         }
-        return data;
+        return patched;
       } catch {
         setOffline(true);
         const cached = loadVehicleBundleCache();
