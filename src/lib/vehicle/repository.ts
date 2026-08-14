@@ -1297,6 +1297,9 @@ function humanizeRemoteSignalError(message: string): string {
   if (/no\.matching\.service\.key|authorization\.denied/i.test(message)) {
     return "Schloss/Hupe/Licht brauchen Connect PLUS (Remote Control) in MyPeugeot — e-Remote für Klima reicht dafür nicht. Prüfe dort, ob Entriegeln funktioniert.";
   }
+  if (/Remote-Fehler 500/i.test(message)) {
+    return "Fahrzeug meldet Remote-Fehler 500 (oft Tiefschlaf). Kurz warten und erneut versuchen.";
+  }
   if (/Remote-Fehler 400/i.test(message)) {
     return "Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";
   }
@@ -1309,7 +1312,7 @@ async function runLiveClimateCommand(
   bundle: VehicleBundle,
   activate: boolean,
 ): Promise<CommandResult> {
-  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+  let remote = await ensureLiveRemoteSession(supabase, userId, bundle);
   if (!remote.ok) {
     return { ok: false, message: remote.message, vehicle: bundle.vehicle };
   }
@@ -1323,18 +1326,6 @@ async function runLiveClimateCommand(
     } = await import("@/lib/stellantis/remote");
     const { touchClimate } = await import("@/lib/vehicle/commands");
 
-    // Asleep cars often ignore the first ThermalPrecond — wake first.
-    try {
-      await sendVehicleWakeup({
-        customerId: remote.customerId,
-        vin: remote.vin,
-        remoteAccessToken: remote.remoteAccessToken,
-      });
-      await sleep(2_500);
-    } catch {
-      // Wake is best-effort; still try climate.
-    }
-
     const climateSchedules = await listClimateSchedules(supabase, userId);
     // Prefer app Klima plans; if none, keep Peugeot slots so start/stop
     // does not wipe MyPeugeot schedules.
@@ -1344,13 +1335,65 @@ async function runLiveClimateCommand(
         : ((await tryLoadVehiclePrograms(supabase, userId, bundle)) ??
           emptyPrecondPrograms());
 
-    await sendThermalPreconditioning({
-      customerId: remote.customerId,
-      vin: remote.vin,
-      remoteAccessToken: remote.remoteAccessToken,
-      activate,
-      programs,
-    });
+    let customerId = remote.customerId;
+    let vin = remote.vin;
+    let remoteAccessToken = remote.remoteAccessToken;
+
+    const sendClimate = async (accessToken: string) => {
+      await sendThermalPreconditioning({
+        customerId,
+        vin,
+        remoteAccessToken: accessToken,
+        activate,
+        programs,
+      });
+    };
+
+    // Try climate first. Always waking beforehand caused MQTT 500s on some cars.
+    try {
+      await sendClimate(remoteAccessToken);
+    } catch (firstErr) {
+      const firstMsg =
+        firstErr instanceof Error ? firstErr.message : String(firstErr);
+      if (!/Remote-Fehler 500|MQTT timeout|MQTT connection/i.test(firstMsg)) {
+        throw firstErr;
+      }
+
+      // Wake, wait, refresh remote session, retry once.
+      try {
+        await sendVehicleWakeup({
+          customerId,
+          vin,
+          remoteAccessToken,
+        });
+      } catch {
+        // Wake itself often returns 500 while the car is deep-sleeping.
+      }
+      await sleep(8_000);
+
+      const refreshed = await ensureLiveRemoteSession(supabase, userId, bundle);
+      if (!refreshed.ok) {
+        return {
+          ok: false,
+          message: humanizeClimateRemoteError(firstMsg),
+          vehicle: bundle.vehicle,
+        };
+      }
+      customerId = refreshed.customerId;
+      vin = refreshed.vin;
+      remoteAccessToken = refreshed.remoteAccessToken;
+      try {
+        await sendClimate(remoteAccessToken);
+      } catch (secondErr) {
+        const secondMsg =
+          secondErr instanceof Error ? secondErr.message : String(secondErr);
+        return {
+          ok: false,
+          message: humanizeClimateRemoteError(secondMsg),
+          vehicle: bundle.vehicle,
+        };
+      }
+    }
 
     let vehicle = touchClimate(bundle.vehicle, activate);
 
@@ -1389,13 +1432,30 @@ async function runLiveClimateCommand(
   } catch (error) {
     return {
       ok: false,
-      message:
+      message: humanizeClimateRemoteError(
         error instanceof Error
           ? error.message
           : "Vorklima-Befehl fehlgeschlagen.",
+      ),
       vehicle: bundle.vehicle,
     };
   }
+}
+
+function humanizeClimateRemoteError(message: string): string {
+  if (/Remote-Fehler 500/i.test(message)) {
+    return "Fahrzeug meldet Remote-Fehler 500 (oft Tiefschlaf oder Peugeot-Server). 20–30 Sekunden warten und noch einmal tippen. Bleibt es: Einstellungen → Fernbedienung/PIN erneuern.";
+  }
+  if (/Remote-Fehler 400/i.test(message)) {
+    return "Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";
+  }
+  if (/Remote-Fehler 3\d\d/i.test(message)) {
+    return "Fernbedienung abgelaufen — unter Einstellungen PIN erneut freischalten.";
+  }
+  if (/MQTT timeout/i.test(message)) {
+    return "Keine Antwort vom Fahrzeug (Timeout). Bitte kurz warten und erneut versuchen.";
+  }
+  return message;
 }
 
 async function pollClimateConfirmation(
