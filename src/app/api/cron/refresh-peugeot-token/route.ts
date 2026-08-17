@@ -7,7 +7,7 @@ import {
 import { healPeugeotSessionWithVault } from "@/lib/stellantis/session-heal";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 90;
+export const maxDuration = 60;
 
 const CRON_SECRET =
   process.env.CRON_SECRET ??
