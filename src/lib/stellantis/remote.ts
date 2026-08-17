@@ -629,6 +629,53 @@ export async function sendVehicleWakeup(input: {
   });
 }
 
+/** Start (immediate) or pause (delayed) charging — psa_car_controller `/VehCharge`. */
+export async function sendChargeControl(input: {
+  customerId: string;
+  vin: string;
+  remoteAccessToken: string;
+  chargeNow: boolean;
+  hour: number;
+  minute: number;
+}): Promise<void> {
+  await publishRemoteCommand({
+    customerId: input.customerId,
+    vin: input.vin,
+    remoteAccessToken: input.remoteAccessToken,
+    topicSuffix: "/VehCharge",
+    reqParameters: {
+      program: { hour: input.hour, minute: input.minute },
+      type: input.chargeNow ? "immediate" : "delayed",
+    },
+    ackTimeoutMs: 18_000,
+  });
+}
+
+/**
+ * MyPeugeot „Laden auf 80% begrenzen“ — chargingType Partial vs Full on `/VehCharge`.
+ * Not all firmware accepts this; callers should fall back to delayed-stop enforcement.
+ */
+export async function sendChargeTargetType(input: {
+  customerId: string;
+  vin: string;
+  remoteAccessToken: string;
+  limit80: boolean;
+  hour: number;
+  minute: number;
+}): Promise<void> {
+  await publishRemoteCommand({
+    customerId: input.customerId,
+    vin: input.vin,
+    remoteAccessToken: input.remoteAccessToken,
+    topicSuffix: "/VehCharge",
+    reqParameters: {
+      program: { hour: input.hour, minute: input.minute },
+      type: input.limit80 ? "partial" : "full",
+    },
+    ackTimeoutMs: 18_000,
+  });
+}
+
 /** Lock or unlock doors via MQTT `/Doors`. */
 export async function sendDoorLock(input: {
   customerId: string;

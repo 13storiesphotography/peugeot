@@ -6,6 +6,7 @@ import type {
 } from "@/lib/types";
 import { applyCommandToState, tickChargeState } from "./commands";
 import { createDefaultVehicleState } from "./defaults";
+import { parseNextDelayedClock } from "@/lib/stellantis/duration";
 
 export type VehicleSchedule = {
   id: string;
@@ -590,6 +591,45 @@ async function loadVehicleBundle(
         colorHex: paintHex,
         pictureUrl,
       };
+      if (isLive && connection?.remote_ready) {
+        const oauthMetaEnforce = asOAuthMeta(connection.oauth_meta);
+        vehicle = await maybeEnforceChargeLimit(
+          supabase,
+          userId,
+          {
+            vehicleId,
+            vehicle,
+            connection: {
+              connected: Boolean(connection.connected),
+              countryCode: String(connection.country_code ?? "DE"),
+              mypeugeotEmail: connection.mypeugeot_email
+                ? String(connection.mypeugeot_email)
+                : null,
+              vehicleApiId: connection.vehicle_api_id
+                ? String(connection.vehicle_api_id)
+                : null,
+              hasAccessToken: Boolean(connection.access_token),
+              lastSyncAt: connection.last_sync_at
+                ? String(connection.last_sync_at)
+                : null,
+              remoteReady: true,
+              customerId: connection.customer_id
+                ? String(connection.customer_id)
+                : null,
+              syncIntervalSec: clampSyncInterval(
+                Number(connection.sync_interval_sec ?? 60),
+              ),
+              needsReconnect: Boolean(oauthMetaEnforce.needsReconnect),
+              remoteSignalsOk: readRemoteSignalsOk(oauthMetaEnforce),
+            },
+            schedules: [],
+            activity: [],
+            chargeCurve: [],
+          },
+          vehicle,
+          status,
+        );
+      }
       await saveState(supabase, userId, vehicleId, vehicle);
       // Do not auto-replace climate schedules here — that undoes deletes in the
       // app. Import only via „Pläne vom Fahrzeug laden“.
@@ -1043,6 +1083,24 @@ export async function runVehicleCommand(
     return live;
   }
 
+  if (bundle.vehicle.mode === "live" && request.command === "set_charge_limit") {
+    const live = await runLiveChargeLimitCommand(
+      supabase,
+      userId,
+      bundle,
+      request.chargeLimitPercent ?? 80,
+    );
+    await saveState(supabase, userId, bundle.vehicleId, live.vehicle);
+    await supabase.from("activity_log").insert({
+      user_id: userId,
+      vehicle_id: bundle.vehicleId,
+      command: request.command,
+      message: live.message,
+      ok: live.ok,
+    });
+    return live;
+  }
+
   const result = applyCommandToState(bundle.vehicle, request);
   await saveState(supabase, userId, bundle.vehicleId, result.vehicle);
 
@@ -1304,6 +1362,236 @@ function humanizeRemoteSignalError(message: string): string {
     return "Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";
   }
   return message;
+}
+
+function humanizeChargeLimitError(message: string): string {
+  if (/no\.matching\.service\.key|authorization\.denied/i.test(message)) {
+    return "Lade-Steuerung braucht e-Remote in MyPeugeot — bitte prüfen und PIN ggf. erneuern.";
+  }
+  if (/Remote-Fehler 500/i.test(message)) {
+    return "Fahrzeug antwortet gerade nicht — kurz warten und erneut versuchen.";
+  }
+  if (/Remote-Fehler 400/i.test(message)) {
+    return "Lade-Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";
+  }
+  return message;
+}
+
+function chargeClockFromStatus(status: unknown): { hour: number; minute: number } {
+  const dig = (obj: unknown, path: Array<string | number>): unknown => {
+    let cur: unknown = obj;
+    for (const key of path) {
+      if (cur == null || typeof cur !== "object") return undefined;
+      cur = Array.isArray(cur)
+        ? cur[key as number]
+        : (cur as Record<string, unknown>)[key as string];
+    }
+    return cur;
+  };
+  const energy0 = dig(status, ["energy", 0]) ?? dig(status, ["energies", 0]);
+  const chargingPrimary = dig(energy0, ["charging"]);
+  const chargingExt =
+    dig(status, ["energies", 0, "extension", "electric", "charging"]) ??
+    dig(energy0, ["extension", "electric", "charging"]);
+  const block = {
+    ...(typeof chargingPrimary === "object" && chargingPrimary
+      ? (chargingPrimary as Record<string, unknown>)
+      : {}),
+    ...(typeof chargingExt === "object" && chargingExt
+      ? (chargingExt as Record<string, unknown>)
+      : {}),
+  };
+  return parseNextDelayedClock(
+    block.nextDelayedTime ?? block.next_delayed_time,
+  );
+}
+
+async function stopChargeAtLimit(
+  supabase: SupabaseClient,
+  userId: string,
+  bundle: VehicleBundle,
+  vehicle: VehicleState,
+  status: unknown,
+): Promise<VehicleState> {
+  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+  if (!remote.ok) return vehicle;
+
+  const { sendChargeControl } = await import("@/lib/stellantis/remote");
+  const { hour, minute } = chargeClockFromStatus(status);
+  await sendChargeControl({
+    customerId: remote.customerId,
+    vin: remote.vin,
+    remoteAccessToken: remote.remoteAccessToken,
+    chargeNow: false,
+    hour,
+    minute,
+  });
+
+  return {
+    ...vehicle,
+    chargeLimitEnforcedAt: new Date().toISOString(),
+    chargeStatus:
+      vehicle.chargeStatus === "charging" ? "plugged" : vehicle.chargeStatus,
+  };
+}
+
+async function maybeEnforceChargeLimit(
+  supabase: SupabaseClient,
+  userId: string,
+  bundle: VehicleBundle,
+  vehicle: VehicleState,
+  status: unknown,
+): Promise<VehicleState> {
+  const limit = vehicle.preferredChargeLimitPercent ?? 80;
+  if (limit >= 100) return vehicle;
+  if (vehicle.chargeStatus !== "charging") {
+    if (vehicle.chargeLimitEnforcedAt) {
+      return { ...vehicle, chargeLimitEnforcedAt: null };
+    }
+    return vehicle;
+  }
+  if (vehicle.batteryPercent + 0.4 < limit) return vehicle;
+
+  const enforcedAt = vehicle.chargeLimitEnforcedAt
+    ? new Date(vehicle.chargeLimitEnforcedAt).getTime()
+    : 0;
+  if (enforcedAt && Date.now() - enforcedAt < 8 * 60_000) {
+    return vehicle;
+  }
+
+  try {
+    return await stopChargeAtLimit(
+      supabase,
+      userId,
+      bundle,
+      vehicle,
+      status,
+    );
+  } catch (error) {
+    console.warn(
+      "charge limit enforce:",
+      error instanceof Error ? error.message : error,
+    );
+    return vehicle;
+  }
+}
+
+async function runLiveChargeLimitCommand(
+  supabase: SupabaseClient,
+  userId: string,
+  bundle: VehicleBundle,
+  limitPercent: number,
+): Promise<CommandResult> {
+  const limit = Math.min(100, Math.max(50, Math.round(limitPercent)));
+  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+  if (!remote.ok) {
+    return { ok: false, message: remote.message, vehicle: bundle.vehicle };
+  }
+
+  let status: unknown = null;
+  try {
+    if (bundle.connection.vehicleApiId && bundle.connection.hasAccessToken) {
+      const { data: connection } = await supabase
+        .from("peugeot_connections")
+        .select(
+          "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
+        )
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (connection?.access_token && connection.vehicle_api_id) {
+        const accessToken = await ensurePeugeotAccessToken(supabase, userId, {
+          accessToken: String(connection.access_token),
+          refreshToken: connection.refresh_token
+            ? String(connection.refresh_token)
+            : null,
+          tokenExpiresAt: connection.token_expires_at
+            ? String(connection.token_expires_at)
+            : null,
+          countryCode: String(connection.country_code ?? "DE"),
+          oauthMeta: asOAuthMeta(connection.oauth_meta),
+          mypeugeotEmail: connection.mypeugeot_email
+            ? String(connection.mypeugeot_email)
+            : null,
+          mypeugeotPasswordEnc: connection.mypeugeot_password_enc
+            ? String(connection.mypeugeot_password_enc)
+            : null,
+        });
+        const { fetchVehicleStatus } = await import("@/lib/stellantis/api");
+        status = await fetchVehicleStatus(
+          accessToken,
+          String(connection.country_code ?? "DE"),
+          String(connection.vehicle_api_id),
+        );
+      }
+    }
+  } catch {
+    // Clock fallback is fine.
+  }
+
+  const { hour, minute } = chargeClockFromStatus(status);
+  const limit80 = limit <= 80;
+
+  try {
+    const { sendChargeTargetType } = await import("@/lib/stellantis/remote");
+    await sendChargeTargetType({
+      customerId: remote.customerId,
+      vin: remote.vin,
+      remoteAccessToken: remote.remoteAccessToken,
+      limit80,
+      hour,
+      minute,
+    });
+  } catch (error) {
+    const raw =
+      error instanceof Error ? error.message : "Ladeziel konnte nicht gesetzt werden.";
+    if (!/Remote-Fehler 400|no\.matching\.service/i.test(raw)) {
+      return {
+        ok: false,
+        message: humanizeChargeLimitError(raw),
+        vehicle: bundle.vehicle,
+      };
+    }
+  }
+
+  let nextVehicle = applyCommandToState(bundle.vehicle, {
+    command: "set_charge_limit",
+    chargeLimitPercent: limit,
+  }).vehicle;
+
+  const shouldStopNow =
+    nextVehicle.chargeStatus === "charging" &&
+    limit < 100 &&
+    nextVehicle.batteryPercent + 0.4 >= limit;
+
+  if (shouldStopNow) {
+    try {
+      nextVehicle = await stopChargeAtLimit(
+        supabase,
+        userId,
+        bundle,
+        nextVehicle,
+        status,
+      );
+    } catch (error) {
+      const raw =
+        error instanceof Error ? error.message : "Laden stoppen fehlgeschlagen.";
+      return {
+        ok: false,
+        message: humanizeChargeLimitError(raw),
+        vehicle: nextVehicle,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    message: limit80
+      ? shouldStopNow
+        ? "Laden auf 80% begrenzt — Ladevorgang gestoppt."
+        : "Laden auf 80% begrenzt."
+      : "Ladeziel auf 100% gesetzt.",
+    vehicle: nextVehicle,
+  };
 }
 
 async function runLiveClimateCommand(

@@ -511,10 +511,13 @@ export function mapStatusToVehicleState(
     chargeLimitKnown = true;
   }
 
-  // Keep preferred in sync with what the vehicle actually reports.
-  const preferredChargeLimitPercent = chargeLimitKnown
-    ? chargeLimitPercent
-    : preferred;
+  // Keep user preference across syncs; vehicle report is informational only.
+  const preferredChargeLimitPercent =
+    base.preferredChargeLimitPercent ?? preferred;
+  const etaLimitPercent =
+    chargeLimitKnown
+      ? Math.min(preferredChargeLimitPercent, chargeLimitPercent)
+      : preferredChargeLimitPercent;
 
   // PSA `chargingRate` / `charging_rate` is km/h of range gain — never kW.
   const rateRaw = Number(
@@ -585,7 +588,7 @@ export function mapStatusToVehicleState(
   ) {
     estimatedFullAt = estimateFullAt(
       batteryPercent,
-      chargeLimitPercent,
+      etaLimitPercent,
       batteryCapacityKwh,
       chargePowerKw,
     );
