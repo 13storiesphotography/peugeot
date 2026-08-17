@@ -61,6 +61,8 @@ export interface VehicleState {
   mileageKm: number;
   lastUpdatedAt: string;
   location: VehicleLocation;
+  /** Last remote stop sent for app charge-limit enforcement (live). */
+  chargeLimitEnforcedAt?: string | null;
 }
 
 export interface CommandRequest {

@@ -20,3 +20,22 @@ export function parseIsoDurationToMinutes(value: unknown): number | null {
   const total = days * 24 * 60 + hours * 60 + minutes + seconds / 60;
   return total > 0 ? total : null;
 }
+
+/** Parse Peugeot `nextDelayedTime` (PT22H30M) into wall-clock hour/minute. */
+export function parseNextDelayedClock(value: unknown): {
+  hour: number;
+  minute: number;
+} {
+  if (typeof value === "string") {
+    const match = /^PT(?:(\d+)H)?(?:(\d+)M)?/i.exec(value.trim());
+    if (match) {
+      const hour = match[1] != null ? Number(match[1]) : 0;
+      const minute = match[2] != null ? Number(match[2]) : 0;
+      if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+        return { hour, minute };
+      }
+    }
+  }
+  const now = new Date();
+  return { hour: now.getHours(), minute: now.getMinutes() };
+}

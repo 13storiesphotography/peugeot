@@ -70,10 +70,15 @@ export function describeVehicleChargeTarget(vehicle: VehicleState): {
   return { label: "—", detail: "" };
 }
 
-/** Mirror of MyPeugeot „Laden auf 80% begrenzen“. */
+/** App toggle — user preference (may differ from vehicle Full/Partial until synced). */
 export function isEightyPercentLimitActive(vehicle: VehicleState): boolean {
-  if (vehicle.chargeLimitKnown) {
-    return vehicle.chargeLimitPercent <= 80;
-  }
   return (vehicle.preferredChargeLimitPercent ?? 80) <= 80;
+}
+
+export function effectiveChargeTargetPercent(vehicle: VehicleState): number {
+  const preferred = vehicle.preferredChargeLimitPercent ?? 80;
+  if (vehicle.chargeLimitKnown) {
+    return Math.min(preferred, vehicle.chargeLimitPercent);
+  }
+  return preferred;
 }

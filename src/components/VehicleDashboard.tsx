@@ -744,7 +744,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "charge" ? (
-        <ChargePanel vehicle={vehicle} chargeCurve={bundle.chargeCurve} />
+        <ChargePanel
+          vehicle={vehicle}
+          busy={busy}
+          chargeCurve={bundle.chargeCurve}
+          onCommand={(command, opts) => void runCommand(command, opts)}
+        />
       ) : null}
 
       {tab === "controls" ? (
