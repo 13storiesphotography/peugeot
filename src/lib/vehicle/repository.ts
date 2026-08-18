@@ -7,6 +7,7 @@ import type {
 import { applyCommandToState, tickChargeState } from "./commands";
 import { createDefaultVehicleState } from "./defaults";
 import { parseNextDelayedClock } from "@/lib/stellantis/duration";
+import { getEntitlement, type Entitlement } from "@/lib/billing/entitlement";
 
 export type VehicleSchedule = {
   id: string;
@@ -83,6 +84,7 @@ export type VehicleBundle = {
   syncError?: string | null;
   /** Present after a manual hard refresh (`?hard=1`). */
   hardRefresh?: HardRefreshInfo;
+  isPro: boolean;
 };
 
 function mapSchedule(row: {
@@ -370,6 +372,7 @@ export type SettingsBundle = {
     "id" | "nickname" | "model" | "color" | "vin" | "mode"
   >;
   connection: PeugeotConnection;
+  entitlement: Entitlement;
 };
 
 export async function getSettingsBundle(
@@ -424,6 +427,7 @@ export async function getSettingsBundle(
       needsReconnect,
       remoteSignalsOk: readRemoteSignalsOk(oauthMeta),
     },
+    entitlement: await getEntitlement(supabase, userId),
   };
 }
 
@@ -434,7 +438,7 @@ async function loadVehicleBundle(
 ): Promise<VehicleBundle> {
   const { vehicleId, vehicle: base } = await ensureVehicle(supabase, userId);
 
-  const [{ data: connection }, { data: schedules }, { data: activity }] =
+  const [{ data: connection }, { data: schedules }, { data: activity }, entitlement] =
     await Promise.all([
       supabase
         .from("peugeot_connections")
@@ -455,6 +459,7 @@ async function loadVehicleBundle(
         .eq("vehicle_id", vehicleId)
         .order("created_at", { ascending: false })
         .limit(12),
+      getEntitlement(supabase, userId),
     ]);
 
   const isLive = Boolean(
@@ -625,6 +630,7 @@ async function loadVehicleBundle(
             schedules: [],
             activity: [],
             chargeCurve: [],
+            isPro: false,
           },
           vehicle,
           status,
@@ -700,6 +706,7 @@ async function loadVehicleBundle(
     })),
     chargeCurve,
     syncError,
+    isPro: entitlement.isPro,
   };
 }
 
@@ -1083,6 +1090,17 @@ export async function runVehicleCommand(
     return live;
   }
 
+  if (request.command === "set_charge_limit") {
+    const entitlement = await getEntitlement(supabase, userId);
+    if (!entitlement.isPro) {
+      return {
+        ok: false,
+        message: "80%-Limit ist Pro — unter Einstellungen freischalten.",
+        vehicle: bundle.vehicle,
+      };
+    }
+  }
+
   if (bundle.vehicle.mode === "live" && request.command === "set_charge_limit") {
     const live = await runLiveChargeLimitCommand(
       supabase,
@@ -1442,6 +1460,8 @@ async function maybeEnforceChargeLimit(
   vehicle: VehicleState,
   status: unknown,
 ): Promise<VehicleState> {
+  const entitlement = await getEntitlement(supabase, userId);
+  if (!entitlement.isPro) return vehicle;
   const limit = vehicle.preferredChargeLimitPercent ?? 80;
   if (limit >= 100) return vehicle;
   if (vehicle.chargeStatus !== "charging") {

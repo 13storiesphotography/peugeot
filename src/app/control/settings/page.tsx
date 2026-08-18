@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions/auth";
+import { confirmCheckoutSession } from "@/app/actions/billing";
 import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
+import { ProUpgradeCard } from "@/components/ProUpgradeCard";
 import { RemotePinForm } from "@/components/RemotePinForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { SyncIntervalForm } from "@/components/SyncIntervalForm";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
+import { founderSpotsTaken } from "@/lib/billing/entitlement";
+import { isStripeConfigured, isStripeTestMode } from "@/lib/billing/stripe";
 import { MFA_GRACE_DAYS } from "@/lib/auth/mfa-policy";
 import { getSettingsBundle } from "@/lib/vehicle/repository";
 
@@ -57,10 +61,20 @@ export default async function SettingsPage({
     ? rawCountry[0]
     : rawCountry;
   const initialOAuthError = Array.isArray(rawMsg) ? rawMsg[0] : rawMsg;
+  const checkoutId = Array.isArray(params.pro_session)
+    ? params.pro_session[0]
+    : params.pro_session;
+  const checkoutNotice = checkoutId
+    ? await confirmCheckoutSession(checkoutId)
+    : params.pro === "cancel" ||
+        (Array.isArray(params.pro) && params.pro[0] === "cancel")
+      ? { error: "Zahlung abgebrochen." }
+      : undefined;
 
   const bundle = await getSettingsBundle(session.supabase, session.userId);
+  const founderTaken = await founderSpotsTaken(session.supabase);
   const mfa = session.mfa;
-  const { connection, vehicle } = bundle;
+  const { connection, vehicle, entitlement } = bundle;
 
   const mfaTone =
     mfa.status === "ok" ? "ok" : mfa.status === "enroll_optional" ? "warn" : "off";
@@ -84,6 +98,8 @@ export default async function SettingsPage({
 
   const remoteTone = connection.remoteReady ? "ok" : "off";
   const remoteLabel = connection.remoteReady ? "Freigeschaltet" : "Nicht eingerichtet";
+  const proTone = entitlement.isPro ? "ok" : "off";
+  const proLabel = entitlement.isPro ? "Aktiv" : "Free";
 
   return (
     <main className="min-h-dvh pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -166,9 +182,24 @@ export default async function SettingsPage({
               ) : null}
             </div>
           </div>
+          <div className="flex items-start gap-3 px-4 py-3.5">
+            <StatusDot tone={proTone} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Pro</p>
+              <p className="text-xs text-[var(--fg-muted)]">{proLabel}</p>
+            </div>
+          </div>
         </section>
 
         <div className="mt-6 space-y-4">
+          <ProUpgradeCard
+            entitlement={entitlement}
+            founderTaken={founderTaken}
+            stripeReady={isStripeConfigured()}
+            stripeTest={isStripeTestMode()}
+            notice={checkoutNotice}
+          />
+
           <section className="animate-rise-delay-2 ui-surface p-4 sm:p-5">
             <PeugeotConnectForm
               connection={connection}

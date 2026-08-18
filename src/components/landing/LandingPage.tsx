@@ -1,5 +1,6 @@
 import { AuthForm } from "@/components/AuthForm";
 import { LandingScreens } from "@/components/landing/LandingScreens";
+import { PricingSection } from "@/components/landing/PricingSection";
 import { SiteFooter } from "@/components/SiteFooter";
 
 const features = [
@@ -70,9 +71,11 @@ const steps = [
 export function LandingPage({
   publicSignup,
   denied,
+  founderTaken = 0,
 }: {
   publicSignup: boolean;
   denied?: boolean;
+  founderTaken?: number;
 }) {
   return (
     <div className="relative min-h-dvh overflow-x-hidden">
@@ -94,6 +97,9 @@ export function LandingPage({
           </a>
           <a href="#vorteile" className="hover:text-[var(--fg)]">
             Vorteile
+          </a>
+          <a href="#preise" className="hover:text-[var(--fg)]">
+            Preise
           </a>
           <a href="#start" className="hover:text-[var(--fg)]">
             Starten
@@ -199,6 +205,8 @@ export function LandingPage({
             </ul>
           </div>
         </section>
+
+        <PricingSection founderTaken={founderTaken} />
 
         <section className="border-t border-[var(--line)] bg-black/15 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">

@@ -15,6 +15,7 @@ interface ChargePanelProps {
   vehicle: VehicleState;
   busy: boolean;
   chargeCurve?: ChargeSample[];
+  isPro?: boolean;
   onCommand: (
     command: VehicleCommand,
     opts?: { chargeLimitPercent?: number },
@@ -41,13 +42,16 @@ export function ChargePanel({
   vehicle,
   busy,
   chargeCurve = [],
+  isPro = false,
   onCommand,
 }: ChargePanelProps) {
   const charging = vehicle.chargeStatus === "charging";
   const live = vehicle.mode === "live";
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
-  const eightyOn = isEightyPercentLimitActive(vehicle);
-  const targetPercent = effectiveChargeTargetPercent(vehicle);
+  const eightyOn = isPro && isEightyPercentLimitActive(vehicle);
+  const targetPercent = isPro
+    ? effectiveChargeTargetPercent(vehicle)
+    : 100;
   const vehicleReportsFull =
     live &&
     vehicle.chargeLimitKnown &&
@@ -99,40 +103,62 @@ export function ChargePanel({
         className={`ui-surface flex items-center justify-between gap-4 px-4 py-4 ${eightyOn ? "ui-surface-active" : ""}`}
       >
         <div className="min-w-0">
-          <p className="font-semibold">Limit 80%</p>
+          <p className="font-semibold">
+            Limit 80%{" "}
+            {isPro ? null : (
+              <span className="ml-1 rounded-full bg-[var(--accent-bright)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-bright)]">
+                Pro
+              </span>
+            )}
+          </p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            {live
-              ? eightyOn
-                ? vehicleReportsFull
-                  ? "App begrenzt auf 80% — Fahrzeug meldet noch 100%"
-                  : "Aktiv — stoppt beim Erreichen von 80%"
-                : "Aus — lädt bis 100%"
-              : "Schont die Batterie im Alltag"}
+            {!isPro
+              ? "Founder / Pro — stoppt zuverlässig bei 80%"
+              : live
+                ? eightyOn
+                  ? vehicleReportsFull
+                    ? "App begrenzt auf 80% — Fahrzeug meldet noch 100%"
+                    : "Aktiv — stoppt beim Erreichen von 80%"
+                  : "Aus — lädt bis 100%"
+                : "Schont die Batterie im Alltag"}
           </p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={eightyOn}
-          disabled={busy}
-          title={live ? "Ladeziel per Fernbedienung umschalten" : undefined}
-          onClick={() =>
-            onCommand("set_charge_limit", {
-              chargeLimitPercent: eightyOn ? 100 : 80,
-            })
-          }
-          className="action-btn relative h-8 w-14 shrink-0 rounded-full transition disabled:opacity-55"
-          style={{
-            background: eightyOn
-              ? "linear-gradient(135deg, #5fe3c0, #3da8a0)"
-              : "rgba(143,168,181,0.25)",
-          }}
-        >
-          <span
-            className="absolute top-1 h-6 w-6 rounded-full bg-white shadow transition"
-            style={{ left: eightyOn ? "1.75rem" : "0.25rem" }}
-          />
-        </button>
+        {isPro ? (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={eightyOn}
+            disabled={busy}
+            title={live ? "Ladeziel per Fernbedienung umschalten" : undefined}
+            onClick={() =>
+              onCommand("set_charge_limit", {
+                chargeLimitPercent: eightyOn ? 100 : 80,
+              })
+            }
+            className="action-btn relative h-8 w-14 shrink-0 rounded-full transition disabled:opacity-55"
+            style={{
+              background: eightyOn
+                ? "linear-gradient(135deg, #5fe3c0, #3da8a0)"
+                : "rgba(143,168,181,0.25)",
+            }}
+          >
+            <span
+              className="absolute top-1 h-6 w-6 rounded-full bg-white shadow transition"
+              style={{ left: eightyOn ? "1.75rem" : "0.25rem" }}
+            />
+          </button>
+        ) : (
+          <a
+            href="/control/settings#pro"
+            className="action-btn shrink-0 rounded-full px-3 py-2 text-xs font-semibold"
+            style={{
+              background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
+              color: "#031016",
+            }}
+          >
+            Freischalten
+          </a>
+        )}
       </div>
 
       {charging ? (
