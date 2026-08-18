@@ -48,6 +48,9 @@ export async function proxy(request: NextRequest) {
     path === "/auth/confirm" || path.startsWith("/auth/confirm/");
   const isAuthPage = path === "/";
   const isResetPage = path === "/auth/reset" || path.startsWith("/auth/reset/");
+  const isCancelRecovery =
+    path === "/auth/cancel-recovery" ||
+    path.startsWith("/auth/cancel-recovery/");
   const isMfaPage = path === "/mfa" || path.startsWith("/mfa/");
   const isProtected =
     path.startsWith("/control") || path.startsWith("/api/vehicle");
@@ -121,7 +124,15 @@ export async function proxy(request: NextRequest) {
     mfaDecision = await getMfaDecision(supabase);
   }
 
-  if (recovering && (isProtected || isAuthPage || isMfaPage) && !isResetPage) {
+  // Keep `/control` behind the reset form, but never trap `/` (login / PWA
+  // escape) or the cancel route — otherwise the home-screen app loops on
+  // "Neues Passwort" and "Zurück zur Anmeldung" cannot leave.
+  if (
+    recovering &&
+    (isProtected || isMfaPage) &&
+    !isResetPage &&
+    !isCancelRecovery
+  ) {
     if (path.startsWith("/api/")) {
       return NextResponse.json(
         { error: "Password recovery required" },
@@ -146,7 +157,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (isAuthPage && allowed) {
+  if (isAuthPage && allowed && !recovering) {
     const url = request.nextUrl.clone();
     url.pathname =
       mfaDecision && mfaBlocksAccess(mfaDecision) ? "/mfa" : "/control";

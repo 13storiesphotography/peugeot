@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { ResetPasswordForm } from "@/components/ResetPasswordForm";
+import { CancelRecoveryLink } from "@/components/CancelRecoveryLink";
 
 export const dynamic = "force-dynamic";
 
@@ -39,12 +39,7 @@ export default async function ResetPasswordPage({
       <div className="panel mt-8 w-full rounded-[1.75rem] p-6 sm:p-8">
         <ResetPasswordForm invalidLink={invalidLink} tokenHash={tokenHash} />
       </div>
-      <Link
-        href="/#start"
-        className="mt-6 text-center text-sm text-[var(--fg-muted)] underline-offset-2 hover:underline"
-      >
-        Zurück zur Anmeldung
-      </Link>
+      <CancelRecoveryLink className="mt-6 block rounded-full border border-[var(--line)] px-5 py-3 text-center text-sm font-semibold text-[var(--fg)]" />
     </main>
   );
 }

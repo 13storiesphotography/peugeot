@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 import {
   completePasswordReset,
   requestPasswordReset,
@@ -13,6 +12,7 @@ import {
   markPasswordRecoveryInBrowser,
 } from "@/lib/auth/recovery-cookie";
 import { mapPasswordUpdateError } from "@/lib/auth/password-update-error";
+import { CancelRecoveryLink } from "@/components/CancelRecoveryLink";
 
 const initial: AuthState = {};
 
@@ -204,9 +204,7 @@ export function ResetPasswordForm({
           {resetPending ? "Bitte warten…" : "Link senden"}
         </button>
         <p className="text-center text-sm text-[var(--fg-muted)]">
-          <Link href="/#start" className="underline-offset-2 hover:underline">
-            Zurück zur Anmeldung
-          </Link>
+          <CancelRecoveryLink className="font-medium text-[var(--fg)] underline-offset-2 hover:underline" />
         </p>
       </form>
     );
@@ -256,6 +254,9 @@ export function ResetPasswordForm({
       >
         {updatePending ? "Bitte warten…" : "Passwort speichern"}
       </button>
+      <p className="text-center text-sm text-[var(--fg-muted)]">
+        <CancelRecoveryLink className="font-medium text-[var(--fg)] underline-offset-2 hover:underline" />
+      </p>
     </form>
   );
 }
