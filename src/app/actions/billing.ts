@@ -55,7 +55,7 @@ export async function startCheckout(
           currency: "eur",
           unit_amount: PRO_YEAR_CENTS,
           product_data: {
-            name: "E-3008 Control Pro (1 Jahr)",
+            name: "Peugeot Control Pro (1 Jahr)",
             description:
               "Vorklima, Fernbedienung und 80%-Ladelimit für 12 Monate.",
           },

@@ -24,7 +24,7 @@ export function MfaEnrollForm({
       const supabase = createClient();
       const { data, error: enrollError } = await supabase.auth.mfa.enroll({
         factorType: "totp",
-        friendlyName: "E-3008 Control",
+        friendlyName: "Peugeot Control",
       });
       if (cancelled) return;
       if (enrollError || !data) {

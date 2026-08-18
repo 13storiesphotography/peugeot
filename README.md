@@ -1,6 +1,8 @@
-# E-3008 Control
+# Peugeot Control
 
-Web-Steuerung für den **Peugeot E-3008** — im Browser anmelden, Fahrzeugstatus und Befehle bleiben an deinem Konto.
+Web-Steuerung für **Peugeot** mit MyPeugeot — im Browser anmelden, Fahrzeugstatus und Befehle bleiben an deinem Konto.
+
+Aktuell getestet: **E-3008**. Andere Modelle können funktionieren.
 
 ## Features
 

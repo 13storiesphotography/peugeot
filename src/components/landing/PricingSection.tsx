@@ -31,7 +31,7 @@ export function PricingSection() {
           Kostenlos zuschauen. Mit Pro steuern.
         </h2>
         <p className="mt-3 max-w-2xl text-[var(--fg-muted)]">
-          Free zeigt den Stand deines E-3008. Befehle ans Auto — Vorklima,
+          Free zeigt den Stand deines Peugeots. Befehle ans Auto — Vorklima,
           Schloss, 80%-Limit — sind Pro.
         </p>
 

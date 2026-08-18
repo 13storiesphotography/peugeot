@@ -35,7 +35,7 @@ export async function enrollTotpAction() {
 
   const { data, error } = await supabase.auth.mfa.enroll({
     factorType: "totp",
-    friendlyName: "E-3008 Control",
+    friendlyName: "Peugeot Control",
   });
 
   if (error || !data) {

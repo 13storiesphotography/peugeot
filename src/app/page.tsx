@@ -5,13 +5,13 @@ import { isPublicSignupEnabled } from "@/lib/auth/allowlist";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "E-3008 Control — Peugeot E-3008 im Browser steuern",
+  title: "Peugeot Control — Peugeot im Browser steuern",
   description:
-    "Laden, Vorklima und Fernbedienung für den Peugeot E-3008 — klar, schnell und im Browser. Registrieren, MyPeugeot verbinden, loslegen.",
+    "Laden, Vorklima und Fernbedienung für Peugeot — klar, schnell und im Browser. Aktuell getestet am E-3008. Registrieren, MyPeugeot verbinden, loslegen.",
   openGraph: {
-    title: "E-3008 Control",
+    title: "Peugeot Control",
     description:
-      "Dein Peugeot E-3008 im Browser: Laden, Klima, Fernbedienung — übersichtlicher als die Serien-App.",
+      "Dein Peugeot im Browser: Laden, Klima, Fernbedienung — übersichtlicher als die Serien-App. Aktuell getestet am E-3008.",
     type: "website",
   },
 };
