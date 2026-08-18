@@ -7,15 +7,17 @@ import {
   syncPeugeotStatus,
   type ConnectState,
 } from "@/app/actions/peugeot";
+import { useI18n } from "@/components/i18n/I18nProvider";
+import { intlLocale } from "@/i18n/format";
 import { buildPeugeotAuthorizeUrl } from "@/lib/stellantis/authorize-url";
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
 import type { PeugeotConnection } from "@/lib/vehicle/repository";
 
 const initial: ConnectState = {};
 
-function formatSync(iso: string | null): string | null {
+function formatSync(iso: string | null, locale: string): string | null {
   if (!iso) return null;
-  return new Intl.DateTimeFormat("de-DE", {
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -55,6 +57,7 @@ export function PeugeotConnectForm({
   initialOAuthCountry?: string | null;
   initialOAuthError?: string | null;
 }) {
+  const { locale, t } = useI18n();
   const isIos = useIsIos();
   const isMacSafari = useIsMacSafari();
   const [countryCode, setCountryCode] = useState(
@@ -102,30 +105,28 @@ export function PeugeotConnectForm({
     if (!initialOAuthCode || autoStarted) return;
     const code = extractOAuthCode(initialOAuthCode);
     if (!code) {
-      setPasteHint(
-        "Rückkehr ohne gültigen Code — bitte Schritte wiederholen oder Computer nutzen.",
-      );
+      setPasteHint(t("connect.noCodeReturn"));
       return;
     }
     setOauthCode(initialOAuthCode);
     setOpen(true);
     setAutoStarted(true);
-    setPasteHint("Code empfangen — verbinde…");
+    setPasteHint(t("connect.codeReceived"));
     window.history.replaceState({}, "", "/control/settings");
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       codeFormRef.current?.requestSubmit();
     }, 50);
-    return () => window.clearTimeout(t);
-  }, [initialOAuthCode, autoStarted]);
+    return () => window.clearTimeout(timer);
+  }, [initialOAuthCode, autoStarted, t]);
 
   const copyLoginLink = async () => {
     try {
       await navigator.clipboard.writeText(authorizeUrl);
       setLinkCopied(true);
       window.setTimeout(() => setLinkCopied(false), 2500);
-      setPasteHint("Login-Link kopiert — am Computer öffnen.");
+      setPasteHint(t("connect.copiedOpenPc"));
     } catch {
-      setPasteHint("Link konnte nicht kopiert werden.");
+      setPasteHint(t("connect.copyFail"));
     }
   };
 
@@ -144,13 +145,13 @@ export function PeugeotConnectForm({
     try {
       const text = await navigator.clipboard.readText();
       if (!fillFromText(text)) {
-        setPasteHint("Zwischenablage enthält keinen Peugeot-Code.");
+        setPasteHint(t("connect.clipboardNoCode"));
         return;
       }
-      setPasteHint("Code übernommen — „Code einlösen“ tippen.");
+      setPasteHint(t("connect.codeReady"));
       codeRef.current?.focus();
     } catch {
-      setPasteHint("Zwischenablage gesperrt — manuell einfügen.");
+      setPasteHint(t("connect.clipboardBlocked"));
       codeRef.current?.focus();
     }
   };
@@ -163,7 +164,7 @@ export function PeugeotConnectForm({
     setSyncing(false);
   };
 
-  const syncLabel = formatSync(connection.lastSyncAt);
+  const syncLabel = formatSync(connection.lastSyncAt, intlLocale(locale));
   const showForm = !compact || open || connection.needsReconnect;
   const state =
     passwordState.success || passwordState.error
@@ -180,12 +181,12 @@ export function PeugeotConnectForm({
           </h2>
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
             {connection.needsReconnect
-              ? "Anmeldung abgelaufen — bitte neu verbinden."
+              ? t("connect.reconnect")
               : connection.connected
                 ? syncLabel
-                  ? `Verbunden · letzter Sync ${syncLabel}`
-                  : "Verbunden — Sitzung erneuert sich automatisch."
-                : "Konto verbinden für Status und Fernbedienung."}
+                  ? t("connect.connectedSync", { time: syncLabel })
+                  : t("connect.connectedAuto")
+                : t("connect.connectHint")}
           </p>
         </div>
         {compact && connection.connected && !connection.needsReconnect ? (
@@ -195,7 +196,7 @@ export function PeugeotConnectForm({
             className="shrink-0 rounded-full border border-[var(--line)] px-3 py-1.5 text-xs font-semibold text-[var(--fg-muted)]"
             aria-expanded={open}
           >
-            {open ? "Schließen" : "Verwalten"}
+            {open ? t("connect.close") : t("connect.manage")}
           </button>
         ) : null}
       </div>
@@ -203,10 +204,10 @@ export function PeugeotConnectForm({
       {connection.needsReconnect ? (
         <div className="ui-alert mt-4" role="alert">
           <p className="font-semibold text-[var(--danger)]">
-            Neu anmelden erforderlich
+            {t("connect.needLogin")}
           </p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            Mit E-Mail/Passwort verbinden — Sitzung hält sich danach automatisch.
+            {t("connect.needLoginHint")}
           </p>
         </div>
       ) : null}
@@ -216,56 +217,28 @@ export function PeugeotConnectForm({
           <div className="mt-4 rounded-2xl border border-[var(--line)]/80 bg-black/[0.03] p-3 text-xs leading-relaxed text-[var(--fg-muted)]">
             <p className="font-semibold text-[var(--fg)]">
               {isIos
-                ? "Am iPhone: mit E-Mail und Passwort verbinden"
+                ? t("connect.titleIos")
                 : isMacSafari
-                  ? "Am Mac mit Safari verbinden"
-                  : "MyPeugeot verbinden"}
+                  ? t("connect.titleMac")
+                  : t("connect.title")}
             </p>
             {isIos ? (
               <>
-                <p className="mt-1.5">
-                  Safari kann den Peugeot-Code (
-                  <code className="text-[var(--accent-bright)]">mymap://</code>
-                  ) nicht zuverlässig zurückgeben. Deshalb: MyPeugeot E-Mail und
-                  Passwort eingeben — Login läuft serverseitig.
-                </p>
-                <p className="mt-2">
-                  Passwort wird verschlüsselt gespeichert, damit die Sitzung
-                  automatisch erneuert wird (kein erneutes Einloggen alle paar
-                  Stunden). Einmalig an{" "}
-                  <span className="text-[var(--fg)]">stelloauth.tollet.me</span>{" "}
-                  zum Holen des Codes.
-                </p>
+                <p className="mt-1.5">{t("connect.iosBody1")}</p>
+                <p className="mt-2">{t("connect.iosBody2")}</p>
               </>
             ) : (
               <>
-                <p className="mt-1.5">
-                  Am einfachsten: unten E-Mail und Passwort. Passwort wird
-                  verschlüsselt gespeichert, damit die Anmeldung im Hintergrund
-                  frisch bleibt. Alternativ manuell den{" "}
-                  <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>
-                  -Link einlösen.
-                </p>
+                <p className="mt-1.5">{t("connect.desktopBody")}</p>
                 {isMacSafari ? (
                   <details className="mt-2">
                     <summary className="cursor-pointer text-[var(--accent-bright)]">
-                      Manuell in Safari (Adresszeile / Web-Inspektor)
+                      {t("connect.safariManual")}
                     </summary>
                     <ol className="mt-2 list-decimal space-y-1.5 pl-4">
-                      <li>
-                        <strong className="text-[var(--fg)]">Peugeot-Login öffnen</strong>,
-                        einloggen, WEITER.
-                      </li>
-                      <li>
-                        Adresszeile:{" "}
-                        <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
-                        kopieren → unten einlösen.
-                      </li>
-                      <li>
-                        Falls unsichtbar: Entwickler → Web-Inspektor (⌥⌘I) →
-                        Netzwerk → Location-Header mit{" "}
-                        <code className="text-[var(--accent-bright)]">mymap</code>.
-                      </li>
+                      <li>{t("connect.safari1")}</li>
+                      <li>{t("connect.safari2")}</li>
+                      <li>{t("connect.safari3")}</li>
                     </ol>
                   </details>
                 ) : null}
@@ -275,30 +248,30 @@ export function PeugeotConnectForm({
 
           <div className="mt-4 grid gap-3">
             <label className="block text-sm">
-              <span className="text-[var(--fg-muted)]">Land</span>
+              <span className="text-[var(--fg-muted)]">{t("connect.country")}</span>
               <select
                 value={countryCode}
                 onChange={(e) => setCountryCode(e.target.value)}
                 className="mt-1 ui-field"
               >
-                <option value="DE">Deutschland</option>
-                <option value="AT">Österreich</option>
-                <option value="CH">Schweiz</option>
-                <option value="FR">Frankreich</option>
+                <option value="DE">{t("connect.de")}</option>
+                <option value="AT">{t("connect.at")}</option>
+                <option value="CH">{t("connect.ch")}</option>
+                <option value="FR">{t("connect.fr")}</option>
               </select>
             </label>
 
             <div className="rounded-2xl border border-[var(--line)]/80 bg-black/[0.03] p-3">
               <p className="text-sm font-semibold text-[var(--fg)]">
-                Mit E-Mail / Passwort
+                {t("connect.withPassword")}
               </p>
               <p className="mt-1 text-xs text-[var(--fg-muted)]">
-                Empfohlen. Sitzung erneuert sich danach automatisch.
+                {t("connect.withPasswordHint")}
               </p>
               <form action={passwordAction} className="mt-3 grid gap-3">
                 <input type="hidden" name="countryCode" value={countryCode} />
                 <label className="block text-sm">
-                  <span className="text-[var(--fg-muted)]">MyPeugeot E-Mail</span>
+                  <span className="text-[var(--fg-muted)]">{t("connect.myEmail")}</span>
                   <input
                     name="mypeugeotEmail"
                     type="email"
@@ -309,7 +282,7 @@ export function PeugeotConnectForm({
                   />
                 </label>
                 <label className="block text-sm">
-                  <span className="text-[var(--fg-muted)]">Passwort</span>
+                  <span className="text-[var(--fg-muted)]">{t("common.password")}</span>
                   <input
                     name="mypeugeotPassword"
                     type="password"
@@ -323,7 +296,7 @@ export function PeugeotConnectForm({
                   disabled={pending}
                   className="action-btn btn-primary rounded-full px-4 py-2.5 text-sm font-semibold"
                 >
-                  {passwordPending ? "Melde an…" : "Verbinden"}
+                  {passwordPending ? t("connect.signingIn") : t("connect.connect")}
                 </button>
               </form>
             </div>
@@ -336,14 +309,14 @@ export function PeugeotConnectForm({
                   rel="noreferrer"
                   className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
                 >
-                  Peugeot-Login öffnen
+                  {t("connect.openLogin")}
                 </a>
                 <button
                   type="button"
                   onClick={() => void copyLoginLink()}
                   className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
                 >
-                  {linkCopied ? "Login-Link kopiert" : "Login-Link kopieren"}
+                  {linkCopied ? t("connect.linkCopied") : t("connect.copyLink")}
                 </button>
               </div>
             ) : null}
@@ -357,20 +330,18 @@ export function PeugeotConnectForm({
                 disabled={syncing}
                 className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
               >
-                {syncing ? "Aktualisiere…" : "Jetzt syncen"}
+                {syncing ? t("connect.syncing") : t("connect.syncNow")}
               </button>
             </div>
           ) : null}
 
           <details className="mt-4 text-sm" open={Boolean(initialOAuthCode)}>
             <summary className="cursor-pointer text-[var(--accent-bright)]">
-              Alternativ: Code vom Computer einfügen
+              {t("connect.altCode")}
             </summary>
 
             <p className="mt-2 text-xs text-[var(--fg-muted)]">
-              Am Mac/PC Peugeot-Login öffnen → WEITER →{" "}
-              <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
-              kopieren und hier einlösen.
+              {t("connect.altHint")}
             </p>
 
             {isIos ? (
@@ -380,7 +351,7 @@ export function PeugeotConnectForm({
                   onClick={() => void copyLoginLink()}
                   className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
                 >
-                  {linkCopied ? "Login-Link kopiert" : "Login-Link für PC kopieren"}
+                  {linkCopied ? t("connect.linkCopied") : t("connect.copyLinkPc")}
                 </button>
               </div>
             ) : null}
@@ -398,7 +369,7 @@ export function PeugeotConnectForm({
               />
               <label className="block text-sm">
                 <span className="text-[var(--fg-muted)]">
-                  Redirect-URL oder OAuth-Code
+                  {t("connect.pasteLabel")}
                 </span>
                 <textarea
                   ref={codeRef}
@@ -412,7 +383,7 @@ export function PeugeotConnectForm({
                     if (text && extractOAuthCode(text)) {
                       e.preventDefault();
                       fillFromText(text);
-                      setPasteHint("Code erkannt.");
+                      setPasteHint(t("connect.codeDetected"));
                     }
                   }}
                   placeholder="mymap://oauth2redirect/de?code=…"
@@ -429,14 +400,14 @@ export function PeugeotConnectForm({
                   onClick={() => void onPasteClipboard()}
                   className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
                 >
-                  Aus Zwischenablage
+                  {t("connect.pasteClipboard")}
                 </button>
                 <button
                   type="submit"
                   disabled={codePending || !oauthCode.trim()}
                   className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
                 >
-                  {codePending ? "Verbinde…" : "Code einlösen"}
+                  {codePending ? t("connect.connecting") : t("connect.redeem")}
                 </button>
               </div>
             </form>

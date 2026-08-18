@@ -1,6 +1,7 @@
 "use client";
 
 import type { VehicleState } from "@/lib/types";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import {
   normalizeChargeSpeedMode,
   type ChargeSpeedMode,
@@ -8,6 +9,7 @@ import {
 
 /** Side-profile SUV — tinted to live paint, with official Peugeot render when available. */
 export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
+  const { t } = useI18n();
   const locked = vehicle.locked;
   const charging = vehicle.chargeStatus === "charging";
   const plugged =
@@ -28,11 +30,11 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         : hexAlpha(body, 0.28);
 
   const statusParts: string[] = [
-    locked ? "Verriegelt" : "Entriegelt",
+    locked ? t("dash.locked") : t("dash.unlocked"),
   ];
-  if (charging) statusParts.push("Lädt");
-  else if (plugged) statusParts.push("Am Ladekabel");
-  if (climateOn) statusParts.push("Vorklima an");
+  if (charging) statusParts.push(t("dash.charging"));
+  else if (plugged) statusParts.push(t("dash.plugged"));
+  if (climateOn) statusParts.push(t("dash.climateOnShort"));
 
   return (
     <div className="relative mx-auto w-full max-w-md overflow-hidden">

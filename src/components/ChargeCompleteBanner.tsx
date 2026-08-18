@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import type { VehicleState } from "@/lib/types";
 
 const STORAGE_KEY = "e3008.chargeComplete.dismissed";
@@ -18,6 +19,7 @@ export function ChargeCompleteBanner({
   vehicle: VehicleState;
   onOpenCharge: () => void;
 }) {
+  const { t } = useI18n();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -56,10 +58,10 @@ export function ChargeCompleteBanner({
     >
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-[var(--accent-bright)]">
-          Laden fertig · {Math.round(vehicle.batteryPercent)}%
+          {t("charge.completePct", { n: Math.round(vehicle.batteryPercent) })}
         </p>
         <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
-          Ziel {Math.round(vehicle.chargeLimitPercent)}% erreicht
+          {t("charge.targetReached", { n: Math.round(vehicle.chargeLimitPercent) })}
           {vehicle.rangeKm > 0 ? ` · ${vehicle.rangeKm} km` : ""}
         </p>
         <button
@@ -67,16 +69,16 @@ export function ChargeCompleteBanner({
           onClick={onOpenCharge}
           className="mt-2 text-xs font-semibold text-[var(--accent-bright)] underline-offset-2 hover:underline"
         >
-          Zum Laden
+          {t("charge.toCharge")}
         </button>
       </div>
       <button
         type="button"
         onClick={dismiss}
         className="shrink-0 rounded-full px-2 py-1 text-xs text-[var(--fg-muted)]"
-        aria-label="Hinweis schließen"
+        aria-label={t("charge.closeHint")}
       >
-        Schließen
+        {t("charge.close")}
       </button>
     </div>
   );

@@ -2,6 +2,8 @@
 
 import { ChargeCurve } from "@/components/ChargeCurve";
 import { SectionHeader } from "@/components/SectionHeader";
+import { useI18n } from "@/components/i18n/I18nProvider";
+import { intlLocale } from "@/i18n/format";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
 import type { ChargeSample } from "@/lib/vehicle/repository";
 import {
@@ -22,21 +24,13 @@ interface ChargePanelProps {
   ) => void;
 }
 
-function formatEta(iso: string | null): string {
+function formatEta(iso: string | null, locale: string): string {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("de-DE", {
+  return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));
 }
-
-const statusLabel: Record<VehicleState["chargeStatus"], string> = {
-  idle: "Nicht am Ladekabel",
-  plugged: "Am Ladekabel",
-  charging: "Lädt",
-  complete: "Ziel erreicht",
-  error: "Fehler",
-};
 
 export function ChargePanel({
   vehicle,
@@ -45,6 +39,8 @@ export function ChargePanel({
   isPro = false,
   onCommand,
 }: ChargePanelProps) {
+  const { locale, t } = useI18n();
+  const dates = intlLocale(locale);
   const charging = vehicle.chargeStatus === "charging";
   const live = vehicle.mode === "live";
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
@@ -58,11 +54,19 @@ export function ChargePanel({
     vehicle.chargeLimitPercent >= 100 &&
     eightyOn;
 
+  const statusLabel: Record<VehicleState["chargeStatus"], string> = {
+    idle: t("charge.idle"),
+    plugged: t("charge.plugged"),
+    charging: t("charge.charging"),
+    complete: t("charge.complete"),
+    error: t("charge.error"),
+  };
+
   const statusLine = charging
     ? [
-        chargeSpeedLabel(speed),
+        chargeSpeedLabel(speed, t),
         vehicle.chargePowerKw != null
-          ? `${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
+          ? `${vehicle.chargePowerKw.toLocaleString(dates, { maximumFractionDigits: 1 })} kW`
           : null,
       ]
         .filter(Boolean)
@@ -71,7 +75,7 @@ export function ChargePanel({
 
   return (
     <section className="animate-rise space-y-6 pt-2">
-      <SectionHeader title="Laden" hint={statusLine} />
+      <SectionHeader title={t("charge.title")} hint={statusLine} />
 
       <div className="flex flex-col items-center py-2">
         <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tabular-nums leading-none">
@@ -95,7 +99,10 @@ export function ChargePanel({
           />
         </div>
         <p className="mt-3 text-sm text-[var(--fg-muted)]">
-          {vehicle.rangeKm} km Reichweite · Ziel {Math.round(targetPercent)}%
+          {t("charge.rangeTarget", {
+            range: vehicle.rangeKm,
+            n: Math.round(targetPercent),
+          })}
         </p>
       </div>
 
@@ -104,7 +111,7 @@ export function ChargePanel({
       >
         <div className="min-w-0">
           <p className="font-semibold">
-            Limit 80%{" "}
+            {t("charge.limit80")}{" "}
             {isPro ? null : (
               <span className="ml-1 rounded-full bg-[var(--accent-bright)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-bright)]">
                 Pro
@@ -113,14 +120,14 @@ export function ChargePanel({
           </p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
             {!isPro
-              ? "Ansehen frei — Schalten mit Pro"
+              ? t("charge.viewFreePro")
               : live
                 ? eightyOn
                   ? vehicleReportsFull
-                    ? "App begrenzt auf 80% — Fahrzeug meldet noch 100%"
-                    : "Aktiv — stoppt beim Erreichen von 80%"
-                  : "Aus — lädt bis 100%"
-                : "Schont die Batterie im Alltag"}
+                    ? t("charge.appLimits80")
+                    : t("charge.activeStops80")
+                  : t("charge.offTo100")
+                : t("charge.dailyCare")}
           </p>
         </div>
         {isPro ? (
@@ -129,7 +136,7 @@ export function ChargePanel({
             role="switch"
             aria-checked={eightyOn}
             disabled={busy}
-            title={live ? "Ladeziel per Fernbedienung umschalten" : undefined}
+            title={live ? t("charge.toggleLimit") : undefined}
             onClick={() =>
               onCommand("set_charge_limit", {
                 chargeLimitPercent: eightyOn ? 100 : 80,
@@ -156,7 +163,7 @@ export function ChargePanel({
               color: "#031016",
             }}
           >
-            Mit Pro
+            {t("charge.withPro")}
           </a>
         )}
       </div>
@@ -164,12 +171,14 @@ export function ChargePanel({
       {charging ? (
         <div className="ui-surface px-4 py-4 text-center">
           <p className="text-sm font-semibold text-[var(--accent-bright)]">
-            Ladevorgang aktiv
+            {t("charge.sessionActive")}
           </p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            Fertig gegen {formatEta(vehicle.estimatedFullAt)}
+            {t("charge.readyAt", {
+              time: formatEta(vehicle.estimatedFullAt, dates),
+            })}
             {vehicle.chargePowerKw != null
-              ? ` · ${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
+              ? ` · ${vehicle.chargePowerKw.toLocaleString(dates, { maximumFractionDigits: 1 })} kW`
               : ""}
             {vehicle.chargeRateKmh != null && vehicle.chargeRateKmh > 0
               ? ` · +${Math.round(vehicle.chargeRateKmh)} km/h`
@@ -179,13 +188,13 @@ export function ChargePanel({
       ) : (
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div className="ui-surface px-4 py-4">
-            <dt className="text-xs text-[var(--fg-muted)]">Fertig gegen</dt>
+            <dt className="text-xs text-[var(--fg-muted)]">{t("charge.eta")}</dt>
             <dd className="mt-1 font-semibold tabular-nums">
-              {formatEta(vehicle.estimatedFullAt)}
+              {formatEta(vehicle.estimatedFullAt, dates)}
             </dd>
           </div>
           <div className="ui-surface px-4 py-4">
-            <dt className="text-xs text-[var(--fg-muted)]">Reichweite</dt>
+            <dt className="text-xs text-[var(--fg-muted)]">{t("charge.range")}</dt>
             <dd className="mt-1 font-semibold tabular-nums">
               {vehicle.rangeKm} km
             </dd>

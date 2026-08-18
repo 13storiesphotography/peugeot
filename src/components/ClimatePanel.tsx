@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ClimateProgressBanner } from "@/components/ClimateProgressBanner";
 import { SectionHeader } from "@/components/SectionHeader";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
 
 interface ClimatePanelProps {
@@ -32,6 +33,7 @@ export function ClimatePanel({
   onCommand,
   isPro = false,
 }: ClimatePanelProps) {
+  const { t } = useI18n();
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
   const climateRemoteOk = !live || remoteReady;
@@ -41,15 +43,17 @@ export function ClimatePanel({
     ? climateJob!.phaseLabel
     : active
       ? vehicle.climateStatus === "heating"
-        ? "Vorklima · heizt"
+        ? t("climate.heating")
         : vehicle.climateStatus === "cooling"
-          ? "Vorklima · kühlt"
-          : "Vorklima aktiv"
-      : "Fernstart für Vorklima";
+          ? t("climate.cooling")
+          : t("climate.active")
+      : t("climate.remoteStart");
+
+  const setupParts = t("climate.setupRemote").split("{settings}");
 
   return (
     <section className="animate-rise space-y-6 pt-2">
-      <SectionHeader title="Klima" hint={statusHint} />
+      <SectionHeader title={t("climate.title")} hint={statusHint} />
 
       {climateJob ? (
         <ClimateProgressBanner
@@ -61,7 +65,7 @@ export function ClimatePanel({
       ) : active ? (
         <div className="ui-surface px-4 py-4 text-center">
           <p className="text-sm font-semibold text-[var(--accent-bright)]">
-            Vorklima läuft
+            {t("climate.running")}
           </p>
         </div>
       ) : null}
@@ -77,36 +81,40 @@ export function ClimatePanel({
         style={{ opacity: climateRemoteOk ? 1 : 0.55 }}
       >
         {pending
-          ? "Bitte warten…"
+          ? t("climate.wait")
           : active
-            ? "Vorklima stoppen"
-            : "Vorklima starten"}
+            ? t("climate.stopClimate")
+            : t("climate.start")}
       </button>
       ) : (
         <a
           href="/control/settings#pro"
           className="action-btn btn-primary block w-full rounded-full px-5 py-4 text-center text-sm font-semibold"
         >
-          Mit Pro steuern
+          {t("climate.controlWithPro")}
         </a>
       )}
 
       {!climateRemoteOk ? (
         <p className="text-center text-xs text-[var(--fg-muted)]">
-          Einmal unter{" "}
+          {setupParts[0]}
           <Link
             href="/control/settings"
             className="text-[var(--accent-bright)] underline-offset-2 hover:underline"
           >
-            Einstellungen
-          </Link>{" "}
-          die Fernbedienung einrichten.
+            {t("climate.settings")}
+          </Link>
+          {setupParts[1] ?? ""}
         </p>
       ) : (
         <p className="text-center text-xs text-[var(--fg-muted)]">
           {pending
-            ? "Nicht erneut tippen — das Auto bestätigt oft erst nach 30–60 Sekunden."
-            : `Außen ${formatTemp(vehicle.outdoorTempC)}${live ? "" : " · Demo"}`}
+            ? t("climate.dontTap")
+            : live
+              ? t("climate.outdoor", { temp: formatTemp(vehicle.outdoorTempC) })
+              : t("climate.outdoorDemo", {
+                  temp: formatTemp(vehicle.outdoorTempC),
+                })}
         </p>
       )}
     </section>

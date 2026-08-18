@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
+import { getTranslator } from "@/i18n/server";
 import {
   updateSyncInterval,
   updateVehicleProfile,
@@ -16,9 +17,10 @@ export async function saveVehicleSettings(
   _prev: SettingsState,
   formData: FormData,
 ): Promise<SettingsState> {
+  const { t } = await getTranslator();
   const session = await assertOwnerSession();
   if (!session) {
-    return { error: "Nicht angemeldet." };
+    return { error: t("settings.notSignedIn") };
   }
 
   const nickname = String(formData.get("nickname") ?? "").trim();
@@ -26,7 +28,7 @@ export async function saveVehicleSettings(
   const vin = String(formData.get("vin") ?? "").trim();
 
   if (!nickname) {
-    return { error: "Spitzname fehlt." };
+    return { error: t("settings.nicknameMissing") };
   }
 
   try {
@@ -37,10 +39,10 @@ export async function saveVehicleSettings(
     });
     revalidatePath("/control");
     revalidatePath("/control/settings");
-    return { success: "Profil gespeichert." };
+    return { success: t("settings.saved") };
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Speichern fehlgeschlagen.",
+      error: error instanceof Error ? error.message : t("settings.saveFailed"),
     };
   }
 }
@@ -54,9 +56,10 @@ export async function saveSyncIntervalAction(
   _prev: SettingsState,
   formData: FormData,
 ): Promise<SettingsState> {
+  const { t } = await getTranslator();
   const session = await assertOwnerSession();
   if (!session) {
-    return { error: "Nicht angemeldet." };
+    return { error: t("settings.notSignedIn") };
   }
 
   const raw = Number(formData.get("syncIntervalSec"));
@@ -71,15 +74,15 @@ export async function saveSyncIntervalAction(
     return {
       success:
         sec < 60
-          ? `Aktualisierung alle ${sec} Sekunden.`
-          : `Aktualisierung alle ${Math.round(sec / 60)} Minute${sec >= 120 ? "n" : ""}.`,
+          ? t("settings.syncEverySec", { n: sec })
+          : t("settings.syncEveryMin", { n: Math.round(sec / 60) }),
     };
   } catch (error) {
     return {
       error:
         error instanceof Error
           ? error.message
-          : "Intervall konnte nicht gespeichert werden.",
+          : t("settings.intervalSaveFail"),
     };
   }
 }

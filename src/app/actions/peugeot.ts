@@ -16,6 +16,7 @@ import { capturePeugeotOAuthCodeRemote } from "@/lib/stellantis/oauth-remote";
 import { encryptPeugeotPassword } from "@/lib/stellantis/credential-vault";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
+import { getTranslator } from "@/i18n/server";
 
 export type ConnectState = {
   error?: string;
@@ -40,6 +41,7 @@ async function persistPeugeotConnection(
     mypeugeotPassword?: string;
   },
 ): Promise<ConnectState> {
+  const { t } = await getTranslator();
   const tokens = await exchangeAuthorizationCode(
     input.countryCode,
     input.oauthCode,
@@ -47,8 +49,7 @@ async function persistPeugeotConnection(
   const vehicles = await listVehicles(tokens.accessToken, input.countryCode);
   if (vehicles.length === 0) {
     return {
-      error:
-        "Login ok, aber kein Fahrzeug gefunden. Prüfe, ob das Auto in MyPeugeot sichtbar ist.",
+      error: t("connect.noVehicle"),
     };
   }
 
@@ -163,9 +164,10 @@ export async function connectPeugeotWithCode(
   _prev: ConnectState,
   formData: FormData,
 ): Promise<ConnectState> {
+  const { t } = await getTranslator();
   const session = await assertOwnerSession();
   if (!session) {
-    return { error: "Nicht angemeldet." };
+    return { error: t("settings.notSignedIn") };
   }
   const { supabase, userId } = session;
 
@@ -177,13 +179,11 @@ export async function connectPeugeotWithCode(
   if (!oauthCode) {
     if (/id-dcr\.peugeot\.com|authorize-consentments|gotoparam=/i.test(oauthRaw)) {
       return {
-        error:
-          "Das ist noch die Peugeot-Login-Seite — darin steckt kein Code. Am iPhone zeigt Safari die mymap://-Adresse nicht. Login-Link am Computer öffnen, nach „Weiter“ die fehlgeschlagene mymap://-Adresse kopieren und hier einfügen.",
+        error: t("connect.invalidLoginPage"),
       };
     }
     return {
-      error:
-        "Kein Code gefunden. Am zuverlässigsten: Login-Link am Computer öffnen, nach „Weiter“ die mymap://…-Adresse kopieren und hier einfügen.",
+      error: t("connect.noCode"),
     };
   }
 
@@ -198,7 +198,7 @@ export async function connectPeugeotWithCode(
       error:
         error instanceof Error
           ? error.message
-          : "Verbindung fehlgeschlagen. Code ggf. abgelaufen – neu anmelden.",
+          : t("connect.failed"),
     };
   }
 }
@@ -208,9 +208,10 @@ export async function connectPeugeotWithPassword(
   _prev: ConnectState,
   formData: FormData,
 ): Promise<ConnectState> {
+  const { t } = await getTranslator();
   const session = await assertOwnerSession();
   if (!session) {
-    return { error: "Nicht angemeldet." };
+    return { error: t("settings.notSignedIn") };
   }
   const { supabase, userId } = session;
 
@@ -219,7 +220,7 @@ export async function connectPeugeotWithPassword(
   const password = String(formData.get("mypeugeotPassword") ?? "");
 
   if (!email || !password) {
-    return { error: "MyPeugeot E-Mail und Passwort eingeben." };
+    return { error: t("connect.needPassword") };
   }
 
   try {
@@ -266,15 +267,16 @@ export async function connectPeugeotWithPassword(
       error:
         error instanceof Error
           ? error.message
-          : "Automatische Anmeldung fehlgeschlagen.",
+          : t("connect.autoFail"),
     };
   }
 }
 
 export async function syncPeugeotStatus(): Promise<ConnectState> {
+  const { t } = await getTranslator();
   const session = await assertOwnerSession();
   if (!session) {
-    return { error: "Nicht angemeldet." };
+    return { error: t("settings.notSignedIn") };
   }
   const { supabase, userId } = session;
 
@@ -288,7 +290,7 @@ export async function syncPeugeotStatus(): Promise<ConnectState> {
     .maybeSingle();
 
   if (!connection?.connected || !connection.access_token || !connection.vehicle_api_id) {
-    return { error: "Noch nicht verbunden." };
+    return { error: t("connect.notYet") };
   }
 
   try {
@@ -384,7 +386,7 @@ export async function syncPeugeotStatus(): Promise<ConnectState> {
     return { success: "Status aktualisiert." };
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Sync fehlgeschlagen.",
+      error: error instanceof Error ? error.message : t("connect.autoFail"),
     };
   }
 }

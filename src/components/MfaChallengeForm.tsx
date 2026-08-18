@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/components/i18n/I18nProvider";
 
 export function MfaChallengeForm() {
+  const { t } = useI18n();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -16,7 +18,7 @@ export function MfaChallengeForm() {
       const factors = await supabase.auth.mfa.listFactors();
       if (factors.error) throw factors.error;
       const totp = factors.data.totp.find((f) => f.status === "verified");
-      if (!totp) throw new Error("Kein aktiver MFA-Faktor gefunden.");
+      if (!totp) throw new Error(t("mfa.noFactor"));
 
       const challenge = await supabase.auth.mfa.challenge({ factorId: totp.id });
       if (challenge.error) throw challenge.error;
@@ -30,7 +32,7 @@ export function MfaChallengeForm() {
 
       window.location.href = "/control";
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Code ungültig.");
+      setError(e instanceof Error ? e.message : t("mfa.invalidCode"));
     } finally {
       setPending(false);
     }
@@ -39,15 +41,15 @@ export function MfaChallengeForm() {
   return (
     <div className="panel w-full max-w-md rounded-[1.75rem] p-6 sm:p-8">
       <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
-        MFA-Bestätigung
+        {t("mfa.confirmTitle")}
       </h2>
       <p className="mt-2 text-sm text-[var(--fg-muted)]">
-        Gib den Code aus deiner Authenticator-App ein.
+        {t("mfa.enterCode")}
       </p>
 
       <label className="mt-6 block">
         <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-          6-stelliger Code
+          {t("mfa.sixDigit")}
         </span>
         <input
           inputMode="numeric"
@@ -75,7 +77,7 @@ export function MfaChallengeForm() {
           color: "#031016",
         }}
       >
-        {pending ? "Prüfe…" : "Bestätigen"}
+        {pending ? t("mfa.checking") : t("mfa.confirm")}
       </button>
     </div>
   );

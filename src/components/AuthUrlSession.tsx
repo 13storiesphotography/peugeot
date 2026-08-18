@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/components/i18n/I18nProvider";
 
 function hasAuthPayload(): boolean {
   if (typeof window === "undefined") return false;
@@ -31,6 +32,7 @@ function otpType(raw: string | null): EmailOtpType {
 /** Completes email-confirm / magic-link sessions that arrive as ?code= or #access_token=. */
 export function AuthUrlSession() {
   const [busy, setBusy] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (window.location.pathname.startsWith("/auth/reset")) return;
@@ -100,7 +102,7 @@ export function AuthUrlSession() {
       className="fixed inset-0 z-[100] grid place-items-center bg-[#071018]/92 px-6 text-center text-sm text-[var(--fg)]"
       role="status"
     >
-      Konto wird bestätigt…
+      {t("auth.confirming")}
     </div>
   );
 }

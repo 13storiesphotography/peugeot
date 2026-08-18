@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { VehicleCommand } from "@/lib/types";
+import { useI18n } from "@/components/i18n/I18nProvider";
 
 interface QuickActionsProps {
   locked: boolean;
@@ -33,6 +34,7 @@ export function QuickActions({
   onCommand,
   onOpenClimate,
 }: QuickActionsProps) {
+  const { t } = useI18n();
   const showSignals = remoteSignalsOk !== false;
   const goPro = () => {
     window.location.href = "/control/settings#pro";
@@ -40,7 +42,7 @@ export function QuickActions({
 
   const climate: Action = {
     id: "climate",
-    label: climateOn ? "Vorklima aus" : "Vorklima",
+    label: climateOn ? t("dash.climateOn") : t("dash.climateOff"),
     active: climateOn,
     icon: <IconClimate />,
     onClick: () => {
@@ -64,7 +66,7 @@ export function QuickActions({
     ? [
         {
           id: "lock",
-          label: locked ? "Entriegeln" : "Verriegeln",
+          label: locked ? t("dash.unlock") : t("dash.lock"),
           active: !locked,
           icon: <IconLock locked={locked} />,
           onClick: () => (isPro ? onCommand(locked ? "unlock" : "lock") : goPro()),
@@ -72,7 +74,7 @@ export function QuickActions({
         climate,
         {
           id: "flash",
-          label: "Finden",
+          label: t("dash.find"),
           icon: <IconFind />,
           onClick: () => (isPro ? onCommand("flash") : goPro()),
         },
@@ -81,7 +83,7 @@ export function QuickActions({
         climate,
         {
           id: "wakeup",
-          label: "Wecken",
+          label: t("dash.wake"),
           icon: <IconWake />,
           onClick: () => (isPro ? onCommand("wakeup") : goPro()),
         },

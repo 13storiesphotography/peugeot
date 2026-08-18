@@ -20,4 +20,4 @@ export function commandRequiresPro(command: VehicleCommand): boolean {
 }
 
 export const PRO_REQUIRED_MESSAGE =
-  "Steuern ist Pro — unter Einstellungen freischalten.";
+  "Controls are Pro — unlock under Settings.";

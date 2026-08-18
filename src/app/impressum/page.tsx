@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/SiteFooter";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { getTranslator } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: "Impressum · Peugeot Control",
-  description: "Angaben gemäß § 5 DDG zum Anbieter von Peugeot Control.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslator();
+  return {
+    title: `${t("legal.title")} · Peugeot Control`,
+    description: t("legal.lead"),
+  };
+}
 
-export default function ImpressumPage() {
+export default async function ImpressumPage() {
+  const { t } = await getTranslator();
   return (
     <div className="relative min-h-dvh overflow-x-hidden">
       <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-6 pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-6">
@@ -17,29 +23,29 @@ export default function ImpressumPage() {
         >
           Peugeot Control
         </Link>
-        <Link
-          href="/"
-          className="text-sm text-[var(--fg-muted)] hover:text-[var(--fg)]"
-        >
-          Zur Startseite
-        </Link>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher compact />
+          <Link
+            href="/"
+            className="text-sm text-[var(--fg-muted)] hover:text-[var(--fg)]"
+          >
+            {t("legal.backHome")}
+          </Link>
+        </div>
       </header>
 
       <article className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-6">
         <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-          Rechtliches
+          {t("legal.kicker")}
         </p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight">
-          Impressum
+          {t("legal.title")}
         </h1>
-        <p className="mt-3 text-sm text-[var(--fg-muted)]">
-          Anbieterkennzeichnung für die Web-App Peugeot Control
-          (peugeotcontrol.app). Aktuell getestet am Peugeot E-3008.
-        </p>
+        <p className="mt-3 text-sm text-[var(--fg-muted)]">{t("legal.lead")}</p>
 
         <section className="panel mt-10 rounded-2xl p-6 sm:p-8">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-            Angaben gemäß § 5 DDG
+            {t("legal.section5")}
           </h2>
           <p className="mt-3 text-sm leading-relaxed">
             Florian Knoll
@@ -48,13 +54,10 @@ export default function ImpressumPage() {
             <br />
             82327 Tutzing
             <br />
-            Deutschland
+            {t("legal.germany")}
           </p>
           <p className="mt-4 text-sm text-[var(--fg-muted)]">
-            Verantwortlich für das Angebot Peugeot Control, eine inoffizielle
-            Steuerungs-Oberfläche für Peugeot-Fahrzeuge (aktuell getestet am
-            E-3008). Keine Verbindung zu
-            Stellantis N.V., Peugeot oder verbundenen Marken.
+            {t("legal.responsible")}
           </p>
         </section>
 
@@ -80,19 +83,19 @@ export default function ImpressumPage() {
 
         <section className="panel mt-4 rounded-2xl p-6 sm:p-8">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-            Umsatzsteuer-ID
+            {t("legal.vat")}
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-[var(--fg-muted)]">
-            Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz:
+            {t("legal.vatBody")}
           </p>
           <p className="mt-2 text-sm">DE 54968762136</p>
         </section>
 
         <section className="panel mt-4 rounded-2xl p-6 sm:p-8">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-            Berufshaftpflichtversicherung
+            {t("legal.insurance")}
           </h2>
-          <p className="mt-3 text-sm font-semibold">Name und Sitz des Versicherers</p>
+          <p className="mt-3 text-sm font-semibold">{t("legal.insurer")}</p>
           <p className="mt-1 text-sm leading-relaxed">
             erpam GmbH
             <br />
@@ -100,17 +103,16 @@ export default function ImpressumPage() {
             <br />
             82319 Starnberg
           </p>
-          <p className="mt-4 text-sm font-semibold">Geltungsraum der Versicherung</p>
-          <p className="mt-1 text-sm">Deutschland</p>
+          <p className="mt-4 text-sm font-semibold">{t("legal.coverage")}</p>
+          <p className="mt-1 text-sm">{t("legal.germany")}</p>
         </section>
 
         <section className="panel mt-4 rounded-2xl p-6 sm:p-8">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-            Verbraucherstreitbeilegung
+            {t("legal.dispute")}
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-[var(--fg-muted)]">
-            Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren
-            vor einer Verbraucherschlichtungsstelle teilzunehmen.
+            {t("legal.disputeBody")}
           </p>
         </section>
       </article>

@@ -1,22 +1,24 @@
 "use client";
 
 import type { VehicleState } from "@/lib/types";
+import { useI18n } from "@/components/i18n/I18nProvider";
+import { intlLocale } from "@/i18n/format";
 import {
   chargeSpeedLabel,
   normalizeChargeSpeedMode,
 } from "@/lib/stellantis/charge-mode";
 
-function formatEta(iso: string | null): string {
+function formatEta(iso: string | null, locale: string): string {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("de-DE", {
+  return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));
 }
 
-function formatKw(kw: number | null): string | null {
+function formatKw(kw: number | null, locale: string): string | null {
   if (kw == null || !Number.isFinite(kw)) return null;
-  return `${kw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`;
+  return `${kw.toLocaleString(locale, { maximumFractionDigits: 1 })} kW`;
 }
 
 function formatRate(kmh: number | null): string | null {
@@ -26,15 +28,19 @@ function formatRate(kmh: number | null): string | null {
 
 /** Compact live metrics while the car is charging — home overview. */
 export function ChargeLiveStrip({ vehicle }: { vehicle: VehicleState }) {
+  const { locale, t } = useI18n();
   if (vehicle.chargeStatus !== "charging") return null;
 
+  const dates = intlLocale(locale);
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
   const parts = [
-    chargeSpeedLabel(speed),
-    formatKw(vehicle.chargePowerKw),
+    chargeSpeedLabel(speed, t),
+    formatKw(vehicle.chargePowerKw, dates),
     formatRate(vehicle.chargeRateKmh),
     vehicle.estimatedFullAt
-      ? `fertig ~${formatEta(vehicle.estimatedFullAt)}`
+      ? t("charge.readyAround", {
+          time: formatEta(vehicle.estimatedFullAt, dates),
+        })
       : null,
   ].filter(Boolean);
 
@@ -58,10 +64,10 @@ export function ChargeLiveStrip({ vehicle }: { vehicle: VehicleState }) {
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold" style={{ color: accent }}>
-          Lädt · {Math.round(vehicle.batteryPercent)}%
+          {t("charge.chargingPct", { n: Math.round(vehicle.batteryPercent) })}
         </p>
         <p className="text-xs tabular-nums text-[var(--fg-muted)]">
-          Ziel {Math.round(vehicle.chargeLimitPercent)}%
+          {t("charge.target", { n: Math.round(vehicle.chargeLimitPercent) })}
         </p>
       </div>
       <p className="mt-1 text-xs text-[var(--fg-muted)]">{parts.join(" · ")}</p>

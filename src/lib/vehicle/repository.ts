@@ -10,8 +10,9 @@ import { parseNextDelayedClock } from "@/lib/stellantis/duration";
 import { getEntitlement, type Entitlement } from "@/lib/billing/entitlement";
 import {
   commandRequiresPro,
-  PRO_REQUIRED_MESSAGE,
 } from "@/lib/billing/pro-commands";
+import { getTranslator } from "@/i18n/server";
+import type { Translator } from "@/i18n/translate";
 
 export type VehicleSchedule = {
   id: string;
@@ -440,6 +441,7 @@ async function loadVehicleBundle(
   userId: string,
   options: { forceSync?: boolean } = {},
 ): Promise<VehicleBundle> {
+  const { t } = await getTranslator();
   const { vehicleId, vehicle: base } = await ensureVehicle(supabase, userId);
 
   const [{ data: connection }, { data: schedules }, { data: activity }, entitlement] =
@@ -511,7 +513,7 @@ async function loadVehicleBundle(
     syncError =
       typeof oauthMeta.authError === "string" && oauthMeta.authError
         ? oauthMeta.authError
-        : "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.";
+        : t("cmd.authExpired");
   } else if (shouldSync && connection?.vehicle_api_id && connection.access_token) {
     try {
       const {
@@ -680,7 +682,7 @@ async function loadVehicleBundle(
   const chargeCurve = await loadChargeCurve(supabase, vehicleId);
   const reconnectNeeded =
     needsReconnect ||
-    Boolean(syncError && /neu verbinden|abgelaufen|invalid_grant|grant invalid/i.test(syncError));
+    Boolean(syncError && /neu verbinden|abgelaufen|invalid_grant|grant invalid|reconnect|expired/i.test(syncError));
 
   return {
     vehicleId,
@@ -733,6 +735,7 @@ async function hardRefreshVehicle(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<VehicleBundle> {
+  const { t } = await getTranslator();
   const before = await loadVehicleBundle(supabase, userId, { forceSync: true });
   const prevUpdatedAt = before.vehicle.lastUpdatedAt;
 
@@ -744,8 +747,8 @@ async function hardRefreshVehicle(
         wakeAttempted: false,
         wakeOk: null,
         wakeSkippedReason: before.connection.needsReconnect
-          ? "MyPeugeot-Anmeldung abgelaufen."
-          : "Nicht mit MyPeugeot verbunden.",
+          ? t("cmd.authExpiredShort")
+          : t("cmd.notConnected"),
         ageMinutes: ageMinutesFromIso(before.vehicle.lastUpdatedAt),
         improved: false,
       },
@@ -759,7 +762,7 @@ async function hardRefreshVehicle(
         statusOk: true,
         wakeAttempted: false,
         wakeOk: null,
-        wakeSkippedReason: "Demo-Modus — kein Fahrzeug-Wake.",
+        wakeSkippedReason: t("cmd.demoNoWake"),
         ageMinutes: ageMinutesFromIso(before.vehicle.lastUpdatedAt),
         improved: false,
       },
@@ -872,6 +875,7 @@ async function ensurePeugeotAccessToken(
     mypeugeotPasswordEnc?: string | null;
   },
 ): Promise<string> {
+  const { t } = await getTranslator();
   const {
     humanizePeugeotOAuthError,
     isPeugeotAuthFailure,
@@ -904,7 +908,7 @@ async function ensurePeugeotAccessToken(
       typeof current.oauthMeta.authError === "string" &&
         current.oauthMeta.authError
         ? current.oauthMeta.authError
-        : "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.",
+        : t("cmd.authExpired"),
     );
   }
 
@@ -921,7 +925,7 @@ async function ensurePeugeotAccessToken(
     );
     if (healed) return healed;
     throw new Error(
-      "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.",
+      t("cmd.authExpired"),
     );
   }
 
@@ -948,7 +952,7 @@ async function ensurePeugeotAccessToken(
     throw new Error(
       typeof freshMeta.authError === "string" && freshMeta.authError
         ? freshMeta.authError
-        : "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.",
+        : t("cmd.authExpired"),
     );
   }
 
@@ -1034,6 +1038,7 @@ export async function runVehicleCommand(
   userId: string,
   request: CommandRequest,
 ): Promise<CommandResult> {
+  const { t } = await getTranslator();
   const bundle = await getVehicleBundle(supabase, userId);
 
   if (commandRequiresPro(request.command)) {
@@ -1041,7 +1046,7 @@ export async function runVehicleCommand(
     if (!entitlement.isPro) {
       return {
         ok: false,
-        message: PRO_REQUIRED_MESSAGE,
+        message: t("cmd.proRequired"),
         vehicle: bundle.vehicle,
       };
     }
@@ -1123,7 +1128,7 @@ export async function runVehicleCommand(
     return live;
   }
 
-  const result = applyCommandToState(bundle.vehicle, request);
+  const result = applyCommandToState(bundle.vehicle, request, t);
   await saveState(supabase, userId, bundle.vehicleId, result.vehicle);
 
   try {
@@ -1162,6 +1167,7 @@ async function ensureLiveRemoteSession(
   userId: string,
   bundle: VehicleBundle,
 ): Promise<LiveRemoteSession> {
+  const { t } = await getTranslator();
   const { data: connection } = await supabase
     .from("peugeot_connections")
     .select(
@@ -1173,20 +1179,19 @@ async function ensureLiveRemoteSession(
   if (!connection?.connected || !connection.remote_ready) {
     return {
       ok: false,
-      message:
-        "Fernbedienung noch nicht eingerichtet — unter Einstellungen PIN freischalten.",
+      message: t("cmd.remoteNotSetup"),
     };
   }
   if (!connection.customer_id || !connection.otp_state) {
     return {
       ok: false,
-      message: "Fernbedienung unvollständig — bitte PIN erneut einrichten.",
+      message: t("cmd.remoteIncomplete"),
     };
   }
   if (!bundle.vehicle.vin || /x{4,}/i.test(bundle.vehicle.vin)) {
     return {
       ok: false,
-      message: "VIN fehlt — bitte Fahrzeugdaten aktualisieren.",
+      message: t("cmd.vinMissing"),
     };
   }
 
@@ -1227,7 +1232,7 @@ async function ensureLiveRemoteSession(
     if (!remoteRefresh) {
       return {
         ok: false,
-        message: "Fernbedienung unvollständig — bitte PIN erneut einrichten.",
+        message: t("cmd.remoteIncomplete"),
       };
     }
     const refreshed = await refreshRemoteToken({
@@ -1261,7 +1266,7 @@ async function ensureLiveRemoteSession(
       message:
         error instanceof Error
           ? error.message
-          : "Fernbedienung konnte nicht vorbereitet werden.",
+          : t("cmd.remotePrepareFail"),
     };
   }
 }
@@ -1271,6 +1276,7 @@ async function runLiveWakeupCommand(
   userId: string,
   bundle: VehicleBundle,
 ): Promise<CommandResult> {
+  const { t } = await getTranslator();
   const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
   if (!remote.ok) {
     return { ok: false, message: remote.message, vehicle: bundle.vehicle };
@@ -1284,7 +1290,7 @@ async function runLiveWakeupCommand(
     });
     return {
       ok: true,
-      message: "Aufweck-Befehl gesendet — Stand folgt in wenigen Sekunden.",
+      message: t("cmd.wakeSent"),
       vehicle: bundle.vehicle,
     };
   } catch (error) {
@@ -1293,7 +1299,7 @@ async function runLiveWakeupCommand(
       message:
         error instanceof Error
           ? error.message
-          : "Aufwecken fehlgeschlagen.",
+          : t("cmd.wakeFail"),
       vehicle: bundle.vehicle,
     };
   }
@@ -1305,6 +1311,7 @@ async function runLiveRemoteSignalCommand(
   bundle: VehicleBundle,
   command: "lock" | "unlock" | "horn" | "flash",
 ): Promise<CommandResult> {
+  const { t } = await getTranslator();
   const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
   if (!remote.ok) {
     return { ok: false, message: remote.message, vehicle: bundle.vehicle };
@@ -1327,7 +1334,7 @@ async function runLiveRemoteSignalCommand(
       return {
         ok: true,
         message:
-          command === "lock" ? "Türen verriegelt." : "Türen entriegelt.",
+          command === "lock" ? t("cmd.lockOk") : t("cmd.unlockOk"),
         vehicle: touchLock(bundle.vehicle, command === "lock"),
       };
     }
@@ -1342,7 +1349,7 @@ async function runLiveRemoteSignalCommand(
       await setRemoteSignalsOk(supabase, userId, true);
       return {
         ok: true,
-        message: "Hupe ausgelöst.",
+        message: t("cmd.hornOk"),
         vehicle: bundle.vehicle,
       };
     }
@@ -1356,45 +1363,45 @@ async function runLiveRemoteSignalCommand(
     await setRemoteSignalsOk(supabase, userId, true);
     return {
       ok: true,
-      message: "Lichter geblinkt.",
+      message: t("cmd.flashOk"),
       vehicle: bundle.vehicle,
     };
   } catch (error) {
     const raw =
-      error instanceof Error ? error.message : "Fernbefehl fehlgeschlagen.";
+      error instanceof Error ? error.message : t("cmd.remoteFail");
     if (/no\.matching\.service\.key|authorization\.denied/i.test(raw)) {
       await setRemoteSignalsOk(supabase, userId, false);
     }
     return {
       ok: false,
-      message: humanizeRemoteSignalError(raw),
+      message: humanizeRemoteSignalError(raw, t),
       vehicle: bundle.vehicle,
     };
   }
 }
 
-function humanizeRemoteSignalError(message: string): string {
+function humanizeRemoteSignalError(message: string, t: Translator): string {
   if (/no\.matching\.service\.key|authorization\.denied/i.test(message)) {
-    return "Schloss/Hupe/Licht brauchen Connect PLUS (Remote Control) in MyPeugeot — e-Remote für Klima reicht dafür nicht. Prüfe dort, ob Entriegeln funktioniert.";
+    return t("cmd.needConnectPlus");
   }
   if (/Remote-Fehler 500/i.test(message)) {
-    return "Fahrzeug meldet Remote-Fehler 500 (oft Tiefschlaf). Kurz warten und erneut versuchen.";
+    return t("cmd.remote500");
   }
   if (/Remote-Fehler 400/i.test(message)) {
-    return "Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";
+    return t("cmd.remote400");
   }
   return message;
 }
 
-function humanizeChargeLimitError(message: string): string {
+function humanizeChargeLimitError(message: string, t: Translator): string {
   if (/no\.matching\.service\.key|authorization\.denied/i.test(message)) {
-    return "Lade-Steuerung braucht e-Remote in MyPeugeot — bitte prüfen und PIN ggf. erneuern.";
+    return t("cmd.chargeNeedsRemote");
   }
   if (/Remote-Fehler 500/i.test(message)) {
-    return "Fahrzeug antwortet gerade nicht — kurz warten und erneut versuchen.";
+    return t("cmd.vehicleSilent");
   }
   if (/Remote-Fehler 400/i.test(message)) {
-    return "Lade-Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";
+    return t("cmd.chargeRejected");
   }
   return message;
 }
@@ -1506,6 +1513,7 @@ async function runLiveChargeLimitCommand(
   bundle: VehicleBundle,
   limitPercent: number,
 ): Promise<CommandResult> {
+  const { t } = await getTranslator();
   const limit = Math.min(100, Math.max(50, Math.round(limitPercent)));
   const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
   if (!remote.ok) {
@@ -1571,16 +1579,20 @@ async function runLiveChargeLimitCommand(
     if (!/Remote-Fehler 400|no\.matching\.service/i.test(raw)) {
       return {
         ok: false,
-        message: humanizeChargeLimitError(raw),
+        message: humanizeChargeLimitError(raw, t),
         vehicle: bundle.vehicle,
       };
     }
   }
 
-  let nextVehicle = applyCommandToState(bundle.vehicle, {
-    command: "set_charge_limit",
-    chargeLimitPercent: limit,
-  }).vehicle;
+  let nextVehicle = applyCommandToState(
+    bundle.vehicle,
+    {
+      command: "set_charge_limit",
+      chargeLimitPercent: limit,
+    },
+    t,
+  ).vehicle;
 
   const shouldStopNow =
     nextVehicle.chargeStatus === "charging" &&
@@ -1601,7 +1613,7 @@ async function runLiveChargeLimitCommand(
         error instanceof Error ? error.message : "Laden stoppen fehlgeschlagen.";
       return {
         ok: false,
-        message: humanizeChargeLimitError(raw),
+        message: humanizeChargeLimitError(raw, t),
         vehicle: nextVehicle,
       };
     }
@@ -1624,6 +1636,7 @@ async function runLiveClimateCommand(
   bundle: VehicleBundle,
   activate: boolean,
 ): Promise<CommandResult> {
+  const { t } = await getTranslator();
   let remote = await ensureLiveRemoteSession(supabase, userId, bundle);
   if (!remote.ok) {
     return { ok: false, message: remote.message, vehicle: bundle.vehicle };
@@ -1687,7 +1700,7 @@ async function runLiveClimateCommand(
       if (!refreshed.ok) {
         return {
           ok: false,
-          message: humanizeClimateRemoteError(firstMsg),
+          message: humanizeClimateRemoteError(firstMsg, t),
           vehicle: bundle.vehicle,
         };
       }
@@ -1701,7 +1714,7 @@ async function runLiveClimateCommand(
           secondErr instanceof Error ? secondErr.message : String(secondErr);
         return {
           ok: false,
-          message: humanizeClimateRemoteError(secondMsg),
+          message: humanizeClimateRemoteError(secondMsg, t),
           vehicle: bundle.vehicle,
         };
       }
@@ -1723,8 +1736,8 @@ async function runLiveClimateCommand(
       return {
         ok: true,
         message: activate
-          ? "Vorklima bestätigt — läuft."
-          : "Vorklima bestätigt — aus.",
+          ? t("cmd.climateConfirmedOn")
+          : t("cmd.climateConfirmedOff"),
         vehicle,
         climateConfirmed: true,
         climatePending: false,
@@ -1735,8 +1748,8 @@ async function runLiveClimateCommand(
     return {
       ok: true,
       message: activate
-        ? "Befehl gesendet — Auto braucht oft noch 30–60 Sekunden."
-        : "Stopp gesendet — Bestätigung folgt oft mit Verzögerung.",
+        ? t("cmd.sentWait")
+        : t("cmd.stopSent"),
       vehicle,
       climatePending: true,
       climateConfirmed: false,
@@ -1747,25 +1760,26 @@ async function runLiveClimateCommand(
       message: humanizeClimateRemoteError(
         error instanceof Error
           ? error.message
-          : "Vorklima-Befehl fehlgeschlagen.",
+          : t("cmd.climateFail"),
+        t,
       ),
       vehicle: bundle.vehicle,
     };
   }
 }
 
-function humanizeClimateRemoteError(message: string): string {
+function humanizeClimateRemoteError(message: string, t: Translator): string {
   if (/Remote-Fehler 500/i.test(message)) {
-    return "Fahrzeug meldet Remote-Fehler 500 (oft Tiefschlaf oder Peugeot-Server). 20–30 Sekunden warten und noch einmal tippen. Bleibt es: Einstellungen → Fernbedienung/PIN erneuern.";
+    return t("cmd.climate500");
   }
   if (/Remote-Fehler 400/i.test(message)) {
-    return "Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";
+    return t("cmd.remote400");
   }
   if (/Remote-Fehler 3\d\d/i.test(message)) {
-    return "Fernbedienung abgelaufen — unter Einstellungen PIN erneut freischalten.";
+    return t("cmd.remoteExpired");
   }
   if (/MQTT timeout/i.test(message)) {
-    return "Keine Antwort vom Fahrzeug (Timeout). Bitte kurz warten und erneut versuchen.";
+    return t("cmd.timeout");
   }
   return message;
 }
@@ -1992,6 +2006,7 @@ export async function importClimateSchedulesFromVehicle(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<{ schedules: VehicleSchedule[]; imported: number; message: string }> {
+  const { t } = await getTranslator();
   const { vehicleId, vehicle } = await ensureVehicle(supabase, userId);
 
   const { data: connection } = await supabase
@@ -2083,8 +2098,8 @@ export async function importClimateSchedulesFromVehicle(
       imported: result.imported,
       message:
         result.imported > 0
-          ? `${result.imported} Vorklima-Plan${result.imported === 1 ? "" : "e"} vom Fahrzeug übernommen.`
-          : "Keine Vorklima-Programme vom Fahrzeug.",
+          ? t("cmd.importedClimate", { n: result.imported })
+          : t("cmd.noClimatePlans"),
     };
   } catch (error) {
     return {
@@ -2191,10 +2206,10 @@ async function syncClimateProgramsToVehicle(
     return { ok: true };
   }
   if (!bundle.connection.remoteReady) {
+    const { t } = await getTranslator();
     return {
       ok: false,
-      message:
-        "Zeitplan gespeichert, aber Fernbedienung fehlt — Pläne gehen noch nicht ans Auto.",
+      message: t("cmd.scheduleSavedNoRemote"),
     };
   }
 
@@ -2219,12 +2234,13 @@ async function syncClimateProgramsToVehicle(
     });
     return { ok: true };
   } catch (error) {
+    const { t } = await getTranslator();
     return {
       ok: false,
       message:
         error instanceof Error
           ? error.message
-          : "Zeitplan gespeichert, Sync ans Auto fehlgeschlagen.",
+          : t("cmd.scheduleSyncFail"),
     };
   }
 }

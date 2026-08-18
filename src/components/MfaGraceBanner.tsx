@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useI18n } from "@/components/i18n/I18nProvider";
 
 export function MfaGraceBanner({ daysLeft }: { daysLeft: number }) {
+  const { t } = useI18n();
   if (daysLeft <= 0) return null;
   return (
     <div
@@ -17,11 +19,10 @@ export function MfaGraceBanner({ daysLeft }: { daysLeft: number }) {
         }}
       >
         <span className="text-[var(--warn)]">
-          MFA noch nicht aktiv. Noch {daysLeft} Tag{daysLeft === 1 ? "" : "e"}{" "}
-          Zeit — danach Pflicht.
+          {t("mfa.grace", { n: daysLeft })}
         </span>{" "}
         <Link href="/mfa" className="font-semibold text-[var(--accent-bright)]">
-          Jetzt einrichten →
+          {t("mfa.setupNow")}
         </Link>
       </div>
     </div>

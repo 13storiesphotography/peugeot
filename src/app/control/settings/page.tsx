@@ -13,6 +13,8 @@ import { isStripeConfigured } from "@/lib/billing/stripe";
 import { getSubscriptionSnapshot } from "@/lib/billing/subscription";
 import { MFA_GRACE_DAYS } from "@/lib/auth/mfa-policy";
 import { getSettingsBundle } from "@/lib/vehicle/repository";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { getTranslator } from "@/i18n/server";
 
 export const dynamic = "force-dynamic";
 /** Password auto-login runs headless Chromium — needs a long function window. */
@@ -43,6 +45,7 @@ export default async function SettingsPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const { t } = await getTranslator();
   const session = await assertOwnerSession();
   if (!session) {
     redirect("/");
@@ -69,7 +72,7 @@ export default async function SettingsPage({
     ? await confirmCheckoutSession(checkoutId)
     : params.pro === "cancel" ||
         (Array.isArray(params.pro) && params.pro[0] === "cancel")
-      ? { error: "Zahlung abgebrochen." }
+      ? { error: t("billing.canceled") }
       : undefined;
 
   const bundle = await getSettingsBundle(session.supabase, session.userId);
@@ -84,10 +87,10 @@ export default async function SettingsPage({
     mfa.status === "ok" ? "ok" : mfa.status === "enroll_optional" ? "warn" : "off";
   const mfaLabel =
     mfa.status === "ok"
-      ? "Aktiv"
+      ? t("settings.mfaOn")
       : mfa.status === "enroll_optional"
-        ? `Optional · noch ${mfa.daysLeft} Tag${mfa.daysLeft === 1 ? "" : "e"}`
-        : "Einrichten";
+        ? t("settings.mfaOptional", { n: mfa.daysLeft })
+        : t("settings.mfaSetup");
 
   const peugeotTone = connection.needsReconnect
     ? "warn"
@@ -95,15 +98,17 @@ export default async function SettingsPage({
       ? "ok"
       : "off";
   const peugeotLabel = connection.needsReconnect
-    ? "Neu verbinden"
+    ? t("settings.reconnect")
     : connection.connected
-      ? "Verbunden"
-      : "Nicht verbunden";
+      ? t("settings.connected")
+      : t("settings.notConnected");
 
   const remoteTone = connection.remoteReady ? "ok" : "off";
-  const remoteLabel = connection.remoteReady ? "Freigeschaltet" : "Nicht eingerichtet";
+  const remoteLabel = connection.remoteReady
+    ? t("settings.remoteOn")
+    : t("settings.remoteOff");
   const proTone = entitlement.isPro ? "ok" : "off";
-  const proLabel = entitlement.isPro ? "Aktiv" : "Free";
+  const proLabel = entitlement.isPro ? t("settings.proOn") : t("settings.proFree");
 
   return (
     <main className="min-h-dvh pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -112,7 +117,7 @@ export default async function SettingsPage({
           <Link
             href="/control"
             className="grid h-10 w-10 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)]"
-            aria-label="Zurück zur Steuerung"
+            aria-label={t("nav.backToControl")}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
@@ -127,7 +132,7 @@ export default async function SettingsPage({
           <div className="min-w-0 flex-1 text-center">
             <p className="eyebrow">Peugeot Control</p>
             <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
-              Einstellungen
+              {t("settings.title")}
             </h1>
           </div>
           <form action={signOut}>
@@ -135,7 +140,7 @@ export default async function SettingsPage({
               type="submit"
               className="rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--fg-muted)]"
             >
-              Abmelden
+              {t("nav.signOut")}
             </button>
           </form>
         </header>
@@ -146,19 +151,19 @@ export default async function SettingsPage({
 
         <section
           className="animate-rise-delay-1 mt-6 ui-surface divide-y divide-[var(--line)] overflow-hidden"
-          aria-label="Status"
+          aria-label={t("settings.status")}
         >
           <div className="flex items-start gap-3 px-4 py-3.5">
             <StatusDot tone={peugeotTone} />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">MyPeugeot</p>
+              <p className="text-sm font-semibold">{t("settings.myPeugeot")}</p>
               <p className="text-xs text-[var(--fg-muted)]">{peugeotLabel}</p>
             </div>
           </div>
           <div className="flex items-start gap-3 px-4 py-3.5">
             <StatusDot tone={remoteTone} />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Fernbedienung</p>
+              <p className="text-sm font-semibold">{t("settings.remote")}</p>
               <p className="text-xs text-[var(--fg-muted)]">{remoteLabel}</p>
             </div>
           </div>
@@ -167,7 +172,7 @@ export default async function SettingsPage({
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold">Zwei-Faktor</p>
+                  <p className="text-sm font-semibold">{t("settings.mfa")}</p>
                   <p className="text-xs text-[var(--fg-muted)]">{mfaLabel}</p>
                 </div>
                 {mfa.status !== "ok" ? (
@@ -175,13 +180,13 @@ export default async function SettingsPage({
                     href="/mfa"
                     className="action-btn btn-primary shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold"
                   >
-                    Einrichten
+                    {t("settings.setup")}
                   </Link>
                 ) : null}
               </div>
               {mfa.status === "enroll_optional" ? (
                 <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
-                  Pflicht nach {MFA_GRACE_DAYS} Tagen.
+                  {t("settings.mfaRequiredAfter", { n: MFA_GRACE_DAYS })}
                 </p>
               ) : null}
             </div>
@@ -189,13 +194,25 @@ export default async function SettingsPage({
           <div className="flex items-start gap-3 px-4 py-3.5">
             <StatusDot tone={proTone} />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Pro</p>
+              <p className="text-sm font-semibold">{t("settings.pro")}</p>
               <p className="text-xs text-[var(--fg-muted)]">{proLabel}</p>
             </div>
           </div>
         </section>
 
         <div className="mt-6 space-y-4">
+          <section className="ui-surface flex items-center justify-between gap-3 p-4 sm:p-5">
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+                {t("settings.language")}
+              </h2>
+              <p className="mt-1 text-sm text-[var(--fg-muted)]">
+                {t("settings.languageHint")}
+              </p>
+            </div>
+            <LanguageSwitcher />
+          </section>
+
           <ProUpgradeCard
             entitlement={entitlement}
             subscription={subscription}
@@ -230,7 +247,7 @@ export default async function SettingsPage({
 
         <p className="mt-10 pb-2 text-center text-xs text-[var(--fg-muted)]">
           <Link href="/impressum" className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--fg)]">
-            Impressum
+            {t("common.imprint")}
           </Link>
         </p>
       </div>

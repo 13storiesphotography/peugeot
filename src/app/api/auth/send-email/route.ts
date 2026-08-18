@@ -1,11 +1,12 @@
 import { sendAuthEmail, type AuthEmailData } from "@/lib/auth/send-auth-email";
 import { verifyStandardWebhook } from "@/lib/auth/verify-standard-webhook";
+import { isLocale } from "@/i18n/config";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 type HookPayload = {
-  user?: { email?: string };
+  user?: { email?: string; user_metadata?: { locale?: string } };
   email_data?: AuthEmailData;
 };
 
@@ -33,7 +34,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    await sendAuthEmail(to, body.email_data);
+    const locale = isLocale(body.user?.user_metadata?.locale)
+      ? body.user.user_metadata.locale
+      : "en";
+    await sendAuthEmail(to, body.email_data, locale);
   } catch (error) {
     const message = error instanceof Error ? error.message : "send failed";
     console.error("auth send-email:", message);

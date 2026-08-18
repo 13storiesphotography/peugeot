@@ -18,11 +18,13 @@ import {
   formatEuroFromCents,
   yearlySavingsCents,
 } from "@/lib/billing/catalog";
+import { useI18n } from "@/components/i18n/I18nProvider";
+import { intlLocale } from "@/i18n/format";
 
 const initial: CheckoutState = {};
 
-function formatDay(iso: string) {
-  return new Intl.DateTimeFormat("de-DE", {
+function formatDay(iso: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -40,6 +42,8 @@ export function ProUpgradeCard({
   stripeReady: boolean;
   notice?: CheckoutState;
 }) {
+  const { locale, t } = useI18n();
+  const dates = intlLocale(locale);
   const [checkoutState, checkoutAction, checkoutPending] = useActionState(
     startCheckout,
     initial,
@@ -86,26 +90,29 @@ export function ProUpgradeCard({
 
   return (
     <section id="pro" className="ui-surface scroll-mt-24 p-4 sm:p-5">
-      <p className="eyebrow">Abo</p>
+      <p className="eyebrow">{t("billing.eyebrow")}</p>
       <h2 className="mt-1 font-[family-name:var(--font-display)] text-lg font-semibold">
-        {entitlement.isPro ? "Pro aktiv" : "Pro freischalten"}
+        {entitlement.isPro ? t("billing.proOn") : t("billing.unlockPro")}
       </h2>
       {entitlement.isPro ? (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
           {cancelScheduled
-            ? `Gekündigt. Steuern bleibt bis ${periodEnd ? formatDay(periodEnd) : "Periodenende"} an, danach Free.`
-            : `Steuern und 80%-Limit sind an${
+            ? t("billing.canceledUntil", {
+                day: periodEnd ? formatDay(periodEnd, dates) : t("billing.untilEnd"),
+              })
+            : `${t("billing.controlsOn")}${
                 interval === "month"
-                  ? " · monatlich"
+                  ? t("billing.monthlyShort")
                   : interval === "year"
-                    ? " · jährlich"
+                    ? t("billing.yearlyShort")
                     : ""
-              }${periodEnd ? ` · gültig bis ${formatDay(periodEnd)}` : ""}.`}
+              }${periodEnd ? t("billing.validUntil", { day: formatDay(periodEnd, dates) }) : ""}.`}
         </p>
       ) : (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
-          Vorklima, Schloss, Finden und 80%-Limit. Jahr spart{" "}
-          {formatEuroFromCents(yearlySavingsCents())} gegenüber Monat für Monat.
+          {t("billing.saveVsMonth", {
+            amount: formatEuroFromCents(yearlySavingsCents()),
+          })}
         </p>
       )}
 
@@ -130,10 +137,12 @@ export function ProUpgradeCard({
             className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
           >
             {checkoutPending
-              ? "Weiter zur Zahlung…"
+              ? t("billing.toPayment")
               : stripeReady
-                ? `Jahr · ${formatEuroFromCents(PRO_YEAR_CENTS)}`
-                : "Zahlung noch nicht eingerichtet"}
+                ? t("billing.yearPrice", {
+                    amount: formatEuroFromCents(PRO_YEAR_CENTS),
+                  })
+                : t("billing.notReady")}
           </button>
           <button
             type="submit"
@@ -142,11 +151,15 @@ export function ProUpgradeCard({
             disabled={pending || !stripeReady}
             className="action-btn w-full rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold disabled:opacity-50"
           >
-            Monat · {formatEuroFromCents(PRO_MONTH_CENTS)}
+            {t("billing.monthPrice", {
+              amount: formatEuroFromCents(PRO_MONTH_CENTS),
+            })}
           </button>
           <p className="text-center text-[11px] text-[var(--fg-muted)]">
-            Monatlich {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)} / Jahr ·
-            jährlich {formatEuroFromCents(PRO_YEAR_CENTS)}
+            {t("billing.yearVsMonth", {
+              month: formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS),
+              year: formatEuroFromCents(PRO_YEAR_CENTS),
+            })}
           </p>
         </form>
       ) : subscription ? (
@@ -158,7 +171,7 @@ export function ProUpgradeCard({
                 disabled={pending}
                 className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
               >
-                {resumePending ? "Bitte warten…" : "Kündigung zurücknehmen"}
+                {resumePending ? t("billing.wait") : t("billing.takeBack")}
               </button>
             </form>
           ) : (
@@ -169,8 +182,8 @@ export function ProUpgradeCard({
                 className="action-btn w-full rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold disabled:opacity-50"
               >
                 {cancelPending
-                  ? "Bitte warten…"
-                  : "Kündigen zum Periodenende"}
+                  ? t("billing.wait")
+                  : t("billing.cancel")}
               </button>
             </form>
           )}
@@ -186,8 +199,10 @@ export function ProUpgradeCard({
                   className="action-btn w-full rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
                 >
                   {changePending
-                    ? "Wechsel…"
-                    : `Auf Jahr · ${formatEuroFromCents(PRO_YEAR_CENTS)}`}
+                    ? t("billing.switching")
+                    : t("billing.toYear", {
+                        amount: formatEuroFromCents(PRO_YEAR_CENTS),
+                      })}
                 </button>
               ) : null}
               {interval !== "month" ? (
@@ -199,8 +214,10 @@ export function ProUpgradeCard({
                   className="action-btn w-full rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
                 >
                   {changePending
-                    ? "Wechsel…"
-                    : `Auf Monat · ${formatEuroFromCents(PRO_MONTH_CENTS)}`}
+                    ? t("billing.switching")
+                    : t("billing.toMonth", {
+                        amount: formatEuroFromCents(PRO_MONTH_CENTS),
+                      })}
                 </button>
               ) : null}
             </form>
@@ -213,19 +230,17 @@ export function ProUpgradeCard({
               className="w-full pt-1 text-center text-sm text-[var(--fg-muted)] underline-offset-4 hover:text-[var(--fg)] hover:underline disabled:opacity-60"
             >
               {portalPending
-                ? "Öffne Portal…"
-                : "Zahlungsdaten und Rechnungen"}
+                ? t("billing.openingPortal")
+                : t("billing.invoices")}
             </button>
           </form>
           <p className="text-[11px] text-[var(--fg-muted)]">
-            Planwechsel gilt sofort, Stripe verrechnet die Differenz. Kündigung
-            erst zum Ende der bezahlten Laufzeit.
+            {t("billing.changeNote")}
           </p>
         </div>
       ) : (
         <p className="mt-3 text-sm text-[var(--fg-muted)]">
-          Pro ist manuell oder ohne Stripe-Abo aktiv — Kündigung hier nicht
-          möglich.
+          {t("billing.manualPro")}
         </p>
       )}
     </section>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/components/i18n/I18nProvider";
 
 export function MfaEnrollForm({
   forced,
@@ -10,6 +11,7 @@ export function MfaEnrollForm({
   forced?: boolean;
   onDone?: () => void;
 }) {
+  const { t } = useI18n();
   const [factorId, setFactorId] = useState("");
   const [qr, setQr] = useState("");
   const [secret, setSecret] = useState("");
@@ -28,7 +30,7 @@ export function MfaEnrollForm({
       });
       if (cancelled) return;
       if (enrollError || !data) {
-        setError(enrollError?.message ?? "MFA-Einrichtung fehlgeschlagen.");
+        setError(enrollError?.message ?? t("mfa.enrollFail"));
         setLoading(false);
         return;
       }
@@ -58,7 +60,7 @@ export function MfaEnrollForm({
       onDone?.();
       window.location.href = "/control";
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Code ungültig.");
+      setError(e instanceof Error ? e.message : t("mfa.invalidCode"));
     } finally {
       setPending(false);
     }
@@ -67,35 +69,33 @@ export function MfaEnrollForm({
   return (
     <div className="panel w-full max-w-md rounded-[1.75rem] p-6 sm:p-8">
       <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
-        Zwei-Faktor-Authentifizierung
+        {t("mfa.title")}
       </h2>
       <p className="mt-2 text-sm text-[var(--fg-muted)]">
-        {forced
-          ? "Die 7-Tage-Frist ist abgelaufen. MFA ist jetzt Pflicht."
-          : "Richte eine Authenticator-App ein (z. B. 1Password, Authy, Google Authenticator)."}
+        {forced ? t("mfa.forced") : t("mfa.hint")}
       </p>
 
       {loading ? (
-        <p className="mt-6 text-sm text-[var(--fg-muted)]">QR-Code wird geladen…</p>
+        <p className="mt-6 text-sm text-[var(--fg-muted)]">{t("mfa.loadingQr")}</p>
       ) : (
         <>
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={qr}
-              alt="MFA QR-Code"
+              alt={t("mfa.qrAlt")}
               className="mx-auto mt-6 h-48 w-48 rounded-xl bg-white p-2"
             />
           ) : null}
           {secret ? (
             <p className="mt-4 break-all text-center text-xs text-[var(--fg-muted)]">
-              Secret: <code className="text-[var(--accent-bright)]">{secret}</code>
+              {t("mfa.secret")}: <code className="text-[var(--accent-bright)]">{secret}</code>
             </p>
           ) : null}
 
           <label className="mt-6 block">
             <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-              6-stelliger Code
+              {t("mfa.sixDigit")}
             </span>
             <input
               inputMode="numeric"
@@ -123,7 +123,7 @@ export function MfaEnrollForm({
               color: "#031016",
             }}
           >
-            {pending ? "Prüfe…" : "MFA aktivieren"}
+            {pending ? t("mfa.checking") : t("mfa.activate")}
           </button>
         </>
       )}

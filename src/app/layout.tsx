@@ -3,6 +3,9 @@ import { Manrope, Syne } from "next/font/google";
 import { AuthRecoveryRedirect } from "@/components/AuthRecoveryRedirect";
 import { PwaRegister } from "@/components/PwaRegister";
 import { AuthUrlSession } from "@/components/AuthUrlSession";
+import { I18nProvider } from "@/components/i18n/I18nProvider";
+import { getRequestLocale } from "@/i18n/server";
+import { getMessages } from "@/i18n/translate";
 import "./globals.css";
 
 const display = Syne({
@@ -17,32 +20,35 @@ const body = Manrope({
   weight: ["400", "500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "Peugeot Control · MyPeugeot im Browser",
-  description:
-    "Klare Fahrzeugsteuerung für Peugeot: Batterie, Laden, Klima und Fernbedienung. Aktuell getestet am E-3008.",
-  applicationName: "Peugeot Control",
-  manifest: "/manifest.webmanifest",
-  icons: {
-    icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
-  },
-  appleWebApp: {
-    capable: true,
-    title: "Peugeot Control",
-    statusBarStyle: "black-translucent",
-  },
-  formatDetection: {
-    telephone: false,
-  },
-  other: {
-    "mobile-web-app-capable": "yes",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const m = getMessages(locale);
+  return {
+    title: m.meta.title,
+    description: m.meta.description,
+    applicationName: "Peugeot Control",
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: [
+        { url: "/icon.svg", type: "image/svg+xml" },
+        { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    },
+    appleWebApp: {
+      capable: true,
+      title: "Peugeot Control",
+      statusBarStyle: "black-translucent",
+    },
+    formatDetection: {
+      telephone: false,
+    },
+    other: {
+      "mobile-web-app-capable": "yes",
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -56,17 +62,20 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getRequestLocale();
   return (
     <html
-      lang="de"
+      lang={locale}
       className={`${display.variable} ${body.variable}`}
     >
       <body className="antialiased">
-        {children}
-        <AuthRecoveryRedirect />
-        <AuthUrlSession />
-        <PwaRegister />
+        <I18nProvider locale={locale}>
+          {children}
+          <AuthRecoveryRedirect />
+          <AuthUrlSession />
+          <PwaRegister />
+        </I18nProvider>
       </body>
     </html>
   );

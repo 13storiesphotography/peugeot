@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useI18n } from "@/components/i18n/I18nProvider";
 
 export type ControlTab =
   | "home"
@@ -100,6 +101,13 @@ export function ControlBottomNav({
   tab: ControlTab;
   onChange: (tab: ControlTab) => void;
 }) {
+  const { t } = useI18n();
+  const labels: Record<ControlTab, string> = {
+    home: t("nav.overview"),
+    climate: t("nav.climate"),
+    charge: t("nav.charge"),
+    controls: t("nav.controls"),
+  };
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)]"
@@ -108,7 +116,7 @@ export function ControlBottomNav({
         backdropFilter: "blur(18px)",
         paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
       }}
-      aria-label="Hauptnavigation"
+      aria-label={t("nav.main")}
     >
       <div className="mx-auto flex max-w-lg items-stretch justify-between px-2 pt-1">
         {TABS.map((item) => {
@@ -125,7 +133,7 @@ export function ControlBottomNav({
               aria-current={active ? "page" : undefined}
             >
               {item.icon(active)}
-              <span className="truncate">{item.label}</span>
+              <span className="truncate">{labels[item.id]}</span>
             </button>
           );
         })}

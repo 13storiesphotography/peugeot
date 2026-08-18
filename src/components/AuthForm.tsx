@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   requestPasswordReset,
   resendConfirmation,
@@ -8,6 +9,9 @@ import {
   signUp,
   type AuthState,
 } from "@/app/actions/auth";
+import { setLocaleAction } from "@/app/actions/locale";
+import { useI18n } from "@/components/i18n/I18nProvider";
+import { isLocale } from "@/i18n/config";
 
 const initial: AuthState = {};
 
@@ -22,6 +26,8 @@ export function AuthForm({
   denied?: boolean;
   confirmError?: boolean;
 }) {
+  const { locale, t } = useI18n();
+  const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("login");
   const [loginState, loginAction, loginPending] = useActionState(
     signIn,
@@ -63,6 +69,12 @@ export function AuthForm({
         ? registerAction
         : forgotAction;
 
+  async function onLocaleChange(next: string) {
+    if (!isLocale(next) || next === locale) return;
+    await setLocaleAction(next);
+    router.refresh();
+  }
+
   return (
     <div
       id="start"
@@ -79,7 +91,7 @@ export function AuthForm({
                 : "text-[var(--fg-muted)]"
             }`}
           >
-            Anmelden
+            {t("auth.signIn")}
           </button>
           {publicSignup ? (
             <button
@@ -91,7 +103,7 @@ export function AuthForm({
                   : "text-[var(--fg-muted)]"
               }`}
             >
-              Registrieren
+              {t("auth.register")}
             </button>
           ) : null}
         </div>
@@ -101,19 +113,19 @@ export function AuthForm({
         className={`${mode === "forgot" ? "mt-0" : "mt-6"} font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight`}
       >
         {mode === "register"
-          ? "Konto anlegen"
+          ? t("auth.createAccount")
           : mode === "forgot"
-            ? "Passwort vergessen"
-            : "Willkommen zurück"}
+            ? t("auth.forgotTitle")
+            : t("auth.welcomeBack")}
       </h2>
       <p className="mt-2 text-sm text-[var(--fg-muted)]">
         {mode === "register"
-          ? "Eigener Zugang — danach MyPeugeot in den Einstellungen verbinden."
+          ? t("auth.registerHint")
           : mode === "forgot"
-            ? "Wir schicken dir einen Link zum Setzen eines neuen Passworts."
+            ? t("auth.forgotHint")
             : publicSignup
-              ? "Melde dich an und steuere deinen Peugeot."
-              : "Privater Zugang — nur freigeschaltete Konten."}
+              ? t("auth.loginHint")
+              : t("auth.loginHintPrivate")}
       </p>
 
       {confirmError ? (
@@ -121,7 +133,7 @@ export function AuthForm({
           role="alert"
           className="mt-4 rounded-xl border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-3 py-2 text-sm text-[var(--danger)]"
         >
-          Bestätigungslink ungültig oder abgelaufen. Bitte anmelden.
+          {t("auth.confirmFailed")}
         </p>
       ) : null}
 
@@ -130,17 +142,16 @@ export function AuthForm({
           role="alert"
           className="mt-4 rounded-xl border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-3 py-2 text-sm text-[var(--danger)]"
         >
-          Zugang nicht freigeschaltet.{" "}
-          {publicSignup
-            ? "Bitte registrieren oder anmelden."
-            : "Nur eingeladene Konten."}
+          {t("auth.denied")}{" "}
+          {publicSignup ? t("auth.deniedPublic") : t("auth.deniedPrivate")}
         </p>
       ) : null}
 
       <form action={formAction} className="mt-6 space-y-4">
+        <input type="hidden" name="locale" value={locale} />
         <label className="block">
           <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            E-Mail
+            {t("common.email")}
           </span>
           <input
             name="email"
@@ -154,7 +165,7 @@ export function AuthForm({
         {mode !== "forgot" ? (
           <label className="block">
             <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-              Passwort
+              {t("common.password")}
             </span>
             <input
               name="password"
@@ -176,25 +187,44 @@ export function AuthForm({
               onClick={() => setMode("forgot")}
               className="text-[var(--fg-muted)] underline-offset-2 hover:text-[var(--fg)] hover:underline"
             >
-              Passwort vergessen?
+              {t("auth.forgotLink")}
             </button>
           </p>
         ) : null}
 
         {mode === "register" ? (
-          <label className="block">
-            <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-              Passwort wiederholen
-            </span>
-            <input
-              name="passwordConfirm"
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
-            />
-          </label>
+          <>
+            <label className="block">
+              <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
+                {t("common.passwordRepeat")}
+              </span>
+              <input
+                name="passwordConfirm"
+                type="password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
+                {t("lang.label")}
+              </span>
+              <select
+                name="localeSelect"
+                defaultValue={locale}
+                onChange={(event) => void onLocaleChange(event.target.value)}
+                className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
+              >
+                <option value="de">{t("lang.de")}</option>
+                <option value="en">{t("lang.en")}</option>
+              </select>
+              <span className="mt-1.5 block text-xs text-[var(--fg-muted)]">
+                {t("auth.languageHint")}
+              </span>
+            </label>
+          </>
         ) : null}
 
         {state.error ? (
@@ -219,12 +249,12 @@ export function AuthForm({
           }}
         >
           {pending && !resendPending
-            ? "Bitte warten…"
+            ? t("common.wait")
             : mode === "register"
-              ? "Kostenlos starten"
+              ? t("auth.startFree")
               : mode === "forgot"
-                ? "Link senden"
-                : "Zur Steuerung"}
+                ? t("auth.sendLink")
+                : t("auth.toControl")}
         </button>
 
         {offerResend && mode !== "forgot" ? (
@@ -235,9 +265,7 @@ export function AuthForm({
             disabled={pending}
             className="w-full pt-1 text-center text-sm text-[var(--fg-muted)] underline-offset-4 hover:text-[var(--fg)] hover:underline disabled:opacity-60"
           >
-            {resendPending
-              ? "Sende Bestätigungsmail…"
-              : "Bestätigungsmail erneut senden"}
+            {resendPending ? t("auth.resending") : t("auth.resend")}
           </button>
         ) : null}
       </form>
@@ -249,7 +277,7 @@ export function AuthForm({
             onClick={() => setMode("login")}
             className="underline-offset-2 hover:text-[var(--fg)] hover:underline"
           >
-            Zurück zur Anmeldung
+            {t("common.backToSignIn")}
           </button>
         </p>
       ) : null}

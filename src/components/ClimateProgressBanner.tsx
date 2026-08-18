@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/components/i18n/I18nProvider";
+
 type Props = {
   action: "start" | "stop";
   /** 0–1 progress toward expected confirmation window. */
@@ -14,6 +16,7 @@ export function ClimateProgressBanner({
   phaseLabel,
   detail,
 }: Props) {
+  const { t } = useI18n();
   const pct = Math.max(4, Math.min(100, Math.round(progress * 100)));
 
   return (
@@ -25,7 +28,7 @@ export function ClimateProgressBanner({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-[var(--accent-bright)]">
-            {action === "start" ? "Vorklima wird gestartet…" : "Vorklima wird gestoppt…"}
+            {action === "start" ? t("climate.starting") : t("climate.stopping")}
           </p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">{phaseLabel}</p>
           {detail ? (
