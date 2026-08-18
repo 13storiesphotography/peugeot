@@ -1,11 +1,22 @@
 type SignupAuthError = {
   message?: string;
   code?: string;
+  status?: number;
 };
 
 export function mapSignupError(error: SignupAuthError): string {
   const code = (error.code ?? "").toLowerCase();
   const msg = (error.message ?? "").toLowerCase();
+  const status = error.status ?? 0;
+
+  if (
+    code === "over_email_send_rate_limit" ||
+    status === 429 ||
+    msg.includes("email rate limit") ||
+    msg.includes("over_email_send_rate_limit")
+  ) {
+    return "Zu viele Bestätigungsmails. Bitte etwa eine Stunde warten, Spam-Ordner prüfen — oder anmelden, falls das Konto schon existiert.";
+  }
 
   if (code === "signup_disabled" || msg.includes("signups not allowed")) {
     return "Registrierung ist im Auth-Dienst deaktiviert. In Supabase unter Authentication → Providers → Email „Allow new users to sign up“ einschalten.";
@@ -48,20 +59,4 @@ export function mapSignupError(error: SignupAuthError): string {
   }
 
   return "Registrierung fehlgeschlagen. Bitte erneut versuchen.";
-}
-
-export function signupEmailRedirectTo(headerStore: Headers): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
-  const origin = headerStore.get("origin")?.replace(/\/$/, "") ?? "";
-  const host =
-    headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "";
-  const proto = headerStore.get("x-forwarded-proto") ?? "https";
-  const fromHost = host ? `${proto}://${host}`.replace(/\/$/, "") : "";
-
-  const candidate = origin || fromHost || configured || "https://www.peugeotcontrol.app";
-  const base = candidate.includes("localhost") || candidate.includes("127.0.0.1")
-    ? configured || "https://www.peugeotcontrol.app"
-    : candidate;
-
-  return `${base}/control`;
 }

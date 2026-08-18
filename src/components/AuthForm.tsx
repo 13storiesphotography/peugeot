@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { signIn, signUp, type AuthState } from "@/app/actions/auth";
+import { signIn, signUp, resendConfirmation, type AuthState } from "@/app/actions/auth";
 
 const initial: AuthState = {};
 
@@ -28,8 +28,18 @@ export function AuthForm({
     initial,
   );
 
-  const pending = loginPending || registerPending;
-  const state = mode === "login" ? loginState : registerState;
+  const [resendState, resendAction, resendPending] = useActionState(
+    resendConfirmation,
+    initial,
+  );
+
+  const pending = loginPending || registerPending || resendPending;
+  const state =
+    resendState.success || resendState.error
+      ? resendState
+      : mode === "login"
+        ? loginState
+        : registerState;
   const formAction = mode === "login" ? loginAction : registerAction;
 
   return (
@@ -163,12 +173,26 @@ export function AuthForm({
             color: "#031016",
           }}
         >
-          {pending
+          {pending && !resendPending
             ? "Bitte warten…"
             : mode === "register"
               ? "Kostenlos starten"
               : "Zur Steuerung"}
         </button>
+
+        {publicSignup ? (
+          <button
+            type="submit"
+            formAction={resendAction}
+            formNoValidate
+            disabled={pending}
+            className="w-full pt-1 text-center text-sm text-[var(--fg-muted)] underline-offset-4 hover:text-[var(--fg)] hover:underline disabled:opacity-60"
+          >
+            {resendPending
+              ? "Sende Bestätigungsmail…"
+              : "Bestätigungsmail erneut senden"}
+          </button>
+        ) : null}
       </form>
     </div>
   );

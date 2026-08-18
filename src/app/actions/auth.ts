@@ -31,6 +31,10 @@ function publicSiteOrigin(headerStore: Headers): string {
   return candidate;
 }
 
+function confirmEmailRedirectTo(headerStore: Headers): string {
+  return `${publicSiteOrigin(headerStore)}/auth/callback`;
+}
+
 async function redirectAfterAuth(): Promise<never> {
   const supabase = await createClient();
   const mfa = await getMfaDecision(supabase);
@@ -56,6 +60,14 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    const msg = error.message.toLowerCase();
+    const code = error.code?.toLowerCase() ?? "";
+    if (code === "email_not_confirmed" || msg.includes("email not confirmed")) {
+      return {
+        error:
+          "E-Mail ist noch nicht bestätigt. Unten kannst du die Bestätigungsmail erneut senden.",
+      };
+    }
     return { error: "Anmeldung fehlgeschlagen. E-Mail oder Passwort prüfen." };
   }
 
@@ -96,8 +108,7 @@ export async function signUp(
 
   const supabase = await createClient();
   const headerStore = await headers();
-  const origin = publicSiteOrigin(headerStore);
-  const emailRedirectTo = `${origin}/auth/callback`;
+  const emailRedirectTo = confirmEmailRedirectTo(headerStore);
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -131,7 +142,43 @@ export async function signUp(
 
   return {
     success:
-      "Konto angelegt. Falls nötig, bestätige deine E-Mail — danach kannst du dich anmelden und MyPeugeot verbinden.",
+      "Konto angelegt. Bestätige deine E-Mail — danach kannst du dich anmelden. Falls keine Mail kommt: unten erneut senden, Spam-Ordner prüfen.",
+  };
+}
+
+export async function resendConfirmation(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  if (!isPublicSignupEnabled()) {
+    return {
+      error: "Registrierung ist deaktiviert. Nur freigeschaltete Konten.",
+    };
+  }
+
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) {
+    return { error: "Bitte die E-Mail eintragen, dann erneut senden." };
+  }
+
+  const supabase = await createClient();
+  const headerStore = await headers();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: confirmEmailRedirectTo(headerStore),
+    },
+  });
+
+  if (error) {
+    console.error("resend confirmation", error.code, error.message, error.status);
+    return { error: mapSignupError(error) };
+  }
+
+  return {
+    success:
+      "Falls ein unbestätigtes Konto existiert, ist die Bestätigungsmail unterwegs. Spam-Ordner prüfen.",
   };
 }
 
