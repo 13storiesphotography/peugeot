@@ -1,5 +1,6 @@
 import { AuthForm } from "@/components/AuthForm";
 import { LandingScreens } from "@/components/landing/LandingScreens";
+import { SiteFooter } from "@/components/SiteFooter";
 
 const features = [
   {
@@ -251,13 +252,7 @@ export function LandingPage({
         </section>
       </main>
 
-      <footer className="relative z-10 border-t border-[var(--line)] py-8 text-center text-xs text-[var(--fg-muted)]">
-        <p>E-3008 Control — inoffizielle Steuerungs-App für Peugeot E-3008.</p>
-        <p className="mt-2 max-w-xl mx-auto px-4">
-          Nicht von Stellantis / Peugeot. Nutzung auf eigenes Risiko. Fernbedienung
-          erfordert gültiges Peugeot-Abo.
-        </p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
