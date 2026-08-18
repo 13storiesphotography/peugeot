@@ -23,9 +23,5 @@ export default async function HomePage({
   const publicSignup = isPublicSignupEnabled();
   const denied = params.denied === "1";
 
-  return (
-    <main>
-      <LandingPage publicSignup={publicSignup} denied={denied} />
-    </main>
-  );
+  return <LandingPage publicSignup={publicSignup} denied={denied} />;
 }

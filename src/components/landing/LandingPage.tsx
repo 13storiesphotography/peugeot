@@ -74,7 +74,7 @@ export function LandingPage({
   denied?: boolean;
 }) {
   return (
-    <div className="relative min-h-dvh overflow-hidden">
+    <div className="relative min-h-dvh overflow-x-hidden">
       <div
         className="pointer-events-none absolute inset-0"
         style={{

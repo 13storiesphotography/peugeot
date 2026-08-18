@@ -58,9 +58,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="de"
-      className={`${display.variable} ${body.variable} h-full`}
+      className={`${display.variable} ${body.variable} min-h-full`}
     >
-      <body className="min-h-dvh max-w-[100%] overflow-x-hidden antialiased">
+      <body className="min-h-dvh max-w-[100%] overflow-x-hidden overflow-y-auto antialiased">
         {children}
         <PwaRegister />
       </body>
