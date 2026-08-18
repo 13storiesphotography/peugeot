@@ -32,16 +32,18 @@ const SUBJECTS: Record<string, string> = {
 };
 
 function confirmationUrl(email: AuthEmailData): string {
-  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
-  const token = email.token_hash ?? "";
-  const type = email.email_action_type ?? "signup";
-  const redirect = email.redirect_to ?? "https://www.peugeotcontrol.app/control";
+  const site = (
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.peugeotcontrol.app"
+  ).replace(/\/$/, "");
+  const type =
+    email.email_action_type === "signup"
+      ? "email"
+      : (email.email_action_type ?? "email");
   const params = new URLSearchParams({
-    token,
+    token_hash: email.token_hash ?? "",
     type,
-    redirect_to: redirect,
   });
-  return `${base}/auth/v1/verify?${params.toString()}`;
+  return `${site}/auth/confirm?${params.toString()}`;
 }
 
 function escapeHtml(value: string): string {
