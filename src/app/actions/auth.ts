@@ -9,6 +9,7 @@ import {
 import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { notifyNewSignup } from "@/lib/auth/notify-signup";
+import { mapSignupError } from "@/lib/auth/signup-error";
 
 export type AuthState = {
   error?: string;
@@ -109,11 +110,12 @@ export async function signUp(
   });
 
   if (error) {
-    const msg = error.message.toLowerCase();
-    if (msg.includes("already registered")) {
-      return { error: "Diese E-Mail ist bereits registriert — bitte anmelden." };
-    }
-    return { error: "Registrierung fehlgeschlagen. Bitte erneut versuchen." };
+    console.error("signUp failed", {
+      code: error.code,
+      message: error.message,
+      status: error.status,
+    });
+    return { error: mapSignupError(error) };
   }
 
   try {
@@ -158,11 +160,8 @@ export async function resendConfirmation(
   });
 
   if (error) {
-    const msg = error.message.toLowerCase();
-    console.error("resend confirmation", error.code, error.message);
-    if (msg.includes("rate") || msg.includes("security") || error.status === 429) {
-      return { error: "Zu viele Versuche. Bitte eine Minute warten." };
-    }
+    console.error("resend confirmation", error.code, error.message, error.status);
+    return { error: mapSignupError(error) };
   }
 
   return {
