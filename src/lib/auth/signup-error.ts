@@ -4,10 +4,15 @@ type SignupAuthError = {
   status?: number;
 };
 
-export function mapSignupError(error: SignupAuthError): string {
+/** SMTP/Resend failures that should not be hidden as a generic success. */
+export function mapOutboundMailError(error: SignupAuthError): string | null {
   const code = (error.code ?? "").toLowerCase();
   const msg = (error.message ?? "").toLowerCase();
   const status = error.status ?? 0;
+
+  if (msg.includes("domain is not verified") || msg.includes("add and verify your domain")) {
+    return "Absender-Domain peugeotcontrol.app ist in Resend nicht verifiziert. Unter resend.com/domains die Domain anlegen und die DNS-Einträge bei Vercel setzen.";
+  }
 
   if (
     code === "over_email_send_rate_limit" ||
@@ -15,8 +20,25 @@ export function mapSignupError(error: SignupAuthError): string {
     msg.includes("email rate limit") ||
     msg.includes("over_email_send_rate_limit")
   ) {
-    return "Zu viele Bestätigungsmails. Bitte etwa eine Stunde warten, Spam-Ordner prüfen — oder anmelden, falls das Konto schon existiert.";
+    return "Zu viele E-Mails. Bitte etwa eine Stunde warten und erneut versuchen.";
   }
+
+  if (
+    code === "unexpected_failure" ||
+    msg.includes("could not send email") ||
+    msg.includes("gomail")
+  ) {
+    return "E-Mail konnte nicht gesendet werden. Resend-Domain und SMTP-Absender prüfen.";
+  }
+
+  return null;
+}
+
+export function mapSignupError(error: SignupAuthError): string {
+  const code = (error.code ?? "").toLowerCase();
+  const msg = (error.message ?? "").toLowerCase();
+  const mail = mapOutboundMailError(error);
+  if (mail) return mail;
 
   if (code === "signup_disabled" || msg.includes("signups not allowed")) {
     return "Registrierung ist im Auth-Dienst deaktiviert. In Supabase unter Authentication → Providers → Email „Allow new users to sign up“ einschalten.";
