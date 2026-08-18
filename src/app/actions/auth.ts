@@ -15,6 +15,21 @@ export type AuthState = {
   success?: string;
 };
 
+function publicSiteOrigin(headerStore: Headers): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  const origin = headerStore.get("origin")?.replace(/\/$/, "") ?? "";
+  const host =
+    headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "";
+  const proto = headerStore.get("x-forwarded-proto") ?? "https";
+  const fromHost = host ? `${proto}://${host}`.replace(/\/$/, "") : "";
+  const candidate =
+    origin || fromHost || configured || "https://www.peugeotcontrol.app";
+  if (candidate.includes("localhost") || candidate.includes("127.0.0.1")) {
+    return configured || "https://www.peugeotcontrol.app";
+  }
+  return candidate;
+}
+
 async function redirectAfterAuth(): Promise<never> {
   const supabase = await createClient();
   const mfa = await getMfaDecision(supabase);
@@ -80,17 +95,13 @@ export async function signUp(
 
   const supabase = await createClient();
   const headerStore = await headers();
-  const origin =
-    headerStore.get("origin") ??
-    headerStore.get("x-forwarded-host")?.replace(/^/, "https://") ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    "https://e3008-control.vercel.app";
+  const origin = publicSiteOrigin(headerStore);
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${origin.replace(/\/$/, "")}/control`,
+      emailRedirectTo: `${origin}/auth/callback`,
     },
   });
 

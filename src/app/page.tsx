@@ -22,6 +22,13 @@ export default async function HomePage({
   const params = await searchParams;
   const publicSignup = isPublicSignupEnabled();
   const denied = params.denied === "1";
+  const confirmError = params.confirm === "failed";
 
-  return <LandingPage publicSignup={publicSignup} denied={denied} />;
+  return (
+    <LandingPage
+      publicSignup={publicSignup}
+      denied={denied}
+      confirmError={confirmError}
+    />
+  );
 }

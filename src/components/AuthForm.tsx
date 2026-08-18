@@ -10,12 +10,14 @@ type AuthMode = "login" | "register";
 export function AuthForm({
   publicSignup,
   denied,
+  confirmError,
 }: {
   publicSignup: boolean;
   denied?: boolean;
+  confirmError?: boolean;
 }) {
   const [mode, setMode] = useState<AuthMode>(
-    publicSignup ? "register" : "login",
+    publicSignup && !confirmError ? "register" : "login",
   );
   const [loginState, loginAction, loginPending] = useActionState(
     signIn,
@@ -72,6 +74,15 @@ export function AuthForm({
             ? "Melde dich an und steuere deinen Peugeot."
             : "Privater Zugang — nur freigeschaltete Konten."}
       </p>
+
+      {confirmError ? (
+        <p
+          role="alert"
+          className="mt-4 rounded-xl border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-3 py-2 text-sm text-[var(--danger)]"
+        >
+          Bestätigungslink ungültig oder abgelaufen. Bitte anmelden.
+        </p>
+      ) : null}
 
       {denied ? (
         <p
