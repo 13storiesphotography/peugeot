@@ -19,6 +19,7 @@ import { mapSignupError } from "@/lib/auth/signup-error";
 export type AuthState = {
   error?: string;
   success?: string;
+  needsConfirmation?: boolean;
 };
 
 function publicSiteOrigin(headerStore: Headers): string {
@@ -71,6 +72,7 @@ export async function signIn(
       return {
         error:
           "E-Mail ist noch nicht bestätigt. Unten kannst du die Bestätigungsmail erneut senden.",
+        needsConfirmation: true,
       };
     }
     return { error: "Anmeldung fehlgeschlagen. E-Mail oder Passwort prüfen." };
@@ -148,6 +150,7 @@ export async function signUp(
   return {
     success:
       "Konto angelegt. Bestätige deine E-Mail — danach kannst du dich anmelden. Falls keine Mail kommt: unten erneut senden, Spam-Ordner prüfen.",
+    needsConfirmation: true,
   };
 }
 
@@ -178,12 +181,13 @@ export async function resendConfirmation(
 
   if (error) {
     console.error("resend confirmation", error.code, error.message, error.status);
-    return { error: mapSignupError(error) };
+    return { error: mapSignupError(error), needsConfirmation: true };
   }
 
   return {
     success:
       "Falls ein unbestätigtes Konto existiert, ist die Bestätigungsmail unterwegs. Spam-Ordner prüfen.",
+    needsConfirmation: true,
   };
 }
 

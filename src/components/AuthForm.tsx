@@ -44,6 +44,12 @@ export function AuthForm({
 
   const pending =
     loginPending || registerPending || forgotPending || resendPending;
+  const offerResend =
+    publicSignup &&
+    (Boolean(confirmError) ||
+      Boolean(registerState.needsConfirmation) ||
+      Boolean(loginState.needsConfirmation) ||
+      Boolean(resendState.needsConfirmation));
   const state =
     resendState.success || resendState.error
       ? resendState
@@ -223,7 +229,7 @@ export function AuthForm({
                 : "Zur Steuerung"}
         </button>
 
-        {publicSignup && mode !== "forgot" ? (
+        {offerResend && mode !== "forgot" ? (
           <button
             type="submit"
             formAction={resendAction}
