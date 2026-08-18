@@ -31,10 +31,10 @@
 html {
   background-color: #071018;
   color-scheme: dark;
-  overflow-x: hidden;
-  overflow-y: auto;
   height: auto;
   max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: scroll;
 }
 
 html,
@@ -54,9 +54,7 @@ body {
   background-repeat: no-repeat;
   background-size: cover;
   font-family: var(--font-body), system-ui, sans-serif;
-  overscroll-behavior-y: none;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: visible;
   max-width: 100%;
 }
 
