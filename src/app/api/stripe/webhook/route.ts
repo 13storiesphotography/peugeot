@@ -30,13 +30,11 @@ export async function POST(request: Request) {
         ? checkout.metadata.user_id
         : null;
     if (userId && (checkout.payment_status === "paid" || checkout.status === "complete")) {
-      const source =
-        checkout.metadata?.source === "founder" ? "founder" : "stripe";
       const customerId =
         typeof checkout.customer === "string" ? checkout.customer : null;
       await grantProFromStripe({
         userId,
-        source,
+        source: "stripe",
         stripeCustomerId: customerId,
         stripeCheckoutSessionId: checkout.id,
       });

@@ -8,6 +8,10 @@ import { applyCommandToState, tickChargeState } from "./commands";
 import { createDefaultVehicleState } from "./defaults";
 import { parseNextDelayedClock } from "@/lib/stellantis/duration";
 import { getEntitlement, type Entitlement } from "@/lib/billing/entitlement";
+import {
+  commandRequiresPro,
+  PRO_REQUIRED_MESSAGE,
+} from "@/lib/billing/pro-commands";
 
 export type VehicleSchedule = {
   id: string;
@@ -1032,6 +1036,17 @@ export async function runVehicleCommand(
 ): Promise<CommandResult> {
   const bundle = await getVehicleBundle(supabase, userId);
 
+  if (commandRequiresPro(request.command)) {
+    const entitlement = await getEntitlement(supabase, userId);
+    if (!entitlement.isPro) {
+      return {
+        ok: false,
+        message: PRO_REQUIRED_MESSAGE,
+        vehicle: bundle.vehicle,
+      };
+    }
+  }
+
   if (
     bundle.vehicle.mode === "live" &&
     (request.command === "climate_start" || request.command === "climate_stop")
@@ -1088,17 +1103,6 @@ export async function runVehicleCommand(
       ok: live.ok,
     });
     return live;
-  }
-
-  if (request.command === "set_charge_limit") {
-    const entitlement = await getEntitlement(supabase, userId);
-    if (!entitlement.isPro) {
-      return {
-        ok: false,
-        message: "80%-Limit ist Pro — unter Einstellungen freischalten.",
-        vehicle: bundle.vehicle,
-      };
-    }
   }
 
   if (bundle.vehicle.mode === "live" && request.command === "set_charge_limit") {

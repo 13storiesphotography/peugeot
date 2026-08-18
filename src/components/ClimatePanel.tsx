@@ -16,6 +16,7 @@ interface ClimatePanelProps {
     detail?: string;
   } | null;
   onCommand: (command: VehicleCommand) => void;
+  isPro?: boolean;
 }
 
 function formatTemp(tempC: number): string {
@@ -29,6 +30,7 @@ export function ClimatePanel({
   remoteReady = false,
   climateJob = null,
   onCommand,
+  isPro = false,
 }: ClimatePanelProps) {
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
@@ -64,6 +66,7 @@ export function ClimatePanel({
         </div>
       ) : null}
 
+      {isPro ? (
       <button
         type="button"
         disabled={busy || pending || !climateRemoteOk}
@@ -79,6 +82,14 @@ export function ClimatePanel({
             ? "Vorklima stoppen"
             : "Vorklima starten"}
       </button>
+      ) : (
+        <a
+          href="/control/settings#pro"
+          className="action-btn btn-primary block w-full rounded-full px-5 py-4 text-center text-sm font-semibold"
+        >
+          Mit Pro steuern
+        </a>
+      )}
 
       {!climateRemoteOk ? (
         <p className="text-center text-xs text-[var(--fg-muted)]">

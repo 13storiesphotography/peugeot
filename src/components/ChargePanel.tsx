@@ -113,7 +113,7 @@ export function ChargePanel({
           </p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
             {!isPro
-              ? "Founder / Pro — stoppt zuverlässig bei 80%"
+              ? "Ansehen frei — Schalten mit Pro"
               : live
                 ? eightyOn
                   ? vehicleReportsFull
@@ -156,7 +156,7 @@ export function ChargePanel({
               color: "#031016",
             }}
           >
-            Freischalten
+            Mit Pro
           </a>
         )}
       </div>
