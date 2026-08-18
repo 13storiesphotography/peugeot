@@ -15,6 +15,18 @@ export type AuthState = {
   success?: string;
 };
 
+function emailRedirectTo(headerStore: Headers): string {
+  const origin = (
+    headerStore.get("origin") ??
+    (headerStore.get("x-forwarded-host")
+      ? `https://${headerStore.get("x-forwarded-host")}`
+      : null) ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "https://www.peugeotcontrol.app"
+  ).replace(/\/$/, "");
+  return `${origin}/control`;
+}
+
 async function redirectAfterAuth(): Promise<never> {
   const supabase = await createClient();
   const mfa = await getMfaDecision(supabase);
@@ -40,6 +52,14 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    const msg = error.message.toLowerCase();
+    const code = error.code?.toLowerCase() ?? "";
+    if (code === "email_not_confirmed" || msg.includes("email not confirmed")) {
+      return {
+        error:
+          "E-Mail ist noch nicht bestätigt. Unten kannst du die Bestätigungsmail erneut senden.",
+      };
+    }
     return { error: "Anmeldung fehlgeschlagen. E-Mail oder Passwort prüfen." };
   }
 
@@ -80,17 +100,11 @@ export async function signUp(
 
   const supabase = await createClient();
   const headerStore = await headers();
-  const origin =
-    headerStore.get("origin") ??
-    headerStore.get("x-forwarded-host")?.replace(/^/, "https://") ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    "https://e3008-control.vercel.app";
-
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${origin.replace(/\/$/, "")}/control`,
+      emailRedirectTo: emailRedirectTo(headerStore),
     },
   });
 
@@ -114,7 +128,46 @@ export async function signUp(
 
   return {
     success:
-      "Konto angelegt. Falls nötig, bestätige deine E-Mail — danach kannst du dich anmelden und MyPeugeot verbinden.",
+      "Konto angelegt. Bestätige deine E-Mail — danach kannst du dich anmelden. Falls keine Mail kommt: unten erneut senden, Spam-Ordner prüfen.",
+  };
+}
+
+export async function resendConfirmation(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  if (!isPublicSignupEnabled()) {
+    return {
+      error: "Registrierung ist deaktiviert. Nur freigeschaltete Konten.",
+    };
+  }
+
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) {
+    return { error: "Bitte die E-Mail eintragen, dann erneut senden." };
+  }
+
+  const supabase = await createClient();
+  const headerStore = await headers();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: emailRedirectTo(headerStore),
+    },
+  });
+
+  if (error) {
+    const msg = error.message.toLowerCase();
+    console.error("resend confirmation", error.code, error.message);
+    if (msg.includes("rate") || msg.includes("security") || error.status === 429) {
+      return { error: "Zu viele Versuche. Bitte eine Minute warten." };
+    }
+  }
+
+  return {
+    success:
+      "Falls ein unbestätigtes Konto existiert, ist die Bestätigungsmail unterwegs. Spam-Ordner prüfen.",
   };
 }
 
