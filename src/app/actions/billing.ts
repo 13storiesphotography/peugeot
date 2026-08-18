@@ -16,6 +16,8 @@ import {
 } from "@/lib/billing/subscription";
 import { getEntitlement } from "@/lib/billing/entitlement";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
+import { getTranslator } from "@/i18n/server";
+import { intlLocale } from "@/i18n/format";
 
 export type CheckoutState = { error?: string; success?: string };
 
@@ -57,12 +59,13 @@ export async function startCheckout(
   _prev: CheckoutState,
   formData: FormData,
 ): Promise<CheckoutState> {
+  const { t } = await getTranslator();
   const session = await assertOwnerSession();
   if (!session) {
-    return { error: "Bitte zuerst anmelden." };
+    return { error: t("billing.payFirst") };
   }
   if (!isStripeConfigured()) {
-    return { error: "Zahlung ist gerade nicht verfügbar. Bitte später erneut versuchen." };
+    return { error: t("billing.payUnavailable") };
   }
 
   const interval = parseBillingInterval(formData.get("interval"));
@@ -72,7 +75,7 @@ export async function startCheckout(
   const current = await getEntitlement(session.supabase, session.userId);
   if (current.isPro) {
     return {
-      error: "Pro ist schon aktiv. Unten kannst du kündigen oder den Plan wechseln.",
+      error: t("billing.alreadyPro"),
     };
   }
 
@@ -104,7 +107,7 @@ export async function startCheckout(
   });
 
   if (!checkout.url) {
-    return { error: "Zahlung konnte nicht gestartet werden." };
+    return { error: t("billing.startFail") };
   }
 
   redirect(checkout.url);
@@ -113,15 +116,16 @@ export async function startCheckout(
 export async function confirmCheckoutSession(
   checkoutSessionId: string,
 ): Promise<CheckoutState> {
+  const { t } = await getTranslator();
   const session = await assertOwnerSession();
   if (!session) {
-    return { error: "Bitte zuerst anmelden." };
+    return { error: t("billing.payFirst") };
   }
   if (!isStripeConfigured()) {
-    return { error: "Zahlung ist nicht verfügbar." };
+    return { error: t("billing.payUnavailableShort") };
   }
   if (!checkoutSessionId.startsWith("cs_")) {
-    return { error: "Ungültige Zahlungssitzung." };
+    return { error: t("billing.invalidSession") };
   }
 
   try {
@@ -131,7 +135,7 @@ export async function confirmCheckoutSession(
       checkout.payment_status === "paid" || checkout.status === "complete";
     const userId = checkout.metadata?.user_id;
     if (!paid || userId !== session.userId) {
-      return { error: "Zahlung konnte nicht bestätigt werden." };
+      return { error: t("billing.confirmFail") };
     }
 
     const interval = parseBillingInterval(checkout.metadata?.interval ?? "year");
@@ -149,31 +153,32 @@ export async function confirmCheckoutSession(
     });
 
     return {
-      success: "Pro ist aktiv — Steuern und 80%-Limit sind freigeschaltet.",
+      success: t("billing.proActive"),
     };
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Bestätigung fehlgeschlagen.";
+      error instanceof Error ? error.message : t("billing.confirmFailed");
     return { error: message };
   }
 }
 
 async function requireManagedSubscription() {
+  const { t } = await getTranslator();
   const session = await assertOwnerSession();
-  if (!session) return { error: "Bitte zuerst anmelden." } as const;
+  if (!session) return { error: t("billing.payFirst") } as const;
   if (!isStripeConfigured()) {
-    return { error: "Zahlung ist nicht verfügbar." } as const;
+    return { error: t("billing.payUnavailableShort") } as const;
   }
   const customerId = await resolveStripeCustomerId(
     session.userId,
     session.email,
   );
   if (!customerId) {
-    return { error: "Kein Stripe-Abo gefunden." } as const;
+    return { error: t("billing.noStripeSub") } as const;
   }
   const sub = await getActiveSubscription(customerId);
   if (!sub) {
-    return { error: "Kein aktives Abo gefunden." } as const;
+    return { error: t("billing.noActiveSub") } as const;
   }
   return { session, customerId, sub } as const;
 }
@@ -182,6 +187,7 @@ export async function cancelSubscriptionAtPeriodEnd(
   _prev: CheckoutState,
   _formData: FormData,
 ): Promise<CheckoutState> {
+  const { locale, t } = await getTranslator();
   const loaded = await requireManagedSubscription();
   if ("error" in loaded) return loaded;
   await getStripe().subscriptions.update(loaded.sub.id, {
@@ -190,12 +196,14 @@ export async function cancelSubscriptionAtPeriodEnd(
   const until = subscriptionPeriodEndIso(loaded.sub);
   return {
     success: until
-      ? `Gekündigt. Pro bleibt bis ${new Intl.DateTimeFormat("de-DE", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }).format(new Date(until))} aktiv, danach Free.`
-      : "Gekündigt zum Periodenende. Pro bleibt bis dahin aktiv.",
+      ? t("billing.canceledKeep", {
+          day: new Intl.DateTimeFormat(intlLocale(locale), {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          }).format(new Date(until)),
+        })
+      : t("billing.canceledKeepGeneric"),
   };
 }
 
@@ -203,26 +211,28 @@ export async function resumeSubscription(
   _prev: CheckoutState,
   _formData: FormData,
 ): Promise<CheckoutState> {
+  const { t } = await getTranslator();
   const loaded = await requireManagedSubscription();
   if ("error" in loaded) return loaded;
   await getStripe().subscriptions.update(loaded.sub.id, {
     cancel_at_period_end: false,
   });
-  return { success: "Kündigung zurückgenommen. Das Abo läuft weiter." };
+  return { success: t("billing.resumed") };
 }
 
 export async function changeSubscriptionPlan(
   _prev: CheckoutState,
   formData: FormData,
 ): Promise<CheckoutState> {
+  const { t } = await getTranslator();
   const loaded = await requireManagedSubscription();
   if ("error" in loaded) return loaded;
   const interval = parseBillingInterval(formData.get("interval"));
   const item = loaded.sub.items.data[0];
-  if (!item) return { error: "Abo-Position nicht gefunden." };
+  if (!item) return { error: t("billing.itemMissing") };
   const priceId = await getProPriceId(interval);
   if (item.price.id === priceId) {
-    return { error: "Das ist schon dein aktueller Plan." };
+    return { error: t("billing.alreadyPlan") };
   }
   await getStripe().subscriptions.update(loaded.sub.id, {
     items: [{ id: item.id, price: priceId }],
@@ -235,9 +245,7 @@ export async function changeSubscriptionPlan(
   });
   return {
     success:
-      interval === "year"
-        ? "Wechsel auf jährlich. Stripe verrechnet die Differenz."
-        : "Wechsel auf monatlich. Stripe verrechnet die Differenz.",
+      interval === "year" ? t("billing.switchedYear") : t("billing.switchedMonth"),
   };
 }
 
@@ -245,16 +253,17 @@ export async function openBillingPortal(
   _prev: CheckoutState,
   _formData: FormData,
 ): Promise<CheckoutState> {
+  const { t } = await getTranslator();
   const session = await assertOwnerSession();
-  if (!session) return { error: "Bitte zuerst anmelden." };
+  if (!session) return { error: t("billing.payFirst") };
   if (!isStripeConfigured()) {
-    return { error: "Zahlung ist nicht verfügbar." };
+    return { error: t("billing.payUnavailableShort") };
   }
   const customerId = await resolveStripeCustomerId(
     session.userId,
     session.email,
   );
-  if (!customerId) return { error: "Kein Stripe-Kunde gefunden." };
+  if (!customerId) return { error: t("billing.noStripeSub") };
   const origin = siteOrigin(await headers());
   let url: string | null = null;
   try {
@@ -267,12 +276,11 @@ export async function openBillingPortal(
     const message = error instanceof Error ? error.message : "";
     if (message.includes("No configuration provided")) {
       return {
-        error:
-          "Stripe-Kundenportal ist noch nicht eingerichtet. Kündigung und Planwechsel gehen über die Buttons oben.",
+        error: t("billing.portalMissing"),
       };
     }
-    return { error: message || "Kundenportal fehlgeschlagen." };
+    return { error: message || t("billing.portalFail") };
   }
-  if (!url) return { error: "Kundenportal konnte nicht geöffnet werden." };
+  if (!url) return { error: t("billing.portalFail") };
   redirect(url);
 }

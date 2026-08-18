@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isEmailAllowed } from "@/lib/auth/allowlist";
 import { getMfaDecision } from "@/lib/auth/mfa";
+import { getTranslator } from "@/i18n/server";
 
 async function requireAllowlistedUser() {
   const supabase = await createClient();
@@ -27,9 +28,10 @@ export async function enrollTotpAction() {
   }
 
   if (decision.status === "challenge") {
+    const { t } = await getTranslator();
     return {
       ok: false as const,
-      error: "MFA ist bereits eingerichtet. Bitte Challenge abschließen.",
+      error: t("mfa.alreadyOn"),
     };
   }
 
@@ -58,18 +60,19 @@ export async function verifyTotpEnrollmentAction(input: {
   factorId: string;
   code: string;
 }) {
+  const { t } = await getTranslator();
   const { supabase } = await requireAllowlistedUser();
   const code = input.code.replace(/\s+/g, "");
 
   if (!/^\d{6}$/.test(code)) {
-    return { ok: false as const, error: "Bitte einen 6-stelligen Code eingeben." };
+    return { ok: false as const, error: t("mfa.enterSix") };
   }
 
   const challenge = await supabase.auth.mfa.challenge({ factorId: input.factorId });
   if (challenge.error || !challenge.data) {
     return {
       ok: false as const,
-      error: challenge.error?.message ?? "Challenge konnte nicht erstellt werden.",
+      error: challenge.error?.message ?? t("mfa.challengeFail"),
     };
   }
 
@@ -90,18 +93,19 @@ export async function verifyTotpChallengeAction(input: {
   factorId: string;
   code: string;
 }) {
+  const { t } = await getTranslator();
   const { supabase } = await requireAllowlistedUser();
   const code = input.code.replace(/\s+/g, "");
 
   if (!/^\d{6}$/.test(code)) {
-    return { ok: false as const, error: "Bitte einen 6-stelligen Code eingeben." };
+    return { ok: false as const, error: t("mfa.enterSix") };
   }
 
   const challenge = await supabase.auth.mfa.challenge({ factorId: input.factorId });
   if (challenge.error || !challenge.data) {
     return {
       ok: false as const,
-      error: challenge.error?.message ?? "Challenge konnte nicht erstellt werden.",
+      error: challenge.error?.message ?? t("mfa.challengeFail"),
     };
   }
 

@@ -19,6 +19,8 @@ import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { notifyNewSignup } from "@/lib/auth/notify-signup";
 import { mapSignupError, mapOutboundMailError } from "@/lib/auth/signup-error";
+import { getTranslator } from "@/i18n/server";
+import { isLocale, LOCALE_COOKIE, localeCookieOptions, type Locale } from "@/i18n/config";
 
 export type AuthState = {
   error?: string;
@@ -55,15 +57,16 @@ export async function signIn(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const { locale, t } = await getTranslator();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return { error: "E-Mail und Passwort sind erforderlich." };
+    return { error: t("auth.emailPasswordRequired") };
   }
 
   if (!isEmailAllowed(email)) {
-    return { error: "Dieser Zugang ist nicht freigeschaltet." };
+    return { error: t("auth.accessDenied") };
   }
 
   const supabase = await createClient();
@@ -74,12 +77,11 @@ export async function signIn(
     const code = error.code?.toLowerCase() ?? "";
     if (code === "email_not_confirmed" || msg.includes("email not confirmed")) {
       return {
-        error:
-          "E-Mail ist noch nicht bestätigt. Unten kannst du die Bestätigungsmail erneut senden.",
+        error: t("auth.emailUnconfirmed"),
         needsConfirmation: true,
       };
     }
-    return { error: "Anmeldung fehlgeschlagen. E-Mail oder Passwort prüfen." };
+    return { error: t("auth.signInFailed") };
   }
 
   const { data } = await supabase.auth.getClaims();
@@ -87,7 +89,17 @@ export async function signIn(
     typeof data?.claims?.email === "string" ? data.claims.email : email;
   if (!isEmailAllowed(sessionEmail)) {
     await supabase.auth.signOut();
-    return { error: "Dieser Zugang ist nicht freigeschaltet." };
+    return { error: t("auth.accessDenied") };
+  }
+
+  const { data: userData } = await supabase.auth.getUser();
+  const saved = userData.user?.user_metadata?.locale;
+  const jar = await cookies();
+  if (isLocale(saved)) {
+    jar.set(LOCALE_COOKIE, saved, localeCookieOptions());
+  } else {
+    jar.set(LOCALE_COOKIE, locale, localeCookieOptions());
+    await supabase.auth.updateUser({ data: { locale } });
   }
 
   return redirectAfterAuth();
@@ -97,24 +109,27 @@ export async function signUp(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const { locale: detected, t } = await getTranslator();
   if (!isPublicSignupEnabled()) {
     return {
-      error: "Registrierung ist deaktiviert. Nur freigeschaltete Konten.",
+      error: t("auth.signupDisabled"),
     };
   }
 
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const passwordConfirm = String(formData.get("passwordConfirm") ?? "");
+  const localeRaw = String(formData.get("locale") ?? "");
+  const locale: Locale = isLocale(localeRaw) ? localeRaw : detected;
 
   if (!email || !password) {
-    return { error: "E-Mail und Passwort sind erforderlich." };
+    return { error: t("auth.emailPasswordRequired") };
   }
   if (password.length < 8) {
-    return { error: "Passwort mindestens 8 Zeichen." };
+    return { error: t("auth.passwordMin") };
   }
   if (password !== passwordConfirm) {
-    return { error: "Passwörter stimmen nicht überein." };
+    return { error: t("auth.passwordMismatch") };
   }
 
   const supabase = await createClient();
@@ -124,7 +139,7 @@ export async function signUp(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo },
+    options: { emailRedirectTo, data: { locale } },
   });
 
   if (error) {
@@ -134,12 +149,15 @@ export async function signUp(
       status: error.status,
       emailRedirectTo,
     });
-    return { error: mapSignupError(error) };
+    return { error: mapSignupError(error, locale) };
   }
 
   if (data.user?.identities && data.user.identities.length === 0) {
-    return { error: "Diese E-Mail ist bereits registriert — bitte anmelden." };
+    return { error: t("auth.alreadyRegistered") };
   }
+
+  const jar = await cookies();
+  jar.set(LOCALE_COOKIE, locale, localeCookieOptions());
 
   try {
     await notifyNewSignup(email);
@@ -152,8 +170,7 @@ export async function signUp(
   }
 
   return {
-    success:
-      "Konto angelegt. Bestätige deine E-Mail — danach kannst du dich anmelden. Falls keine Mail kommt: unten erneut senden, Spam-Ordner prüfen.",
+    success: t("auth.confirmSent"),
     needsConfirmation: true,
   };
 }
@@ -162,15 +179,16 @@ export async function resendConfirmation(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const { locale, t } = await getTranslator();
   if (!isPublicSignupEnabled()) {
     return {
-      error: "Registrierung ist deaktiviert. Nur freigeschaltete Konten.",
+      error: t("auth.signupDisabled"),
     };
   }
 
   const email = String(formData.get("email") ?? "").trim();
   if (!email) {
-    return { error: "Bitte die E-Mail eintragen, dann erneut senden." };
+    return { error: t("auth.resendNeedEmail") };
   }
 
   const supabase = await createClient();
@@ -185,12 +203,11 @@ export async function resendConfirmation(
 
   if (error) {
     console.error("resend confirmation", error.code, error.message, error.status);
-    return { error: mapSignupError(error), needsConfirmation: true };
+    return { error: mapSignupError(error, locale), needsConfirmation: true };
   }
 
   return {
-    success:
-      "Falls ein unbestätigtes Konto existiert, ist die Bestätigungsmail unterwegs. Spam-Ordner prüfen.",
+    success: t("auth.confirmSent"),
     needsConfirmation: true,
   };
 }
@@ -205,14 +222,14 @@ export async function requestPasswordReset(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const { locale, t } = await getTranslator();
   const email = String(formData.get("email") ?? "").trim();
   if (!email) {
-    return { error: "E-Mail ist erforderlich." };
+    return { error: t("auth.emailRequired") };
   }
 
   const generic = {
-    success:
-      "Falls ein Konto mit dieser E-Mail existiert, haben wir einen Link zum Zurücksetzen geschickt. Prüfe auch den Spam-Ordner.",
+    success: t("auth.resetGeneric"),
   };
 
   const origin = await getSiteOrigin();
@@ -228,7 +245,7 @@ export async function requestPasswordReset(
       });
       const tokenHash = data?.properties?.hashed_token;
       if (error || !tokenHash) {
-        const mail = error ? mapOutboundMailError(error) : null;
+        const mail = error ? mapOutboundMailError(error, locale) : null;
         if (mail) return { error: mail };
         return generic;
       }
@@ -237,22 +254,22 @@ export async function requestPasswordReset(
         token_hash: tokenHash,
         email_action_type: "recovery",
         redirect_to: redirectTo,
-      });
+      }, locale);
       return generic;
     }
 
     const { error } = await sendRecoveryWithoutPkce(email, redirectTo);
     if (error) {
-      const mail = mapOutboundMailError(error);
+      const mail = mapOutboundMailError(error, locale);
       if (mail) return { error: mail };
     }
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : "";
-    const mail = mapOutboundMailError({ message });
+    const mail = mapOutboundMailError({ message }, locale);
     if (mail) return { error: mail };
     if (message.toLowerCase().includes("resend")) {
       return {
-        error: "E-Mail konnte nicht gesendet werden. Bitte später erneut versuchen.",
+        error: t("auth.mailFailed"),
       };
     }
   }
@@ -264,14 +281,15 @@ export async function updatePassword(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const { t } = await getTranslator();
   const password = String(formData.get("password") ?? "");
   const passwordConfirm = String(formData.get("passwordConfirm") ?? "");
 
   if (password.length < 8) {
-    return { error: "Passwort mindestens 8 Zeichen." };
+    return { error: t("auth.passwordMin") };
   }
   if (password !== passwordConfirm) {
-    return { error: "Passwörter stimmen nicht überein." };
+    return { error: t("auth.passwordMismatch") };
   }
 
   const tokenHash = String(formData.get("token_hash") ?? "").trim();
@@ -284,8 +302,7 @@ export async function updatePassword(
     });
     if (error) {
       return {
-        error:
-          "Dieser Link ist ungültig oder abgelaufen. Bitte einen neuen anfordern.",
+        error: t("auth.linkInvalid"),
       };
     }
     const jar = await cookies();
@@ -298,32 +315,30 @@ export async function updatePassword(
 
   if (!user) {
     return {
-      error:
-        "Sitzung abgelaufen. Bitte den Link in der E-Mail erneut öffnen oder einen neuen anfordern.",
+      error: t("auth.sessionExpired"),
     };
   }
 
   if (!isEmailAllowed(user.email)) {
     await supabase.auth.signOut();
-    return { error: "Dieser Zugang ist nicht freigeschaltet." };
+    return { error: t("auth.accessDenied") };
   }
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error) {
     const msg = error.message.toLowerCase();
     if (msg.includes("same") || msg.includes("different from the old")) {
-      return { error: "Das neue Passwort muss sich vom bisherigen unterscheiden." };
+      return { error: t("auth.passwordSame") };
     }
     if (msg.includes("at least") || msg.includes("weak") || msg.includes("pwned")) {
-      return { error: "Passwort zu unsicher. Bitte ein längeres wählen." };
+      return { error: t("auth.passwordWeak") };
     }
     if (msg.includes("session") || error.status === 401) {
       return {
-        error:
-          "Sitzung abgelaufen. Bitte den Link in der E-Mail erneut öffnen oder einen neuen anfordern.",
+        error: t("auth.sessionExpired"),
       };
     }
-    return { error: "Passwort konnte nicht gespeichert werden. Bitte erneut versuchen." };
+    return { error: t("auth.passwordSavedFail") };
   }
 
   const jar = await cookies();

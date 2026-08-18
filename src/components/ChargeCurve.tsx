@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/components/i18n/I18nProvider";
+import { intlLocale } from "@/i18n/format";
 import type { ChargeSample } from "@/lib/vehicle/repository";
 
 interface ChargeCurveProps {
@@ -7,34 +9,42 @@ interface ChargeCurveProps {
   live?: boolean;
 }
 
-function formatTime(iso: string): string {
-  return new Intl.DateTimeFormat("de-DE", {
+function formatTime(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));
 }
 
-function formatDuration(startIso: string, endIso: string): string {
+function formatDuration(
+  startIso: string,
+  endIso: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
   const mins = Math.max(
     0,
     Math.round(
       (new Date(endIso).getTime() - new Date(startIso).getTime()) / 60_000,
     ),
   );
-  if (mins < 60) return `${mins} Min.`;
+  if (mins < 60) return t("charge.durationMin", { n: mins });
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return m ? `${h} Std. ${m} Min.` : `${h} Std.`;
+  return m
+    ? t("charge.durationHm", { h, m })
+    : t("charge.durationH", { h });
 }
 
 /** SVG charge curve from recorded samples (SoC over time). */
 export function ChargeCurve({ samples }: ChargeCurveProps) {
+  const { locale, t } = useI18n();
+  const dates = intlLocale(locale);
   if (samples.length < 2) {
     return (
       <div className="ui-surface px-4 py-4">
-        <p className="text-sm font-semibold">Ladekurve</p>
+        <p className="text-sm font-semibold">{t("charge.curve")}</p>
         <p className="mt-1 text-xs text-[var(--fg-muted)]">
-          Erscheint während des Ladens.
+          {t("charge.curveEmpty")}
         </p>
       </div>
     );
@@ -87,10 +97,10 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
     <div className="ui-surface px-4 py-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold">Ladekurve</p>
+          <p className="text-sm font-semibold">{t("charge.curve")}</p>
           <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
-            {formatTime(first.recordedAt)}–{formatTime(last.recordedAt)} ·{" "}
-            {formatDuration(first.recordedAt, last.recordedAt)}
+            {formatTime(first.recordedAt, dates)}–{formatTime(last.recordedAt, dates)} ·{" "}
+            {formatDuration(first.recordedAt, last.recordedAt, t)}
           </p>
         </div>
         <div className="text-right text-xs tabular-nums text-[var(--fg-muted)]">
@@ -102,8 +112,9 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
           </p>
           {peakKw > 0 ? (
             <p>
-              Max.{" "}
-              {peakKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW
+              {t("charge.maxKw", {
+                n: peakKw.toLocaleString(dates, { maximumFractionDigits: 1 }),
+              })}
             </p>
           ) : null}
         </div>
@@ -113,7 +124,10 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
         viewBox={`0 0 ${width} ${height}`}
         className="mt-3 h-auto w-full"
         role="img"
-        aria-label={`Ladekurve von ${Math.round(first.batteryPercent)}% auf ${Math.round(last.batteryPercent)}%`}
+        aria-label={t("charge.curveAria", {
+          from: Math.round(first.batteryPercent),
+          to: Math.round(last.batteryPercent),
+        })}
       >
         <defs>
           <linearGradient id="curveFill" x1="0" y1="0" x2="0" y2="1">
@@ -179,7 +193,7 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
           fill="rgba(143,168,181,0.7)"
           fontSize="9"
         >
-          {formatTime(first.recordedAt)}
+          {formatTime(first.recordedAt, dates)}
         </text>
         <text
           x={width - padR}
@@ -188,7 +202,7 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
           fill="rgba(143,168,181,0.7)"
           fontSize="9"
         >
-          {formatTime(last.recordedAt)} · {Math.round(last.batteryPercent)}%
+          {formatTime(last.recordedAt, dates)} · {Math.round(last.batteryPercent)}%
         </text>
       </svg>
     </div>

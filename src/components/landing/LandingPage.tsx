@@ -1,74 +1,11 @@
 import { AuthForm } from "@/components/AuthForm";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { LandingScreens } from "@/components/landing/LandingScreens";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { SiteFooter } from "@/components/SiteFooter";
+import { getTranslator } from "@/i18n/server";
 
-const features = [
-  {
-    title: "Übersicht auf einen Blick",
-    body: "Ladezustand, Reichweite, Verriegelung und Standort — live und ohne Menü-Wirrwarr.",
-  },
-  {
-    title: "Laden im Blick",
-    body: "SoC, Wallbox vs. Schnellladen, Ladekurve und ETA ansehen. 80%-Limit mit Pro.",
-  },
-  {
-    title: "Vorklima per Tipp",
-    body: "Vor Abfahrt heizen oder kühlen — mit Pro, inkl. Fortschrittsanzeige.",
-  },
-  {
-    title: "Fernbedienung",
-    body: "Entriegeln, Verriegeln, Finden, Hupe und Wecken — mit Pro, wenn e-Remote freigeschaltet ist.",
-  },
-  {
-    title: "Standort & Navigation",
-    body: "Sieh, wo dein Peugeot zuletzt gemeldet wurde, und spring direkt in die Karten-App.",
-  },
-  {
-    title: "Dein MyPeugeot-Konto",
-    body: "Jeder Nutzer verbindet sein eigenes Peugeot-Konto in den Einstellungen — getrennt und sicher.",
-  },
-];
-
-const benefits = [
-  {
-    title: "Schneller als die Serien-App",
-    body: "Weniger Klicks bis zu Laden, Klima und Fernbedienung — optimiert für den Browser und als PWA.",
-  },
-  {
-    title: "Klare Oberfläche",
-    body: "Große Aktionen, verständliche Status-Texte und ein ruhiges Dark-Design — auch nachts am Ladekabel.",
-  },
-  {
-    title: "Offen für alle Peugeot-Fahrer",
-    body: "Registrieren, MyPeugeot verbinden, Fernbedienung freischalten — kein Einladungscode nötig.",
-  },
-];
-
-const steps = [
-  {
-    n: "1",
-    title: "Konto anlegen",
-    body: "E-Mail und Passwort — kostenlos und in unter einer Minute.",
-  },
-  {
-    n: "2",
-    title: "MyPeugeot verbinden",
-    body: "In den Einstellungen mit E-Mail/Passwort oder OAuth — wie in der offiziellen App.",
-  },
-  {
-    n: "3",
-    title: "Fernbedienung freischalten",
-    body: "SMS-Code und 4-stellige PIN einmalig hinterlegen (e-Remote / Connect).",
-  },
-  {
-    n: "4",
-    title: "Loslegen",
-    body: "Übersicht, Laden, Klima und Steuern — auf dem Handy oder Desktop.",
-  },
-];
-
-export function LandingPage({
+export async function LandingPage({
   publicSignup,
   denied,
   confirmError,
@@ -79,6 +16,27 @@ export function LandingPage({
   confirmError?: boolean;
   deleted?: boolean;
 }) {
+  const { t } = await getTranslator();
+  const features = [
+    { title: t("landing.f1t"), body: t("landing.f1b") },
+    { title: t("landing.f2t"), body: t("landing.f2b") },
+    { title: t("landing.f3t"), body: t("landing.f3b") },
+    { title: t("landing.f4t"), body: t("landing.f4b") },
+    { title: t("landing.f5t"), body: t("landing.f5b") },
+    { title: t("landing.f6t"), body: t("landing.f6b") },
+  ];
+  const benefits = [
+    { title: t("landing.b1t"), body: t("landing.b1b") },
+    { title: t("landing.b2t"), body: t("landing.b2b") },
+    { title: t("landing.b3t"), body: t("landing.b3b") },
+  ];
+  const steps = [
+    { n: "1", title: t("landing.s1t"), body: t("landing.s1b") },
+    { n: "2", title: t("landing.s2t"), body: t("landing.s2b") },
+    { n: "3", title: t("landing.s3t"), body: t("landing.s3b") },
+    { n: "4", title: t("landing.s4t"), body: t("landing.s4b") },
+  ];
+
   return (
     <div className="relative">
       <div
@@ -89,62 +47,64 @@ export function LandingPage({
         }}
       />
 
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-6 pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-6">
+      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-6 pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-6">
         <a href="#" className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight">
-          Peugeot Control
+          {t("landing.brand")}
         </a>
         <nav className="hidden items-center gap-6 text-sm text-[var(--fg-muted)] sm:flex">
           <a href="#features" className="hover:text-[var(--fg)]">
-            Funktionen
+            {t("landing.navFeatures")}
           </a>
           <a href="#vorteile" className="hover:text-[var(--fg)]">
-            Vorteile
+            {t("landing.navBenefits")}
           </a>
           <a href="#preise" className="hover:text-[var(--fg)]">
-            Preise
+            {t("landing.navPricing")}
           </a>
           <a href="#start" className="hover:text-[var(--fg)]">
-            Anmelden
+            {t("landing.navSignIn")}
           </a>
         </nav>
-        <a
-          href="#start"
-          className="action-btn rounded-full px-4 py-2 text-sm font-semibold"
-          style={{
-            background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-            color: "#031016",
-          }}
-        >
-          Anmelden
-        </a>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher compact />
+          <a
+            href="#start"
+            className="action-btn rounded-full px-4 py-2 text-sm font-semibold"
+            style={{
+              background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
+              color: "#031016",
+            }}
+          >
+            {t("landing.navSignIn")}
+          </a>
+        </div>
       </header>
 
       <main className="relative z-10">
         <section className="mx-auto grid max-w-6xl gap-10 px-4 py-8 sm:px-6 lg:grid-cols-2 lg:items-start lg:py-14">
           <div className="order-2 animate-rise max-w-xl lg:order-1 lg:pt-4">
             <p className="text-xs uppercase tracking-[0.4em] text-[var(--accent-bright)]">
-              Peugeot Control
+              {t("landing.heroKicker")}
             </p>
             <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Dein Peugeot.
+              {t("landing.heroTitle1")}
               <br />
-              <span className="text-[var(--accent-bright)]">Klar gesteuert.</span>
+              <span className="text-[var(--accent-bright)]">{t("landing.heroTitle2")}</span>
             </h1>
             <p className="mt-5 max-w-lg text-base text-[var(--fg-muted)] sm:text-lg">
-              Laden, Vorklima und Fernbedienung im Browser — übersichtlicher und
-              schneller als die Serien-App. Registriere dich, verbinde dein
-              MyPeugeot-Konto und steuere dein Auto.
+              {t("landing.heroBody")}
             </p>
             <p className="mt-4 text-sm text-[var(--fg-muted)]">
-              Aktuell getestet: <span className="text-[var(--fg)]">E-3008</span>.
-              Andere Modelle mit MyPeugeot können funktionieren.
+              {t("landing.tested")}{" "}
+              <span className="text-[var(--fg)]">E-3008</span>.{" "}
+              {t("landing.modelsNote")}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
                 href="#features"
                 className="action-btn rounded-full border border-[var(--line)] px-6 py-3 text-sm font-semibold text-[var(--fg)]"
               >
-                Was die App kann
+                {t("landing.whatItDoes")}
               </a>
             </div>
           </div>
@@ -154,7 +114,7 @@ export function LandingPage({
                 role="status"
                 className="mb-4 rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
               >
-                Konto gelöscht. Du kannst dich jederzeit neu registrieren.
+                {t("landing.deleted")}
               </p>
             ) : null}
             <AuthForm
@@ -174,14 +134,13 @@ export function LandingPage({
         <section id="features" className="scroll-mt-20 border-t border-[var(--line)] bg-black/15 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-              Funktionen
+              {t("landing.featuresKicker")}
             </p>
             <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-              Alles Wichtige in vier Tabs
+              {t("landing.featuresTitle")}
             </h2>
             <p className="mt-3 max-w-2xl text-[var(--fg-muted)]">
-              Übersicht, Klima, Laden und Steuern — so wie in der App, die du nach
-              dem Login siehst.
+              {t("landing.featuresLead")}
             </p>
             <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {features.map((f) => (
@@ -202,10 +161,10 @@ export function LandingPage({
         <section id="vorteile" className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-              Vorteile
+              {t("landing.benefitsKicker")}
             </p>
             <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-              Warum Peugeot Control?
+              {t("landing.benefitsTitle")}
             </h2>
             <ul className="mt-10 grid gap-6 lg:grid-cols-3">
               {benefits.map((b) => (
@@ -225,10 +184,10 @@ export function LandingPage({
         <section className="border-t border-[var(--line)] bg-black/15 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-              Einrichtung
+              {t("landing.setupKicker")}
             </p>
             <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-              In vier Schritten startklar
+              {t("landing.setupTitle")}
             </h2>
             <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {steps.map((s) => (
@@ -242,12 +201,12 @@ export function LandingPage({
               ))}
             </ol>
             <div className="mt-10 rounded-2xl border border-[var(--line)] bg-black/20 p-5 text-sm text-[var(--fg-muted)]">
-              <p className="font-semibold text-[var(--fg)]">Voraussetzungen</p>
+              <p className="font-semibold text-[var(--fg)]">{t("landing.reqTitle")}</p>
               <ul className="mt-2 list-inside list-disc space-y-1">
-                <li>Peugeot mit MyPeugeot-Konto</li>
-                <li>Aktuell getestet: E-3008</li>
-                <li>e-Remote / Connect für Vorklima und Fernbedienung</li>
-                <li>Connect PLUS optional für Schloss-Status und Hupe</li>
+                <li>{t("landing.req1")}</li>
+                <li>{t("landing.req2")}</li>
+                <li>{t("landing.req3")}</li>
+                <li>{t("landing.req4")}</li>
               </ul>
             </div>
           </div>
@@ -256,15 +215,13 @@ export function LandingPage({
         <section className="py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
             <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-              Start
+              {t("landing.ctaKicker")}
             </p>
             <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-              {publicSignup ? "Konto anlegen oder anmelden" : "Anmelden"}
+              {publicSignup ? t("landing.ctaTitle") : t("auth.signIn")}
             </h2>
             <p className="mx-auto mt-3 max-w-md text-[var(--fg-muted)]">
-              {publicSignup
-                ? "Kostenlos starten, MyPeugeot verbinden — jedes Konto nur das eigene Fahrzeug."
-                : "Privater Zugang — nur freigeschaltete E-Mail-Adressen."}
+              {publicSignup ? t("landing.ctaBody") : t("landing.ctaPrivate")}
             </p>
             <a
               href="#start"
@@ -274,7 +231,7 @@ export function LandingPage({
                 color: "#031016",
               }}
             >
-              Zur Anmeldung
+              {t("landing.ctaButton")}
             </a>
           </div>
         </section>

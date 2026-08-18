@@ -1,20 +1,22 @@
 "use client";
 
 import type { ActivityItem } from "@/lib/vehicle/repository";
-
-function formatWhen(iso: string): string {
-  return new Intl.DateTimeFormat("de-DE", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
+import { useI18n } from "@/components/i18n/I18nProvider";
+import { intlLocale } from "@/i18n/format";
 
 export function ActivityLog({ items }: { items: ActivityItem[] }) {
+  const { locale, t } = useI18n();
   if (items.length === 0) return null;
+
+  const formatWhen = (iso: string) =>
+    new Intl.DateTimeFormat(intlLocale(locale), {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(iso));
 
   return (
     <section>
-      <p className="eyebrow">Zuletzt</p>
+      <p className="eyebrow">{t("dash.recent")}</p>
       <ul className="mt-2.5 space-y-2">
         {items.map((item) => (
           <li

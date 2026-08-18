@@ -17,16 +17,20 @@ export function normalizeChargeSpeedMode(
   return "unknown";
 }
 
-export function chargeSpeedLabel(mode: ChargeSpeedMode): string {
+export function chargeSpeedLabel(
+  mode: ChargeSpeedMode,
+  t?: (key: string) => string,
+): string {
+  const label = (key: string, fallback: string) => (t ? t(key) : fallback);
   switch (mode) {
     case "slow":
-      return "Wallbox";
+      return label("charge.wallbox", "Wallbox");
     case "quick":
-      return "Schnellladen";
+      return label("charge.dcFast", "DC fast");
     case "none":
-      return "Kein Ladevorgang";
+      return label("charge.none", "Not charging");
     default:
-      return "Unbekannt";
+      return label("charge.unknown", "Unknown");
   }
 }
 

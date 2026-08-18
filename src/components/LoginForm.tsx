@@ -2,25 +2,27 @@
 
 import { useActionState } from "react";
 import { signIn, type AuthState } from "@/app/actions/auth";
+import { useI18n } from "@/components/i18n/I18nProvider";
 
 const initial: AuthState = {};
 
 export function LoginForm() {
+  const { t } = useI18n();
   const [state, formAction, pending] = useActionState(signIn, initial);
 
   return (
     <div className="panel w-full max-w-md rounded-[1.75rem] p-6 sm:p-8">
       <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
-        Anmelden
+        {t("auth.signIn")}
       </h2>
       <p className="mt-2 text-sm text-[var(--fg-muted)]">
-        Privater Zugang — nur freigeschaltete Konten.
+        {t("auth.loginHintPrivate")}
       </p>
 
       <form action={formAction} className="mt-6 space-y-4">
         <label className="block">
           <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            E-Mail
+            {t("common.email")}
           </span>
           <input
             name="email"
@@ -33,7 +35,7 @@ export function LoginForm() {
 
         <label className="block">
           <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            Passwort
+            {t("common.password")}
           </span>
           <input
             name="password"
@@ -60,7 +62,7 @@ export function LoginForm() {
             color: "#031016",
           }}
         >
-          {pending ? "Bitte warten…" : "Zur Steuerung"}
+          {pending ? t("common.wait") : t("auth.toControl")}
         </button>
       </form>
     </div>

@@ -12,6 +12,7 @@ import {
   sendRemoteSmsAction,
   type RemotePinState,
 } from "@/app/actions/remote";
+import { useI18n } from "@/components/i18n/I18nProvider";
 
 type Props = {
   ready: boolean;
@@ -22,6 +23,7 @@ type Props = {
 };
 
 export function RemotePinForm({ ready, compact = false, onReady }: Props) {
+  const { t } = useI18n();
   const [state, action, pending] = useActionState(
     activateRemotePinAction,
     {} as RemotePinState,
@@ -48,12 +50,10 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-              Fernbedienung
+              {t("remote.title")}
             </h2>
             <p className="mt-1 text-sm text-[var(--fg-muted)]">
-              {ready
-                ? "Klima/Aufwecken aktiv. Schloss/Hupe/Licht brauchen zusätzlich Connect PLUS in MyPeugeot."
-                : "Einmalig: SMS-Code + 4-stellige MyPeugeot-PIN (für Klima/e-Remote)."}
+              {ready ? t("remote.readyHint") : t("remote.setupHint")}
             </p>
           </div>
           {ready ? (
@@ -63,15 +63,15 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
               className="shrink-0 rounded-full border border-[var(--line)] px-3 py-1.5 text-xs font-semibold text-[var(--fg-muted)]"
               aria-expanded={open}
             >
-              {open ? "Schließen" : "Neu einrichten"}
+              {open ? t("remote.close") : t("remote.setupAgain")}
             </button>
           ) : null}
         </div>
       ) : (
         <div>
-          <p className="font-semibold">Klima freischalten</p>
+          <p className="font-semibold">{t("remote.unlockClimate")}</p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            1) SMS anfordern · 2) Code aus der SMS · 3) MyPeugeot-PIN
+            {t("remote.steps")}
           </p>
         </div>
       )}
@@ -91,11 +91,11 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
                 });
               }}
             >
-              {smsPending ? "Sende…" : "1. SMS anfordern"}
+              {smsPending ? t("remote.sending") : t("remote.sendSms")}
             </button>
             {ready ? (
               <span className="self-center text-xs font-semibold text-[var(--accent-bright)]">
-                Aktiv
+                {t("remote.active")}
               </span>
             ) : null}
           </div>
@@ -108,7 +108,7 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
             className={`${compact ? "mt-1" : "mt-4"} grid gap-3 sm:grid-cols-2`}
           >
             <label className="block text-sm">
-              <span className="text-[var(--fg-muted)]">SMS-Code</span>
+              <span className="text-[var(--fg-muted)]">{t("remote.smsCode")}</span>
               <input
                 name="smsCode"
                 value={smsCode}
@@ -119,12 +119,12 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
                 autoComplete="one-time-code"
                 enterKeyHint="next"
             className="mt-1 ui-field"
-            placeholder="z. B. 123456"
+            placeholder={t("remote.smsPlaceholder")}
             required
           />
         </label>
         <label className="block text-sm">
-          <span className="text-[var(--fg-muted)]">PIN (4 Ziffern)</span>
+          <span className="text-[var(--fg-muted)]">{t("remote.pin")}</span>
           <input
             name="pin"
             value={pin}
@@ -152,10 +152,10 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
               className="action-btn btn-primary sm:col-span-2 rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-55"
             >
               {pending
-                ? "Richte ein…"
+                ? t("remote.settingUp")
                 : ready
-                  ? "Erneut freischalten"
-                  : "2. Freischalten"}
+                  ? t("remote.unlockAgain")
+                  : t("remote.unlock")}
             </button>
           </form>
         </>

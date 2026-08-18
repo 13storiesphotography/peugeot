@@ -1,4 +1,5 @@
 import type { CommandRequest, CommandResult, VehicleState } from "@/lib/types";
+import type { Translator } from "@/i18n/translate";
 import { estimateFullAt, estimateRange } from "./defaults";
 
 function touch(
@@ -28,6 +29,7 @@ export function touchLock(state: VehicleState, locked: boolean): VehicleState {
 export function applyCommandToState(
   state: VehicleState,
   request: CommandRequest,
+  t: Translator,
 ): CommandResult {
   const { command } = request;
 
@@ -35,48 +37,48 @@ export function applyCommandToState(
     case "lock":
       return {
         ok: true,
-        message: "Türen verriegelt.",
+        message: t("cmd.lockOk"),
         vehicle: touch(state, { locked: true }),
       };
     case "unlock":
       return {
         ok: true,
-        message: "Türen entriegelt.",
+        message: t("cmd.unlockOk"),
         vehicle: touch(state, { locked: false }),
       };
     case "horn":
-      return { ok: true, message: "Hupe ausgelöst.", vehicle: touch(state, {}) };
+      return { ok: true, message: t("cmd.hornOk"), vehicle: touch(state, {}) };
     case "flash":
       return {
         ok: true,
-        message: "Lichter geblinkt.",
+        message: t("cmd.flashOk"),
         vehicle: touch(state, {}),
       };
     case "wakeup":
       return {
         ok: true,
-        message: "Fahrzeug aufgeweckt.",
+        message: t("cmd.wakeOk"),
         vehicle: touch(state, {}),
       };
     case "charge_start": {
       if (state.mode === "live") {
         return {
           ok: false,
-          message: "Laden starten ist gerade nicht verfügbar.",
+          message: t("cmd.chargeStartUnavailable"),
           vehicle: state,
         };
       }
       if (state.chargeStatus === "idle") {
         return {
           ok: false,
-          message: "Fahrzeug ist nicht angeschlossen.",
+          message: t("cmd.notPlugged"),
           vehicle: state,
         };
       }
       const power = 11;
       return {
         ok: true,
-        message: "Laden gestartet.",
+        message: t("cmd.chargeStarted"),
         vehicle: touch(state, {
           chargeStatus: "charging",
           chargePowerKw: power,
@@ -109,9 +111,7 @@ export function applyCommandToState(
       return {
         ok: true,
         message:
-          limit <= 80
-            ? "Laden auf 80% begrenzt."
-            : "Ladeziel auf 100% gesetzt.",
+          limit <= 80 ? t("cmd.limit80") : t("cmd.limit100"),
         vehicle: touch(state, next),
       };
     }
@@ -119,14 +119,14 @@ export function applyCommandToState(
       if (state.mode === "live") {
         return {
           ok: false,
-          message: "Vorklima starten ist gerade nicht verfügbar.",
+          message: t("cmd.climateStartUnavailable"),
           vehicle: state,
         };
       }
       const target = state.targetTempC;
       return {
         ok: true,
-        message: `Vorklimatisierung gestartet (${target}°C).`,
+        message: t("cmd.climateStarted", { temp: target }),
         vehicle: touch(state, {
           climateStatus: "preconditioning",
         }),
@@ -136,13 +136,13 @@ export function applyCommandToState(
       if (state.mode === "live") {
         return {
           ok: false,
-          message: "Vorklima stoppen ist gerade nicht verfügbar.",
+          message: t("cmd.climateStopUnavailable"),
           vehicle: state,
         };
       }
       return {
         ok: true,
-        message: "Vorklimatisierung gestoppt.",
+        message: t("cmd.climateStopped"),
         vehicle: touch(state, { climateStatus: "off" }),
       };
     case "set_climate_temp": {
@@ -153,7 +153,7 @@ export function applyCommandToState(
       const climateOn = state.mode !== "live" && state.climateStatus !== "off";
       return {
         ok: true,
-        message: `Wunschtemperatur ${target}°C.`,
+        message: t("cmd.targetTemp", { temp: target }),
         vehicle: touch(state, {
           targetTempC: target,
           climateStatus: climateOn
@@ -166,30 +166,30 @@ export function applyCommandToState(
       if (state.mode === "live") {
         return {
           ok: false,
-          message: "Batterie-Vorwärmung ist gerade nicht verfügbar.",
+          message: t("cmd.preheatUnavailable"),
           vehicle: state,
         };
       }
       return {
         ok: true,
-        message: "Batterie-Vorwärmung gestartet.",
+        message: t("cmd.preheatOn"),
         vehicle: touch(state, { batteryPreheat: true }),
       };
     case "battery_preheat_stop":
       if (state.mode === "live") {
         return {
           ok: false,
-          message: "Batterie-Vorwärmung ist gerade nicht verfügbar.",
+          message: t("cmd.preheatUnavailable"),
           vehicle: state,
         };
       }
       return {
         ok: true,
-        message: "Batterie-Vorwärmung gestoppt.",
+        message: t("cmd.preheatOff"),
         vehicle: touch(state, { batteryPreheat: false }),
       };
     default:
-      return { ok: false, message: "Unbekannter Befehl.", vehicle: state };
+      return { ok: false, message: t("cmd.unknown"), vehicle: state };
   }
 }
 

@@ -6,6 +6,7 @@ import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { refreshAccessToken } from "@/lib/stellantis/api";
 import type { OtpPersistedState } from "@/lib/stellantis/otp/session";
 import { requestRemoteSms, setupRemotePin } from "@/lib/stellantis/remote";
+import { getTranslator } from "@/i18n/server";
 
 export type RemotePinState = {
   error?: string;
@@ -71,17 +72,18 @@ async function ensureOauthToken(
       })
       .eq("user_id", userId);
   }
-  if (!accessToken) throw new Error("MyPeugeot ist nicht verbunden.");
+  if (!accessToken) throw new Error("MyPeugeot is not connected.");
   return accessToken;
 }
 
 export async function sendRemoteSmsAction(): Promise<RemotePinState> {
+  const { t } = await getTranslator();
   try {
     const session = await assertOwnerSession();
-    if (!session) return { error: "Nicht angemeldet." };
+    if (!session) return { error: t("settings.notSignedIn") };
     const connection = await loadConnection(session.supabase, session.userId);
     if (!connection?.connected) {
-      return { error: "Zuerst MyPeugeot verbinden." };
+      return { error: t("remote.connectFirst") };
     }
     const accessToken = await ensureOauthToken(
       session.supabase,
@@ -92,10 +94,10 @@ export async function sendRemoteSmsAction(): Promise<RemotePinState> {
       accessToken,
       String(connection.country_code ?? "DE"),
     );
-    return { success: "SMS wurde gesendet." };
+    return { success: t("remote.smsSent") };
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "SMS fehlgeschlagen.",
+      error: error instanceof Error ? error.message : t("remote.smsFail"),
     };
   }
 }
@@ -104,34 +106,33 @@ export async function activateRemotePinAction(
   _prev: RemotePinState,
   formData: FormData,
 ): Promise<RemotePinState> {
+  const { t } = await getTranslator();
   // Strip spaces/dashes — SMS autofill and copy-paste often include them.
   const smsCode = String(formData.get("smsCode") ?? "").replace(/\D/g, "");
   const pin = String(formData.get("pin") ?? "").replace(/\D/g, "");
 
   if (!smsCode) {
     return {
-      error:
-        "SMS-Code fehlt. Code aus der SMS ins erste Feld eintragen (nicht die PIN).",
+      error: t("remote.smsMissing"),
     };
   }
   if (!/^\d{4,10}$/.test(smsCode)) {
     return {
-      error: `SMS-Code ungültig („${smsCode.slice(0, 12)}“). Bitte nur die Ziffern aus der SMS.`,
+      error: t("remote.smsInvalid", { code: smsCode.slice(0, 12) }),
     };
   }
   if (!/^\d{4}$/.test(pin)) {
     return {
-      error:
-        "MyPeugeot-PIN fehlt oder ist ungültig — bitte deine 4-stellige App-PIN (nicht den SMS-Code).",
+      error: t("remote.pinInvalid"),
     };
   }
 
   try {
     const session = await assertOwnerSession();
-    if (!session) return { error: "Nicht angemeldet." };
+    if (!session) return { error: t("settings.notSignedIn") };
     const connection = await loadConnection(session.supabase, session.userId);
     if (!connection?.connected) {
-      return { error: "Zuerst MyPeugeot verbinden." };
+      return { error: t("remote.connectFirst") };
     }
     const accessToken = await ensureOauthToken(
       session.supabase,
@@ -162,13 +163,13 @@ export async function activateRemotePinAction(
 
     revalidatePath("/control");
     revalidatePath("/control/settings");
-    return { success: "Fernbedienung eingerichtet.", ready: true };
+    return { success: t("remote.readySuccess"), ready: true };
   } catch (error) {
     return {
       error:
         error instanceof Error
           ? error.message
-          : "PIN-Einrichtung fehlgeschlagen.",
+          : t("remote.setupFail"),
     };
   }
 }

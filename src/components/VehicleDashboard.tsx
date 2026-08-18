@@ -22,8 +22,11 @@ import { ControlsPanel } from "@/components/ControlsPanel";
 import { LocationLink } from "@/components/LocationLink";
 import { QuickActions } from "@/components/QuickActions";
 import { VehicleHero } from "@/components/VehicleHero";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import type { VehicleCommand } from "@/lib/types";
 import type { VehicleBundle } from "@/lib/vehicle/repository";
+import { useI18n } from "@/components/i18n/I18nProvider";
+import type { Translator } from "@/i18n/translate";
 import {
   loadVehicleBundleCache,
   saveVehicleBundleCache,
@@ -34,7 +37,11 @@ type ClimateJob = {
   startedAt: number;
 };
 
-function climatePhase(job: ClimateJob, nowMs: number): {
+function climatePhase(
+  job: ClimateJob,
+  nowMs: number,
+  t: Translator,
+): {
   progress: number;
   phaseLabel: string;
   detail?: string;
@@ -45,29 +52,28 @@ function climatePhase(job: ClimateJob, nowMs: number): {
   if (elapsed < 8_000) {
     return {
       progress,
-      phaseLabel: "Befehl wird gesendet…",
-      detail: "Fahrzeug wird zuerst geweckt.",
+      phaseLabel: t("dash.sending"),
+      detail: t("dash.wakingFirst"),
     };
   }
   if (elapsed < 25_000) {
     return {
       progress,
-      phaseLabel: "Fahrzeug wird geweckt…",
-      detail: "Schlafende Autos brauchen oft einen Moment.",
+      phaseLabel: t("dash.waking"),
+      detail: t("dash.wakingHint"),
     };
   }
   if (elapsed < 55_000) {
     return {
       progress,
-      phaseLabel: "Warte auf Bestätigung vom Auto…",
-      detail: "Nicht erneut tippen — das dauert oft 30–60 Sekunden.",
+      phaseLabel: t("dash.waitingConfirm"),
+      detail: t("dash.waitingHint"),
     };
   }
   return {
     progress,
-    phaseLabel: "Noch keine Bestätigung",
-    detail:
-      "Befehl ist unterwegs. Kurz warten oder oben aktualisieren — bitte nicht doppelt starten.",
+    phaseLabel: t("dash.noConfirm"),
+    detail: t("dash.noConfirmHint"),
   };
 }
 
@@ -78,13 +84,12 @@ function ageMinutes(iso: string, nowMs = Date.now()): number {
   );
 }
 
-function formatAge(iso: string, nowMs = Date.now()): string {
+function formatAge(iso: string, t: Translator, nowMs = Date.now()): string {
   const mins = ageMinutes(iso, nowMs);
-  if (mins < 1) return "gerade eben";
-  if (mins === 1) return "vor 1 Min.";
-  if (mins < 60) return `vor ${mins} Min.`;
+  if (mins < 1) return t("dash.justNow");
+  if (mins < 60) return t("dash.minAgo", { n: mins });
   const hours = Math.floor(mins / 60);
-  return hours === 1 ? "vor 1 Std." : `vor ${hours} Std.`;
+  return t("dash.hourAgo", { n: hours });
 }
 
 const TAB_QUERY = "tab";
@@ -103,6 +108,7 @@ function readTab(): ControlTab {
 }
 
 export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
+  const { t } = useI18n();
   const [bundle, setBundle] = useState(initial);
   const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(
     null,
@@ -174,8 +180,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     setToast({
       text:
         climateJob.action === "start"
-          ? "Vorklima bestätigt — läuft."
-          : "Vorklima ist aus.",
+          ? t("dash.climateConfirmed")
+          : t("dash.climateOffToast"),
       ok: true,
     });
   }, [bundle.vehicle.climateStatus, climateJob]);
@@ -193,7 +199,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
   useEffect(() => {
     if (!toast) return;
-    const ms = /neu verbinden|abgelaufen|Ruhemodus|Fernbedienung|Aufwecken|langsam/i.test(
+    const ms = /neu verbinden|abgelaufen|Ruhemodus|Fernbedienung|Aufwecken|langsam|reconnect|expired|sleep|remote|wake|slow/i.test(
       toast.text,
     )
       ? 6500
@@ -246,8 +252,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           if (!opts?.silent) {
             setToast({
               text: navigator.onLine
-                ? "Aktualisierung fehlgeschlagen."
-                : "Offline — zeige letzten Stand.",
+                ? t("dash.refreshFailed")
+                : t("dash.offline"),
               ok: false,
             });
           }
@@ -286,7 +292,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           patched.vehicle.chargeStatus === "complete"
         ) {
           setToast({
-            text: `Laden fertig · ${Math.round(patched.vehicle.batteryPercent)}%`,
+            text: t("dash.chargeDone", {
+              n: Math.round(patched.vehicle.batteryPercent),
+            }),
             ok: true,
           });
         } else if (data.syncError) {
@@ -296,32 +304,46 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           const age = hard?.ageMinutes ?? ageMinutes(patched.vehicle.lastUpdatedAt);
           if (hard?.improved || age < 5) {
             setToast({
-              text: `Aktualisiert (${formatAge(patched.vehicle.lastUpdatedAt)}).`,
+              text: t("dash.refreshed", {
+                age: formatAge(patched.vehicle.lastUpdatedAt, t),
+              }),
               ok: true,
             });
           } else if (hard?.wakeAttempted && hard.wakeOk) {
             setToast({
-              text: `Stand noch ${formatAge(patched.vehicle.lastUpdatedAt)} — Aufwecken gesendet, Peugeot meldet sich langsam.`,
+              text: t("dash.stillOldWake", {
+                age: formatAge(patched.vehicle.lastUpdatedAt, t),
+              }),
               ok: true,
             });
           } else if (hard?.wakeAttempted && hard.wakeOk === false) {
             setToast({
-              text: `Stand ${formatAge(patched.vehicle.lastUpdatedAt)}. Aufwecken: ${hard.wakeSkippedReason ?? "fehlgeschlagen"}`,
+              text: t("dash.stillOldWakeFail", {
+                age: formatAge(patched.vehicle.lastUpdatedAt, t),
+                reason: hard.wakeSkippedReason ?? t("dash.wakeFailed"),
+              }),
               ok: false,
             });
           } else if (hard?.wakeSkippedReason) {
             setToast({
-              text: `Stand ${formatAge(patched.vehicle.lastUpdatedAt)}. ${hard.wakeSkippedReason}`,
+              text: t("dash.stillOldWakeFail", {
+                age: formatAge(patched.vehicle.lastUpdatedAt, t),
+                reason: hard.wakeSkippedReason,
+              }),
               ok: true,
             });
           } else if (age >= 5) {
             setToast({
-              text: `Stand noch ${formatAge(patched.vehicle.lastUpdatedAt)} — Fahrzeug evtl. im Ruhemodus.`,
+              text: t("dash.stillOldSleep", {
+                age: formatAge(patched.vehicle.lastUpdatedAt, t),
+              }),
               ok: true,
             });
           } else {
             setToast({
-              text: `Aktualisiert (${formatAge(patched.vehicle.lastUpdatedAt)}).`,
+              text: t("dash.refreshed", {
+                age: formatAge(patched.vehicle.lastUpdatedAt, t),
+              }),
               ok: true,
             });
           }
@@ -335,7 +357,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         }
         if (!opts?.silent) {
           setToast({
-            text: "Offline — zeige letzten Stand.",
+            text: t("dash.offline"),
             ok: false,
           });
         }
@@ -345,14 +367,14 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         if (!opts?.silent) setRefreshing(false);
       }
     },
-    [],
+    [t],
   );
 
   const manualRefresh = useCallback(async () => {
     if (refreshInFlight.current) return;
-    setToast({ text: "Hole Fahrzeugdaten…", ok: true });
+    setToast({ text: t("dash.fetching"), ok: true });
     await refresh(true, { feedback: true, hard: true });
-  }, [refresh]);
+  }, [refresh, t]);
 
   useEffect(() => {
     // Soft catch-up on mount. Force Peugeot only when SSR stand is already stale.
@@ -532,7 +554,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         }
       }
       setToast({
-        text: "Befehl fehlgeschlagen – bitte erneut versuchen.",
+        text: t("dash.commandFailed"),
         ok: false,
       });
     } finally {
@@ -565,27 +587,27 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const confirmCopy =
     pendingConfirm === "unlock"
       ? {
-          title: "Wirklich entriegeln?",
-          body: "Die Türen werden entriegelt. Nur bestätigen, wenn du in der Nähe bist.",
-          action: "Entriegeln",
+          title: t("dash.confirmUnlockTitle"),
+          body: t("dash.confirmUnlockBody"),
+          action: t("dash.confirmUnlockAction"),
         }
       : pendingConfirm === "climate_start"
         ? {
-            title: "Vorklima wirklich starten?",
-            body: "Die Fernvorklimatisierung schaltet sich ein und verbraucht Strom. Nur bestätigen, wenn das beabsichtigt ist.",
-            action: "Vorklima starten",
+            title: t("dash.confirmClimateTitle"),
+            body: t("dash.confirmClimateBody"),
+            action: t("dash.confirmClimateAction"),
           }
         : pendingConfirm === "flash"
           ? {
-              title: "Fahrzeug wirklich finden?",
-              body: "Lichter blinken — in ruhiger Umgebung oder nachts kann das stören. Nur bestätigen, wenn du das Auto suchen willst.",
-              action: "Finden",
+              title: t("dash.confirmFindTitle"),
+              body: t("dash.confirmFindBody"),
+              action: t("dash.confirmFindAction"),
             }
           : null;
 
   const climateOn = vehicle.climateStatus !== "off";
   const climateJobView = climateJob
-    ? { action: climateJob.action, ...climatePhase(climateJob, nowMs) }
+    ? { action: climateJob.action, ...climatePhase(climateJob, nowMs, t) }
     : null;
   const climateBusy = busy || Boolean(climateJob);
 
@@ -601,15 +623,17 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </h1>
           <div className="mt-1.5 flex items-center gap-2">
             <p className="min-w-0 text-xs text-[var(--fg-muted)]">
-              Stand {formatAge(vehicle.lastUpdatedAt, nowMs)}
+              {t("dash.stand", {
+                age: formatAge(vehicle.lastUpdatedAt, t, nowMs),
+              })}
             </p>
             <button
               type="button"
               onClick={() => void manualRefresh()}
               disabled={refreshing || busy || bundle.connection.needsReconnect}
               className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] disabled:opacity-50"
-              aria-label="Fahrzeugdaten aktualisieren"
-              title="Fahrzeug wecken und Daten holen"
+              aria-label={t("dash.refreshAria")}
+              title={t("dash.refreshTitle")}
             >
               <svg
                 width="15"
@@ -636,11 +660,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             </button>
           </div>
         </div>
-        <Link
+        <div className="flex shrink-0 items-center gap-2">
+          <LanguageSwitcher compact />
+          <Link
           href="/control/settings"
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)]"
-          aria-label="Einstellungen"
-          title="Einstellungen"
+          aria-label={t("nav.settings")}
+          title={t("nav.settings")}
         >
           <svg
             width="18"
@@ -665,20 +691,21 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             />
           </svg>
         </Link>
+        </div>
       </header>
 
       {bundle.connection.needsReconnect ? (
         <div className="ui-alert mb-3" role="alert">
           <p className="font-semibold text-[var(--danger)]">
-            MyPeugeot-Anmeldung abgelaufen
+            {t("dash.authExpiredTitle")}
           </p>
           <p className="mt-1 text-[var(--fg-muted)]">
-            Keine neuen Fahrzeugdaten, bis du dich erneut verbindest.{" "}
+            {t("dash.authExpiredBody")}{" "}
             <Link
               href="/control/settings"
               className="text-[var(--accent-bright)] underline-offset-2 hover:underline"
             >
-              Zu den Einstellungen
+              {t("nav.settings")}
             </Link>
           </p>
         </div>
@@ -694,11 +721,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           role="status"
         >
           <p className="font-semibold" style={{ color: "var(--warn)" }}>
-            Offline
+            {t("dash.offlineTitle")}
           </p>
           <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
-            Letzter Stand {formatAge(vehicle.lastUpdatedAt, nowMs)} — wird
-            aktualisiert, sobald Netz da ist.
+            {t("dash.offline")} {formatAge(vehicle.lastUpdatedAt, t, nowMs)}
           </p>
         </div>
       ) : null}
@@ -819,7 +845,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
                 className="action-btn rounded-full border border-[var(--line)] px-4 py-3 text-sm font-semibold"
                 onClick={() => setPendingConfirm(null)}
               >
-                Abbrechen
+                {t("dash.cancel")}
               </button>
               <button
                 type="button"

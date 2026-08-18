@@ -3,6 +3,22 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isEmailAllowed } from "@/lib/auth/allowlist";
 import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
 import { RECOVERY_COOKIE } from "@/lib/auth/recovery-cookie";
+import { LOCALE_COOKIE, isLocale, localeCookieOptions } from "@/i18n/config";
+import { detectLocale } from "@/i18n/detect";
+
+function withLocale(request: NextRequest, response: NextResponse) {
+  if (isLocale(request.cookies.get(LOCALE_COOKIE)?.value)) return response;
+  const locale = detectLocale({
+    cookie: null,
+    acceptLanguage: request.headers.get("accept-language"),
+    country:
+      request.headers.get("x-vercel-ip-country") ??
+      request.headers.get("cf-ipcountry"),
+    referer: request.headers.get("referer"),
+  });
+  response.cookies.set(LOCALE_COOKIE, locale, localeCookieOptions());
+  return response;
+}
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -62,7 +78,7 @@ export async function proxy(request: NextRequest) {
     if (isResetPage || url.searchParams.get("type") === "recovery") {
       url.searchParams.set("next", "/auth/reset");
     }
-    return NextResponse.redirect(url);
+    return withLocale(request, NextResponse.redirect(url));
   }
 
   if (
@@ -77,12 +93,12 @@ export async function proxy(request: NextRequest) {
       if (!isResetPage) {
         const url = request.nextUrl.clone();
         url.pathname = "/auth/reset";
-        return NextResponse.redirect(url);
+        return withLocale(request, NextResponse.redirect(url));
       }
     } else {
       const url = request.nextUrl.clone();
       url.pathname = "/auth/confirm";
-      return NextResponse.redirect(url);
+      return withLocale(request, NextResponse.redirect(url));
     }
   }
 
@@ -90,30 +106,36 @@ export async function proxy(request: NextRequest) {
   if (user && !allowed) {
     await supabase.auth.signOut();
     if (path.startsWith("/api/")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return withLocale(
+        request,
+        NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+      );
     }
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.searchParams.set("denied", "1");
-    return NextResponse.redirect(url);
+    return withLocale(request, NextResponse.redirect(url));
   }
 
   if (isProtected && !allowed) {
     if (path.startsWith("/api/")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return withLocale(
+        request,
+        NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      );
     }
     const url = request.nextUrl.clone();
     url.pathname = hasAuthCode && !isAuthCallback ? "/auth/callback" : "/";
     if (!hasAuthCode) {
       url.search = "";
     }
-    return NextResponse.redirect(url);
+    return withLocale(request, NextResponse.redirect(url));
   }
 
   if (isMfaPage && !allowed) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
-    return NextResponse.redirect(url);
+    return withLocale(request, NextResponse.redirect(url));
   }
 
   let mfaDecision = null as Awaited<ReturnType<typeof getMfaDecision>> | null;
@@ -123,43 +145,49 @@ export async function proxy(request: NextRequest) {
 
   if (recovering && (isProtected || isAuthPage || isMfaPage) && !isResetPage) {
     if (path.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "Password recovery required" },
-        { status: 403 },
+      return withLocale(
+        request,
+        NextResponse.json(
+          { error: "Password recovery required" },
+          { status: 403 },
+        ),
       );
     }
     const url = request.nextUrl.clone();
     url.pathname = "/auth/reset";
     url.search = "";
-    return NextResponse.redirect(url);
+    return withLocale(request, NextResponse.redirect(url));
   }
 
   if (allowed && isProtected && mfaDecision && mfaBlocksAccess(mfaDecision)) {
     if (path.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "MFA required", status: mfaDecision.status },
-        { status: 403 },
+      return withLocale(
+        request,
+        NextResponse.json(
+          { error: "MFA required", status: mfaDecision.status },
+          { status: 403 },
+        ),
       );
     }
     const url = request.nextUrl.clone();
     url.pathname = "/mfa";
-    return NextResponse.redirect(url);
+    return withLocale(request, NextResponse.redirect(url));
   }
 
   if (isAuthPage && allowed) {
     const url = request.nextUrl.clone();
     url.pathname =
       mfaDecision && mfaBlocksAccess(mfaDecision) ? "/mfa" : "/control";
-    return NextResponse.redirect(url);
+    return withLocale(request, NextResponse.redirect(url));
   }
 
   if (isMfaPage && allowed && mfaDecision?.status === "ok") {
     const url = request.nextUrl.clone();
     url.pathname = "/control";
-    return NextResponse.redirect(url);
+    return withLocale(request, NextResponse.redirect(url));
   }
 
-  return supabaseResponse;
+  return withLocale(request, supabaseResponse);
 }
 
 export const config = {

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { SectionHeader } from "@/components/SectionHeader";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
 
 interface ControlsPanelProps {
@@ -31,6 +32,7 @@ export function ControlsPanel({
   onCommand,
   isPro = false,
 }: ControlsPanelProps) {
+  const { t } = useI18n();
   const locked = vehicle.locked;
   const live = vehicle.mode === "live";
   const wakeDisabled = live && !remoteReady;
@@ -41,14 +43,14 @@ export function ControlsPanel({
     actions.push(
       {
         id: "flash",
-        label: "Finden",
+        label: t("controls.find"),
         onClick: () =>
           isPro ? onCommand("flash") : (window.location.href = "/control/settings#pro"),
         icon: <IconFind />,
       },
       {
         id: "horn",
-        label: "Hupe",
+        label: t("controls.horn"),
         onClick: () =>
           isPro ? onCommand("horn") : (window.location.href = "/control/settings#pro"),
         icon: <IconHorn />,
@@ -57,41 +59,39 @@ export function ControlsPanel({
   }
   actions.push({
     id: "wakeup",
-    label: "Wecken",
+    label: t("controls.wake"),
     onClick: () =>
       isPro ? onCommand("wakeup") : (window.location.href = "/control/settings#pro"),
     icon: <IconWake />,
     disabled: wakeDisabled,
     title: wakeDisabled
-      ? "Fernbedienung unter Einstellungen einrichten"
+      ? t("controls.setupRemoteTitle")
       : undefined,
   });
 
   return (
     <section className="animate-rise space-y-6 pt-2">
       <SectionHeader
-        title="Steuern"
+        title={t("controls.title")}
         hint={
           !showSignals
-            ? "Schloss/Signal nicht im Peugeot-Abo"
+            ? t("controls.noSignals")
             : wakeDisabled
-              ? "Wecken braucht Fernbedienung"
-              : "Schloss und Signale"
+              ? t("controls.wakeNeedsRemote")
+              : t("controls.lockAndSignals")
         }
       />
 
       {!showSignals ? (
         <div className="rounded-2xl border border-[var(--line)] px-4 py-4 text-sm">
           <p className="font-semibold">
-            {locked ? "Verriegelt" : "Entriegelt"}
+            {locked ? t("dash.locked") : t("dash.unlocked")}
             <span className="ml-2 text-xs font-normal text-[var(--fg-muted)]">
-              (nur Anzeige)
+              {t("controls.displayOnly")}
             </span>
           </p>
           <p className="mt-2 text-xs text-[var(--fg-muted)]">
-            Fern-Entriegeln geht weder in MyPeugeot noch hier — dafür fehlt{" "}
-            <span className="text-[var(--fg)]">Connect PLUS / Remote Control</span>.
-            Vorklima (e-Remote) funktioniert weiter.
+            {t("controls.noRemoteUnlock")}
           </p>
         </div>
       ) : (
@@ -125,10 +125,10 @@ export function ControlsPanel({
             <IconLock locked={locked} />
           </span>
           <span className="font-[family-name:var(--font-display)] text-xl font-semibold">
-            {locked ? "Entriegeln" : "Verriegeln"}
+            {locked ? t("controls.unlock") : t("controls.lock")}
           </span>
           <span className="text-xs text-[var(--fg-muted)]">
-            {locked ? "Aktuell verriegelt" : "Aktuell entriegelt"}
+            {locked ? t("controls.currentlyLocked") : t("controls.currentlyUnlocked")}
           </span>
         </button>
       )}

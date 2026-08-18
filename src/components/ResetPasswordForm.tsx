@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 import { markPasswordRecoveryInBrowser } from "@/lib/auth/recovery-cookie";
+import { useI18n } from "@/components/i18n/I18nProvider";
 
 const initial: AuthState = {};
 
@@ -30,6 +31,7 @@ export function ResetPasswordForm({
     requestPasswordReset,
     initial,
   );
+  const { t } = useI18n();
 
   useEffect(() => {
     if (invalidLink || tokenHash) return;
@@ -89,7 +91,7 @@ export function ResetPasswordForm({
   if (phase === "loading") {
     return (
       <p className="text-sm text-[var(--fg-muted)]" role="status">
-        Link wird geprüft…
+        {t("auth.checkingLink")}
       </p>
     );
   }
@@ -99,12 +101,12 @@ export function ResetPasswordForm({
       <form action={resetAction} className="space-y-4">
         <p className="text-sm text-[var(--fg-muted)]">
           {invalidLink
-            ? "Dieser Link ist ungültig oder abgelaufen. Fordere einen neuen an."
-            : "Kein gültiger Reset-Link. Gib deine E-Mail ein — wir schicken einen neuen."}
+            ? t("auth.invalidOrExpired")
+            : t("auth.noResetLink")}
         </p>
         <label className="block">
           <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            E-Mail
+            {t("common.email")}
           </span>
           <input
             name="email"
@@ -133,11 +135,11 @@ export function ResetPasswordForm({
             color: "#031016",
           }}
         >
-          {resetPending ? "Bitte warten…" : "Link senden"}
+          {resetPending ? t("common.wait") : t("auth.sendLink")}
         </button>
         <p className="text-center text-sm text-[var(--fg-muted)]">
           <Link href="/#start" className="underline-offset-2 hover:underline">
-            Zurück zur Anmeldung
+            {t("common.backToSignIn")}
           </Link>
         </p>
       </form>
@@ -154,7 +156,7 @@ export function ResetPasswordForm({
       ) : null}
       <label className="block">
         <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-          Neues Passwort
+          {t("auth.newPassword")}
         </span>
         <input
           name="password"
@@ -167,7 +169,7 @@ export function ResetPasswordForm({
       </label>
       <label className="block">
         <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-          Passwort wiederholen
+          {t("common.passwordRepeat")}
         </span>
         <input
           name="passwordConfirm"
@@ -192,7 +194,7 @@ export function ResetPasswordForm({
           color: "#031016",
         }}
       >
-        {updatePending ? "Bitte warten…" : "Passwort speichern"}
+        {updatePending ? t("common.wait") : t("auth.savePassword")}
       </button>
     </form>
   );
