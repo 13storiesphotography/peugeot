@@ -71,9 +71,11 @@ const steps = [
 export function LandingPage({
   publicSignup,
   denied,
+  confirmError,
 }: {
   publicSignup: boolean;
   denied?: boolean;
+  confirmError?: boolean;
 }) {
   return (
     <div className="relative">
@@ -258,7 +260,11 @@ export function LandingPage({
                   : "Privater Zugang — nur freigeschaltete E-Mail-Adressen."}
               </p>
             </div>
-            <AuthForm publicSignup={publicSignup} denied={denied} />
+            <AuthForm
+              publicSignup={publicSignup}
+              denied={denied}
+              confirmError={confirmError}
+            />
           </div>
         </section>
       </main>

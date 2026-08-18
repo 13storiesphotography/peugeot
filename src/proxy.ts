@@ -38,6 +38,9 @@ export async function proxy(request: NextRequest) {
   const allowed = Boolean(user && isEmailAllowed(email));
 
   const path = request.nextUrl.pathname;
+  const hasAuthCode =
+    request.nextUrl.searchParams.has("code") ||
+    request.nextUrl.searchParams.has("token_hash");
   const isAuthPage = path === "/";
   const isMfaPage = path === "/mfa" || path.startsWith("/mfa/");
   const isProtected =
@@ -60,7 +63,10 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = hasAuthCode ? "/auth/callback" : "/";
+    if (!hasAuthCode) {
+      url.search = "";
+    }
     return NextResponse.redirect(url);
   }
 
