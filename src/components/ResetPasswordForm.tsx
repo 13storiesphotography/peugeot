@@ -13,18 +13,6 @@ import { markPasswordRecoveryInBrowser } from "@/lib/auth/recovery-cookie";
 
 const initial: AuthState = {};
 
-function urlLooksLikeRecovery(): boolean {
-  const url = new URL(window.location.href);
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  if (url.searchParams.get("type") === "recovery") return true;
-  if (hash.get("type") === "recovery") return true;
-  return (
-    url.searchParams.has("code") ||
-    url.searchParams.has("token_hash") ||
-    hash.has("access_token")
-  );
-}
-
 export function ResetPasswordForm({
   invalidLink,
 }: {
@@ -45,35 +33,38 @@ export function ResetPasswordForm({
   useEffect(() => {
     if (invalidLink) return;
 
-    const supabase = createClient();
-    let done = false;
-    const recovery = urlLooksLikeRecovery();
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+    if (code) {
+      const next = new URL("/auth/callback", window.location.origin);
+      next.searchParams.set("code", code);
+      next.searchParams.set("next", "/auth/reset");
+      window.location.replace(next.toString());
+      return;
+    }
 
-    const ready = (markRecovery: boolean) => {
-      if (done) return;
-      done = true;
-      if (markRecovery) markPasswordRecoveryInBrowser();
+    const supabase = createClient();
+    let cancelled = false;
+
+    const ready = () => {
+      if (cancelled) return;
+      markPasswordRecoveryInBrowser();
       window.history.replaceState({}, "", "/auth/reset");
       setPhase("ready");
     };
 
     const fail = () => {
-      if (done) return;
-      done = true;
+      if (cancelled) return;
       setPhase("request");
     };
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" && session) {
-        ready(true);
-      }
+      if (event === "PASSWORD_RECOVERY" && session) ready();
     });
 
-    const url = new URL(window.location.href);
     const tokenHash = url.searchParams.get("token_hash");
-    const code = url.searchParams.get("code");
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const accessToken = hash.get("access_token");
     const refreshToken = hash.get("refresh_token");
@@ -84,33 +75,21 @@ export function ResetPasswordForm({
           token_hash: tokenHash,
           type: otpType(url.searchParams.get("type")),
         })
-        .then(({ error }) => (error ? fail() : ready(true)));
-    } else if (code) {
-      void supabase.auth
-        .exchangeCodeForSession(code)
-        .then(({ error }) => (error ? fail() : ready(true)));
+        .then(({ error }) => (error ? fail() : ready()));
     } else if (accessToken && refreshToken) {
       void supabase.auth
         .setSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(({ error }) => (error ? fail() : ready(true)));
+        .then(({ error }) => (error ? fail() : ready()));
     } else {
       void supabase.auth.getSession().then(({ data }) => {
-        if (data.session) ready(false);
+        if (data.session) ready();
         else fail();
       });
     }
 
-    const timeout = window.setTimeout(() => {
-      void supabase.auth.getSession().then(({ data }) => {
-        if (data.session) ready(recovery);
-        else fail();
-      });
-    }, 4000);
-
     return () => {
-      done = true;
+      cancelled = true;
       subscription.unsubscribe();
-      window.clearTimeout(timeout);
     };
   }, [invalidLink]);
 

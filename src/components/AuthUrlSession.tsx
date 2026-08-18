@@ -42,6 +42,8 @@ export function AuthUrlSession() {
     ) {
       return;
     }
+    // PKCE `code` is exchanged in /auth/callback (server cookies).
+    if (url.searchParams.has("code")) return;
     if (!hasAuthPayload()) return;
     setBusy(true);
 
@@ -69,13 +71,6 @@ export function AuthUrlSession() {
         finish(true);
       }
     });
-
-    const code = url.searchParams.get("code");
-    if (code) {
-      void supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-        if (!error && data.session) finish(true);
-      });
-    }
 
     const accessToken = hash.get("access_token");
     const refreshToken = hash.get("refresh_token");

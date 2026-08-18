@@ -42,12 +42,38 @@ export async function proxy(request: NextRequest) {
   const hasAuthCode =
     request.nextUrl.searchParams.has("code") ||
     request.nextUrl.searchParams.has("token_hash");
+  const isAuthCallback =
+    path === "/auth/callback" || path.startsWith("/auth/callback/");
+  const isAuthConfirm =
+    path === "/auth/confirm" || path.startsWith("/auth/confirm/");
   const isAuthPage = path === "/";
   const isResetPage = path === "/auth/reset" || path.startsWith("/auth/reset/");
   const isMfaPage = path === "/mfa" || path.startsWith("/mfa/");
   const isProtected =
     path.startsWith("/control") || path.startsWith("/api/vehicle");
   const recovering = request.cookies.get(RECOVERY_COOKIE)?.value === "1";
+
+  // PKCE `?code=` must be exchanged on the server (same cookies as the
+  // action that sent the mail). Never let a logged-in homepage redirect
+  // swallow the code first.
+  if (request.nextUrl.searchParams.has("code") && !isAuthCallback) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    if (isResetPage || url.searchParams.get("type") === "recovery") {
+      url.searchParams.set("next", "/auth/reset");
+    }
+    return NextResponse.redirect(url);
+  }
+
+  if (
+    request.nextUrl.searchParams.has("token_hash") &&
+    !isAuthConfirm &&
+    !isAuthCallback
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/confirm";
+    return NextResponse.redirect(url);
+  }
 
   // Signed in but not on allowlist → force sign-out cookie clear via redirect home
   if (user && !allowed) {
@@ -66,7 +92,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const url = request.nextUrl.clone();
-    url.pathname = hasAuthCode ? "/auth/callback" : "/";
+    url.pathname = hasAuthCode && !isAuthCallback ? "/auth/callback" : "/";
     if (!hasAuthCode) {
       url.search = "";
     }
