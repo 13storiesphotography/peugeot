@@ -104,7 +104,7 @@ export function LandingPage({
             Preise
           </a>
           <a href="#start" className="hover:text-[var(--fg)]">
-            Starten
+            Anmelden
           </a>
         </nav>
         <a
@@ -115,13 +115,13 @@ export function LandingPage({
             color: "#031016",
           }}
         >
-          {publicSignup ? "Registrieren" : "Anmelden"}
+          Anmelden
         </a>
       </header>
 
       <main className="relative z-10">
-        <section className="mx-auto grid max-w-6xl gap-12 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:items-center lg:py-20">
-          <div className="animate-rise max-w-xl">
+        <section className="mx-auto grid max-w-6xl gap-10 px-4 py-8 sm:px-6 lg:grid-cols-2 lg:items-start lg:py-14">
+          <div className="order-2 animate-rise max-w-xl lg:order-1 lg:pt-4">
             <p className="text-xs uppercase tracking-[0.4em] text-[var(--accent-bright)]">
               Peugeot Control
             </p>
@@ -141,16 +141,6 @@ export function LandingPage({
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
-                href="#start"
-                className="action-btn rounded-full px-6 py-3 text-sm font-semibold"
-                style={{
-                  background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-                  color: "#031016",
-                }}
-              >
-                {publicSignup ? "Kostenlos starten" : "Zur Anmeldung"}
-              </a>
-              <a
                 href="#features"
                 className="action-btn rounded-full border border-[var(--line)] px-6 py-3 text-sm font-semibold text-[var(--fg)]"
               >
@@ -158,7 +148,25 @@ export function LandingPage({
               </a>
             </div>
           </div>
-          <div className="animate-rise-delay-1">
+          <div className="order-1 animate-rise-delay-1 lg:order-2">
+            {deleted ? (
+              <p
+                role="status"
+                className="mb-4 rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
+              >
+                Konto gelöscht. Du kannst dich jederzeit neu registrieren.
+              </p>
+            ) : null}
+            <AuthForm
+              publicSignup={publicSignup}
+              denied={denied}
+              confirmError={confirmError}
+            />
+          </div>
+        </section>
+
+        <section className="border-t border-[var(--line)] bg-black/10 py-12 sm:py-16">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <LandingScreens />
           </div>
         </section>
@@ -246,37 +254,28 @@ export function LandingPage({
         </section>
 
         <section className="py-16 sm:py-20">
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:items-start">
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-                {publicSignup ? "Registrierung" : "Zugang"}
-              </p>
-              <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-                {publicSignup
-                  ? "Jetzt Konto anlegen"
-                  : "Anmelden"}
-              </h2>
-              <p className="mt-3 max-w-md text-[var(--fg-muted)]">
-                {publicSignup
-                  ? "Erstelle dein Konto, melde dich an und verbinde in den Einstellungen dein MyPeugeot-Login. Jedes Konto verwaltet nur sein eigenes Fahrzeug."
-                  : "Privater Zugang — nur freigeschaltete E-Mail-Adressen."}
-              </p>
-            </div>
-            <div>
-              {deleted ? (
-                <p
-                  role="status"
-                  className="mb-4 rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
-                >
-                  Konto gelöscht. Du kannst dich jederzeit neu registrieren.
-                </p>
-              ) : null}
-              <AuthForm
-                publicSignup={publicSignup}
-                denied={denied}
-                confirmError={confirmError}
-              />
-            </div>
+          <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
+            <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
+              Start
+            </p>
+            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
+              {publicSignup ? "Konto anlegen oder anmelden" : "Anmelden"}
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-[var(--fg-muted)]">
+              {publicSignup
+                ? "Kostenlos starten, MyPeugeot verbinden — jedes Konto nur das eigene Fahrzeug."
+                : "Privater Zugang — nur freigeschaltete E-Mail-Adressen."}
+            </p>
+            <a
+              href="#start"
+              className="action-btn mt-8 inline-flex rounded-full px-6 py-3 text-sm font-semibold"
+              style={{
+                background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
+                color: "#031016",
+              }}
+            >
+              Zur Anmeldung
+            </a>
           </div>
         </section>
       </main>

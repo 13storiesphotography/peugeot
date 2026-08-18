@@ -22,9 +22,7 @@ export function AuthForm({
   denied?: boolean;
   confirmError?: boolean;
 }) {
-  const [mode, setMode] = useState<AuthMode>(
-    publicSignup && !confirmError ? "register" : "login",
-  );
+  const [mode, setMode] = useState<AuthMode>("login");
   const [loginState, loginAction, loginPending] = useActionState(
     signIn,
     initial,
@@ -68,10 +66,21 @@ export function AuthForm({
   return (
     <div
       id="start"
-      className="panel w-full max-w-md scroll-mt-24 rounded-[1.75rem] p-6 sm:p-8"
+      className="panel mx-auto w-full max-w-md scroll-mt-24 rounded-[1.75rem] p-6 sm:p-8 lg:mx-0"
     >
       {mode !== "forgot" ? (
         <div className="flex gap-1 rounded-full border border-[var(--line)] bg-black/20 p-1">
+          <button
+            type="button"
+            onClick={() => setMode("login")}
+            className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold transition ${
+              mode === "login"
+                ? "bg-[var(--accent-bright)] text-[#031016]"
+                : "text-[var(--fg-muted)]"
+            }`}
+          >
+            Anmelden
+          </button>
           {publicSignup ? (
             <button
               type="button"
@@ -85,17 +94,6 @@ export function AuthForm({
               Registrieren
             </button>
           ) : null}
-          <button
-            type="button"
-            onClick={() => setMode("login")}
-            className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold transition ${
-              mode === "login"
-                ? "bg-[var(--accent-bright)] text-[#031016]"
-                : "text-[var(--fg-muted)]"
-            }`}
-          >
-            Anmelden
-          </button>
         </div>
       ) : null}
 
