@@ -46,7 +46,6 @@ export function AuthUrlSession() {
     setBusy(true);
 
     const supabase = createClient();
-    const url = new URL(window.location.href);
     let done = false;
 
     const finish = (ok: boolean) => {
@@ -78,7 +77,6 @@ export function AuthUrlSession() {
       });
     }
 
-    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const accessToken = hash.get("access_token");
     const refreshToken = hash.get("refresh_token");
     if (accessToken && refreshToken) {
