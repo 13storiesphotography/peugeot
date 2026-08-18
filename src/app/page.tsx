@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { isPublicSignupEnabled } from "@/lib/auth/allowlist";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "E-3008 Control — Peugeot E-3008 im Browser steuern",
   description:
