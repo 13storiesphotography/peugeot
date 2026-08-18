@@ -748,6 +748,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           vehicle={vehicle}
           busy={busy}
           chargeCurve={bundle.chargeCurve}
+          isPro={bundle.isPro}
           onCommand={(command, opts) => void runCommand(command, opts)}
         />
       ) : null}

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { isPublicSignupEnabled } from "@/lib/auth/allowlist";
+import { founderSpotsTaken } from "@/lib/billing/entitlement";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,14 @@ export default async function HomePage({
   const params = await searchParams;
   const publicSignup = isPublicSignupEnabled();
   const denied = params.denied === "1";
+  const supabase = await createClient();
+  const founderTaken = await founderSpotsTaken(supabase);
 
-  return <LandingPage publicSignup={publicSignup} denied={denied} />;
+  return (
+    <LandingPage
+      publicSignup={publicSignup}
+      denied={denied}
+      founderTaken={founderTaken}
+    />
+  );
 }
