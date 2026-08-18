@@ -43,6 +43,11 @@ function confirmationUrl(email: AuthEmailData): string {
     token_hash: email.token_hash ?? "",
     type,
   });
+  // Recovery must not hit /auth/confirm on GET — mail scanners would
+  // consume the one-time token before the user opens the form.
+  if (type === "recovery") {
+    return `${site}/auth/reset?${params.toString()}`;
+  }
   return `${site}/auth/confirm?${params.toString()}`;
 }
 

@@ -8,18 +8,19 @@ import {
   type AuthState,
 } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
-import { otpType } from "@/lib/auth/otp-type";
 import { markPasswordRecoveryInBrowser } from "@/lib/auth/recovery-cookie";
 
 const initial: AuthState = {};
 
 export function ResetPasswordForm({
   invalidLink,
+  tokenHash,
 }: {
   invalidLink?: boolean;
+  tokenHash?: string;
 }) {
   const [phase, setPhase] = useState<"loading" | "ready" | "request">(
-    invalidLink ? "request" : "loading",
+    invalidLink ? "request" : tokenHash ? "ready" : "loading",
   );
   const [updateState, updateAction, updatePending] = useActionState(
     updatePassword,
@@ -31,7 +32,7 @@ export function ResetPasswordForm({
   );
 
   useEffect(() => {
-    if (invalidLink) return;
+    if (invalidLink || tokenHash) return;
 
     const url = new URL(window.location.href);
     const code = url.searchParams.get("code");
@@ -64,19 +65,11 @@ export function ResetPasswordForm({
       if (event === "PASSWORD_RECOVERY" && session) ready();
     });
 
-    const tokenHash = url.searchParams.get("token_hash");
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const accessToken = hash.get("access_token");
     const refreshToken = hash.get("refresh_token");
 
-    if (tokenHash) {
-      void supabase.auth
-        .verifyOtp({
-          token_hash: tokenHash,
-          type: otpType(url.searchParams.get("type")),
-        })
-        .then(({ error }) => (error ? fail() : ready()));
-    } else if (accessToken && refreshToken) {
+    if (accessToken && refreshToken) {
       void supabase.auth
         .setSession({ access_token: accessToken, refresh_token: refreshToken })
         .then(({ error }) => (error ? fail() : ready()));
@@ -91,7 +84,7 @@ export function ResetPasswordForm({
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [invalidLink]);
+  }, [invalidLink, tokenHash]);
 
   if (phase === "loading") {
     return (
@@ -153,6 +146,12 @@ export function ResetPasswordForm({
 
   return (
     <form action={updateAction} className="space-y-4">
+      {tokenHash ? (
+        <>
+          <input type="hidden" name="token_hash" value={tokenHash} />
+          <input type="hidden" name="type" value="recovery" />
+        </>
+      ) : null}
       <label className="block">
         <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
           Neues Passwort

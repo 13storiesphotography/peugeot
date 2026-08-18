@@ -11,7 +11,10 @@ import {
   RECOVERY_COOKIE,
   recoveryCookieOptions,
 } from "@/lib/auth/recovery-cookie";
+import { otpType } from "@/lib/auth/otp-type";
+import { sendAuthEmail } from "@/lib/auth/send-auth-email";
 import { getSiteOrigin } from "@/lib/auth/site-origin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { notifyNewSignup } from "@/lib/auth/notify-signup";
 import { mapSignupError, mapOutboundMailError } from "@/lib/auth/signup-error";
@@ -211,16 +214,43 @@ export async function requestPasswordReset(
       "Falls ein Konto mit dieser E-Mail existiert, haben wir einen Link zum Zurücksetzen geschickt. Prüfe auch den Spam-Ordner.",
   };
 
-  const supabase = await createClient();
   const origin = await getSiteOrigin();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=/auth/reset`,
-  });
 
-  if (error) {
-    const mail = mapOutboundMailError(error);
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo: `${origin}/auth/reset` },
+    });
+    const tokenHash = data?.properties?.hashed_token;
+    if (error || !tokenHash) {
+      const mail = error ? mapOutboundMailError(error) : null;
+      if (mail) return { error: mail };
+      // Unknown address or other Auth error — do not leak account existence.
+      return generic;
+    }
+
+    await sendAuthEmail(email, {
+      token_hash: tokenHash,
+      email_action_type: "recovery",
+      redirect_to: `${origin}/auth/reset`,
+    });
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : "";
+    const mail = mapOutboundMailError({ message });
     if (mail) return { error: mail };
-    // Do not reveal whether the address is registered.
+    if (message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
+      return {
+        error:
+          "Passwort-Reset ist gerade nicht verfügbar. Bitte später erneut versuchen.",
+      };
+    }
+    if (message.toLowerCase().includes("resend")) {
+      return {
+        error: "E-Mail konnte nicht gesendet werden. Bitte später erneut versuchen.",
+      };
+    }
     return generic;
   }
 
@@ -241,7 +271,24 @@ export async function updatePassword(
     return { error: "Passwörter stimmen nicht überein." };
   }
 
+  const tokenHash = String(formData.get("token_hash") ?? "").trim();
   const supabase = await createClient();
+
+  if (tokenHash) {
+    const { error } = await supabase.auth.verifyOtp({
+      type: otpType(String(formData.get("type") ?? "recovery")),
+      token_hash: tokenHash,
+    });
+    if (error) {
+      return {
+        error:
+          "Dieser Link ist ungültig oder abgelaufen. Bitte einen neuen anfordern.",
+      };
+    }
+    const jar = await cookies();
+    jar.set(RECOVERY_COOKIE, "1", recoveryCookieOptions(60 * 60));
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();

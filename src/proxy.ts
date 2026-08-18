@@ -70,9 +70,20 @@ export async function proxy(request: NextRequest) {
     !isAuthConfirm &&
     !isAuthCallback
   ) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/confirm";
-    return NextResponse.redirect(url);
+    const type = request.nextUrl.searchParams.get("type");
+    // Password recovery: keep token_hash on /auth/reset and only consume
+    // it when the user submits a new password (email prefetch-safe).
+    if (isResetPage || type === "recovery") {
+      if (!isResetPage) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/auth/reset";
+        return NextResponse.redirect(url);
+      }
+    } else {
+      const url = request.nextUrl.clone();
+      url.pathname = "/auth/confirm";
+      return NextResponse.redirect(url);
+    }
   }
 
   // Signed in but not on allowlist → force sign-out cookie clear via redirect home

@@ -12,11 +12,18 @@ export const metadata: Metadata = {
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{
+    error?: string | string[];
+    token_hash?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
   const invalidLink = error === "invalid";
+  const tokenHashRaw = Array.isArray(params.token_hash)
+    ? params.token_hash[0]
+    : params.token_hash;
+  const tokenHash = tokenHashRaw?.trim() || undefined;
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-6 py-10">
@@ -30,7 +37,7 @@ export default async function ResetPasswordPage({
         Wähle ein Passwort mit mindestens 8 Zeichen.
       </p>
       <div className="panel mt-8 w-full rounded-[1.75rem] p-6 sm:p-8">
-        <ResetPasswordForm invalidLink={invalidLink} />
+        <ResetPasswordForm invalidLink={invalidLink} tokenHash={tokenHash} />
       </div>
       <Link
         href="/#start"
