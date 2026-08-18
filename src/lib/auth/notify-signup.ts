@@ -1,12 +1,31 @@
+const DEFAULT_NOTIFY_EMAIL = "florian@tutzinger-knolls.de";
+const USERS_URL =
+  "https://supabase.com/dashboard/project/eujcsyslqpjhmnexearg/auth/users";
+
+function notifyRecipients(): string[] {
+  const extra = (process.env.SIGNUP_NOTIFY_EMAIL ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set([DEFAULT_NOTIFY_EMAIL, ...extra])];
+}
+
+function fromAddress(): string {
+  const raw =
+    process.env.AUTH_EMAIL_FROM?.trim() ||
+    process.env.SIGNUP_NOTIFY_FROM?.trim();
+  if (!raw) return "Peugeot Control <onboarding@resend.dev>";
+  if (raw.includes("<")) return raw;
+  return `Peugeot Control <${raw}>`;
+}
+
 /** Fire-and-forget owner alert for a new registration. */
 export async function notifyNewSignup(email: string): Promise<void> {
   const tasks: Promise<void>[] = [];
   const topic = process.env.NTFY_TOPIC?.trim();
   const webhook = process.env.SIGNUP_NOTIFY_WEBHOOK?.trim();
-  const notifyEmail = process.env.SIGNUP_NOTIFY_EMAIL?.trim();
+  const recipients = notifyRecipients();
   const resendKey = process.env.RESEND_API_KEY?.trim();
-  const usersUrl =
-    "https://supabase.com/dashboard/project/eujcsyslqpjhmnexearg/auth/users";
 
   if (topic) {
     tasks.push(
@@ -15,6 +34,7 @@ export async function notifyNewSignup(email: string): Promise<void> {
         headers: {
           Title: "Peugeot Control",
           Tags: "bust_in_silhouette",
+          Email: recipients.join(","),
         },
         body: `Neue Registrierung: ${email}`,
       }).then((res) => {
@@ -39,7 +59,7 @@ export async function notifyNewSignup(email: string): Promise<void> {
     );
   }
 
-  if (resendKey && notifyEmail) {
+  if (resendKey) {
     tasks.push(
       fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -48,16 +68,19 @@ export async function notifyNewSignup(email: string): Promise<void> {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from:
-            process.env.SIGNUP_NOTIFY_FROM?.trim() ||
-            "Peugeot Control <onboarding@resend.dev>",
-          to: [notifyEmail],
+          from: fromAddress(),
+          to: recipients,
           subject: `Neue Registrierung: ${email}`,
-          text: `${email} hat sich bei Peugeot Control registriert.\n\n${usersUrl}`,
+          text: `${email} hat sich bei Peugeot Control registriert.\n\n${USERS_URL}`,
         }),
-      }).then((res) => {
-        if (!res.ok) throw new Error(`resend ${res.status}`);
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(`resend ${res.status}: ${await res.text()}`);
       }),
+    );
+  } else {
+    console.error(
+      "signup notify: RESEND_API_KEY fehlt — keine Mail an",
+      recipients.join(", "),
     );
   }
 
