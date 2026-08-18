@@ -1,4 +1,4 @@
-/* E-3008 Control — lightweight offline shell */
+/* Peugeot Control — lightweight offline shell */
 const CACHE = "e3008-shell-v3";
 const PRECACHE = [
   "/manifest.webmanifest",
@@ -51,7 +51,7 @@ self.addEventListener("fetch", (event) => {
           const control = await caches.match("/control");
           if (control) return control;
           return new Response(
-            "<!doctype html><html lang=de><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>E-3008 Offline</title><body style=\"margin:0;background:#071018;color:#eef6f8;font-family:system-ui;display:grid;place-items:center;min-height:100dvh\"><div style=\"text-align:center;padding:2rem\"><p style=\"font-size:1.25rem;font-weight:600\">Offline</p><p style=\"opacity:.7;margin-top:.5rem\">Kein Netz — letzter Stand erscheint beim nächsten Besuch, sobald /control gecacht ist.</p></div></body></html>",
+            "<!doctype html><html lang=de><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>Peugeot Control Offline</title><body style=\"margin:0;background:#071018;color:#eef6f8;font-family:system-ui;display:grid;place-items:center;min-height:100dvh\"><div style=\"text-align:center;padding:2rem\"><p style=\"font-size:1.25rem;font-weight:600\">Offline</p><p style=\"opacity:.7;margin-top:.5rem\">Kein Netz — letzter Stand erscheint beim nächsten Besuch, sobald /control gecacht ist.</p></div></body></html>",
             { headers: { "Content-Type": "text/html; charset=utf-8" } },
           );
         }),

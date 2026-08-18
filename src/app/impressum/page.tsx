@@ -3,8 +3,8 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "Impressum · E-3008 Control",
-  description: "Angaben gemäß § 5 DDG zum Anbieter von E-3008 Control.",
+  title: "Impressum · Peugeot Control",
+  description: "Angaben gemäß § 5 DDG zum Anbieter von Peugeot Control.",
 };
 
 export default function ImpressumPage() {
@@ -15,7 +15,7 @@ export default function ImpressumPage() {
           href="/"
           className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight"
         >
-          E-3008 Control
+          Peugeot Control
         </Link>
         <Link
           href="/"
@@ -33,8 +33,8 @@ export default function ImpressumPage() {
           Impressum
         </h1>
         <p className="mt-3 text-sm text-[var(--fg-muted)]">
-          Anbieterkennzeichnung für die Web-App E-3008 Control
-          (peugeotcontrol.app).
+          Anbieterkennzeichnung für die Web-App Peugeot Control
+          (peugeotcontrol.app). Aktuell getestet am Peugeot E-3008.
         </p>
 
         <section className="panel mt-10 rounded-2xl p-6 sm:p-8">
@@ -51,8 +51,9 @@ export default function ImpressumPage() {
             Deutschland
           </p>
           <p className="mt-4 text-sm text-[var(--fg-muted)]">
-            Verantwortlich für das Angebot E-3008 Control, eine inoffizielle
-            Steuerungs-Oberfläche für Peugeot-Fahrzeuge. Keine Verbindung zu
+            Verantwortlich für das Angebot Peugeot Control, eine inoffizielle
+            Steuerungs-Oberfläche für Peugeot-Fahrzeuge (aktuell getestet am
+            E-3008). Keine Verbindung zu
             Stellantis N.V., Peugeot oder verbundenen Marken.
           </p>
         </section>

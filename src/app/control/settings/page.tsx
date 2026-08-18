@@ -119,7 +119,7 @@ export default async function SettingsPage({
             </svg>
           </Link>
           <div className="min-w-0 flex-1 text-center">
-            <p className="eyebrow">E-3008 Control</p>
+            <p className="eyebrow">Peugeot Control</p>
             <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
               Einstellungen
             </h1>

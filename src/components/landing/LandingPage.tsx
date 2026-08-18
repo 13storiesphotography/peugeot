@@ -22,7 +22,7 @@ const features = [
   },
   {
     title: "Standort & Navigation",
-    body: "Sieh, wo dein E-3008 zuletzt gemeldet wurde, und spring direkt in die Karten-App.",
+    body: "Sieh, wo dein Peugeot zuletzt gemeldet wurde, und spring direkt in die Karten-App.",
   },
   {
     title: "Dein MyPeugeot-Konto",
@@ -87,7 +87,7 @@ export function LandingPage({
 
       <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-6 pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-6">
         <a href="#" className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight">
-          E-3008 Control
+          Peugeot Control
         </a>
         <nav className="hidden items-center gap-6 text-sm text-[var(--fg-muted)] sm:flex">
           <a href="#features" className="hover:text-[var(--fg)]">
@@ -119,10 +119,10 @@ export function LandingPage({
         <section className="mx-auto grid max-w-6xl gap-12 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:items-center lg:py-20">
           <div className="animate-rise max-w-xl">
             <p className="text-xs uppercase tracking-[0.4em] text-[var(--accent-bright)]">
-              Peugeot E-3008
+              Peugeot Control
             </p>
             <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Dein E-3008.
+              Dein Peugeot.
               <br />
               <span className="text-[var(--accent-bright)]">Klar gesteuert.</span>
             </h1>
@@ -130,6 +130,10 @@ export function LandingPage({
               Laden, Vorklima und Fernbedienung im Browser — übersichtlicher und
               schneller als die Serien-App. Registriere dich, verbinde dein
               MyPeugeot-Konto und steuere dein Auto.
+            </p>
+            <p className="mt-4 text-sm text-[var(--fg-muted)]">
+              Aktuell getestet: <span className="text-[var(--fg)]">E-3008</span>.
+              Andere Modelle mit MyPeugeot können funktionieren.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
@@ -189,7 +193,7 @@ export function LandingPage({
               Vorteile
             </p>
             <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-              Warum E-3008 Control?
+              Warum Peugeot Control?
             </h2>
             <ul className="mt-10 grid gap-6 lg:grid-cols-3">
               {benefits.map((b) => (
@@ -228,7 +232,8 @@ export function LandingPage({
             <div className="mt-10 rounded-2xl border border-[var(--line)] bg-black/20 p-5 text-sm text-[var(--fg-muted)]">
               <p className="font-semibold text-[var(--fg)]">Voraussetzungen</p>
               <ul className="mt-2 list-inside list-disc space-y-1">
-                <li>Peugeot E-3008 (elektrisch) mit MyPeugeot-Konto</li>
+                <li>Peugeot mit MyPeugeot-Konto</li>
+                <li>Aktuell getestet: E-3008</li>
                 <li>e-Remote / Connect für Vorklima und Fernbedienung</li>
                 <li>Connect PLUS optional für Schloss-Status und Hupe</li>
               </ul>

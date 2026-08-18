@@ -16,10 +16,10 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "E-3008 Control · Peugeot",
+  title: "Peugeot Control · MyPeugeot im Browser",
   description:
-    "Klare Fahrzeugsteuerung für den Peugeot E-3008: Batterie, Laden, Klima und Fernbedienung.",
-  applicationName: "E-3008 Control",
+    "Klare Fahrzeugsteuerung für Peugeot: Batterie, Laden, Klima und Fernbedienung. Aktuell getestet am E-3008.",
+  applicationName: "Peugeot Control",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "E-3008",
+    title: "Peugeot Control",
     statusBarStyle: "black-translucent",
   },
   formatDetection: {

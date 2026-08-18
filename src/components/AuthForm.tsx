@@ -69,7 +69,7 @@ export function AuthForm({
         {mode === "register"
           ? "Eigener Zugang — danach MyPeugeot in den Einstellungen verbinden."
           : publicSignup
-            ? "Melde dich an und steuere deinen E-3008."
+            ? "Melde dich an und steuere deinen Peugeot."
             : "Privater Zugang — nur freigeschaltete Konten."}
       </p>
 
