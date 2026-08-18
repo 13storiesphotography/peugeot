@@ -1,11 +1,16 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { signIn, signUp, type AuthState } from "@/app/actions/auth";
+import {
+  requestPasswordReset,
+  signIn,
+  signUp,
+  type AuthState,
+} from "@/app/actions/auth";
 
 const initial: AuthState = {};
 
-type AuthMode = "login" | "register";
+type AuthMode = "login" | "register" | "forgot";
 
 export function AuthForm({
   publicSignup,
@@ -25,52 +30,76 @@ export function AuthForm({
     signUp,
     initial,
   );
+  const [forgotState, forgotAction, forgotPending] = useActionState(
+    requestPasswordReset,
+    initial,
+  );
 
-  const pending = loginPending || registerPending;
-  const state = mode === "login" ? loginState : registerState;
-  const formAction = mode === "login" ? loginAction : registerAction;
+  const pending = loginPending || registerPending || forgotPending;
+  const state =
+    mode === "login"
+      ? loginState
+      : mode === "register"
+        ? registerState
+        : forgotState;
+  const formAction =
+    mode === "login"
+      ? loginAction
+      : mode === "register"
+        ? registerAction
+        : forgotAction;
 
   return (
     <div
       id="start"
       className="panel w-full max-w-md scroll-mt-24 rounded-[1.75rem] p-6 sm:p-8"
     >
-      <div className="flex gap-1 rounded-full border border-[var(--line)] bg-black/20 p-1">
-        {publicSignup ? (
+      {mode !== "forgot" ? (
+        <div className="flex gap-1 rounded-full border border-[var(--line)] bg-black/20 p-1">
+          {publicSignup ? (
+            <button
+              type="button"
+              onClick={() => setMode("register")}
+              className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold transition ${
+                mode === "register"
+                  ? "bg-[var(--accent-bright)] text-[#031016]"
+                  : "text-[var(--fg-muted)]"
+              }`}
+            >
+              Registrieren
+            </button>
+          ) : null}
           <button
             type="button"
-            onClick={() => setMode("register")}
+            onClick={() => setMode("login")}
             className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold transition ${
-              mode === "register"
+              mode === "login"
                 ? "bg-[var(--accent-bright)] text-[#031016]"
                 : "text-[var(--fg-muted)]"
             }`}
           >
-            Registrieren
+            Anmelden
           </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => setMode("login")}
-          className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold transition ${
-            mode === "login"
-              ? "bg-[var(--accent-bright)] text-[#031016]"
-              : "text-[var(--fg-muted)]"
-          }`}
-        >
-          Anmelden
-        </button>
-      </div>
+        </div>
+      ) : null}
 
-      <h2 className="mt-6 font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
-        {mode === "register" ? "Konto anlegen" : "Willkommen zurück"}
+      <h2
+        className={`${mode === "forgot" ? "mt-0" : "mt-6"} font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight`}
+      >
+        {mode === "register"
+          ? "Konto anlegen"
+          : mode === "forgot"
+            ? "Passwort vergessen"
+            : "Willkommen zurück"}
       </h2>
       <p className="mt-2 text-sm text-[var(--fg-muted)]">
         {mode === "register"
           ? "Eigener Zugang — danach MyPeugeot in den Einstellungen verbinden."
-          : publicSignup
-            ? "Melde dich an und steuere deinen Peugeot."
-            : "Privater Zugang — nur freigeschaltete Konten."}
+          : mode === "forgot"
+            ? "Wir schicken dir einen Link zum Setzen eines neuen Passworts."
+            : publicSignup
+              ? "Melde dich an und steuere deinen Peugeot."
+              : "Privater Zugang — nur freigeschaltete Konten."}
       </p>
 
       {denied ? (
@@ -99,21 +128,35 @@ export function AuthForm({
           />
         </label>
 
-        <label className="block">
-          <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            Passwort
-          </span>
-          <input
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            autoComplete={
-              mode === "register" ? "new-password" : "current-password"
-            }
-            className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
-          />
-        </label>
+        {mode !== "forgot" ? (
+          <label className="block">
+            <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
+              Passwort
+            </span>
+            <input
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              autoComplete={
+                mode === "register" ? "new-password" : "current-password"
+              }
+              className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
+            />
+          </label>
+        ) : null}
+
+        {mode === "login" ? (
+          <p className="text-right text-sm">
+            <button
+              type="button"
+              onClick={() => setMode("forgot")}
+              className="text-[var(--fg-muted)] underline-offset-2 hover:text-[var(--fg)] hover:underline"
+            >
+              Passwort vergessen?
+            </button>
+          </p>
+        ) : null}
 
         {mode === "register" ? (
           <label className="block">
@@ -156,9 +199,23 @@ export function AuthForm({
             ? "Bitte warten…"
             : mode === "register"
               ? "Kostenlos starten"
-              : "Zur Steuerung"}
+              : mode === "forgot"
+                ? "Link senden"
+                : "Zur Steuerung"}
         </button>
       </form>
+
+      {mode === "forgot" ? (
+        <p className="mt-4 text-center text-sm text-[var(--fg-muted)]">
+          <button
+            type="button"
+            onClick={() => setMode("login")}
+            className="underline-offset-2 hover:text-[var(--fg)] hover:underline"
+          >
+            Zurück zur Anmeldung
+          </button>
+        </p>
+      ) : null}
     </div>
   );
 }
