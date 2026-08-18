@@ -191,6 +191,12 @@ export default async function SettingsPage({
             <SettingsForm vehicle={vehicle} />
           </section>
         </div>
+
+        <p className="mt-10 pb-2 text-center text-xs text-[var(--fg-muted)]">
+          <Link href="/impressum" className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--fg)]">
+            Impressum
+          </Link>
+        </p>
       </div>
     </main>
   );
