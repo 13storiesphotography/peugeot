@@ -9,6 +9,7 @@ import {
 import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { notifyNewSignup } from "@/lib/auth/notify-signup";
+import { mapSignupError } from "@/lib/auth/signup-error";
 
 export type AuthState = {
   error?: string;
@@ -96,21 +97,26 @@ export async function signUp(
   const supabase = await createClient();
   const headerStore = await headers();
   const origin = publicSiteOrigin(headerStore);
+  const emailRedirectTo = `${origin}/auth/callback`;
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      emailRedirectTo: `${origin}/auth/callback`,
-    },
+    options: { emailRedirectTo },
   });
 
   if (error) {
-    const msg = error.message.toLowerCase();
-    if (msg.includes("already registered")) {
-      return { error: "Diese E-Mail ist bereits registriert — bitte anmelden." };
-    }
-    return { error: "Registrierung fehlgeschlagen. Bitte erneut versuchen." };
+    console.error("signUp failed", {
+      code: error.code,
+      message: error.message,
+      status: error.status,
+      emailRedirectTo,
+    });
+    return { error: mapSignupError(error) };
+  }
+
+  if (data.user?.identities && data.user.identities.length === 0) {
+    return { error: "Diese E-Mail ist bereits registriert — bitte anmelden." };
   }
 
   try {
