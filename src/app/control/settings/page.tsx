@@ -8,8 +8,7 @@ import { RemotePinForm } from "@/components/RemotePinForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { SyncIntervalForm } from "@/components/SyncIntervalForm";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
-import { founderSpotsTaken } from "@/lib/billing/entitlement";
-import { isStripeConfigured, isStripeTestMode } from "@/lib/billing/stripe";
+import { isStripeConfigured } from "@/lib/billing/stripe";
 import { MFA_GRACE_DAYS } from "@/lib/auth/mfa-policy";
 import { getSettingsBundle } from "@/lib/vehicle/repository";
 
@@ -72,7 +71,6 @@ export default async function SettingsPage({
       : undefined;
 
   const bundle = await getSettingsBundle(session.supabase, session.userId);
-  const founderTaken = await founderSpotsTaken(session.supabase);
   const mfa = session.mfa;
   const { connection, vehicle, entitlement } = bundle;
 
@@ -194,9 +192,7 @@ export default async function SettingsPage({
         <div className="mt-6 space-y-4">
           <ProUpgradeCard
             entitlement={entitlement}
-            founderTaken={founderTaken}
             stripeReady={isStripeConfigured()}
-            stripeTest={isStripeTestMode()}
             notice={checkoutNotice}
           />
 

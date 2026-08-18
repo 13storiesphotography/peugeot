@@ -40,11 +40,3 @@ export async function getEntitlement(
     periodEnd: data?.current_period_end ? String(data.current_period_end) : null,
   };
 }
-
-export async function founderSpotsTaken(
-  supabase: SupabaseClient,
-): Promise<number> {
-  const { data, error } = await supabase.rpc("founder_spots_taken");
-  if (error) return 0;
-  return Number(data ?? 0);
-}

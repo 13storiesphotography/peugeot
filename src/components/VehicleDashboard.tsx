@@ -717,6 +717,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             busy={climateBusy}
             remoteReady={bundle.connection.remoteReady}
             remoteSignalsOk={bundle.connection.remoteSignalsOk}
+            isPro={bundle.isPro}
             onCommand={(command) => void runCommand(command)}
             onOpenClimate={() => selectTab("climate")}
           />
@@ -739,6 +740,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           busy={climateBusy}
           remoteReady={bundle.connection.remoteReady}
           climateJob={climateJobView}
+          isPro={bundle.isPro}
           onCommand={(command) => void runCommand(command)}
         />
       ) : null}
@@ -759,6 +761,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           busy={busy}
           remoteReady={bundle.connection.remoteReady}
           remoteSignalsOk={bundle.connection.remoteSignalsOk}
+          isPro={bundle.isPro}
           onCommand={(command) => void runCommand(command)}
         />
       ) : null}

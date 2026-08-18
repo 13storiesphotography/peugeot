@@ -9,16 +9,16 @@ const features = [
     body: "Ladezustand, Reichweite, Verriegelung und Standort — live und ohne Menü-Wirrwarr.",
   },
   {
-    title: "Laden im Griff",
-    body: "80%-Limit, Wallbox vs. Schnellladen, Ladekurve und ETA — direkt im Browser.",
+    title: "Laden im Blick",
+    body: "SoC, Wallbox vs. Schnellladen, Ladekurve und ETA ansehen. 80%-Limit mit Pro.",
   },
   {
     title: "Vorklima per Tipp",
-    body: "Vor Abfahrt heizen oder kühlen, mit Fortschrittsanzeige während der Vorbereitung.",
+    body: "Vor Abfahrt heizen oder kühlen — mit Pro, inkl. Fortschrittsanzeige.",
   },
   {
     title: "Fernbedienung",
-    body: "Entriegeln, Verriegeln, Finden (Lichter blinken), Hupe und Wecken — wenn e-Remote freigeschaltet ist.",
+    body: "Entriegeln, Verriegeln, Finden, Hupe und Wecken — mit Pro, wenn e-Remote freigeschaltet ist.",
   },
   {
     title: "Standort & Navigation",
@@ -71,11 +71,9 @@ const steps = [
 export function LandingPage({
   publicSignup,
   denied,
-  founderTaken = 0,
 }: {
   publicSignup: boolean;
   denied?: boolean;
-  founderTaken?: number;
 }) {
   return (
     <div className="relative min-h-dvh overflow-x-hidden">
@@ -206,7 +204,7 @@ export function LandingPage({
           </div>
         </section>
 
-        <PricingSection founderTaken={founderTaken} />
+        <PricingSection />
 
         <section className="border-t border-[var(--line)] bg-black/15 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">

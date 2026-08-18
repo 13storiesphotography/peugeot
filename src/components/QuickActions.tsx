@@ -9,6 +9,7 @@ interface QuickActionsProps {
   busy: boolean;
   remoteReady?: boolean;
   remoteSignalsOk?: boolean | null;
+  isPro?: boolean;
   onCommand: (command: VehicleCommand) => void;
   onOpenClimate?: () => void;
 }
@@ -28,10 +29,14 @@ export function QuickActions({
   busy,
   remoteReady = true,
   remoteSignalsOk = null,
+  isPro = false,
   onCommand,
   onOpenClimate,
 }: QuickActionsProps) {
   const showSignals = remoteSignalsOk !== false;
+  const goPro = () => {
+    window.location.href = "/control/settings#pro";
+  };
 
   const climate: Action = {
     id: "climate",
@@ -39,6 +44,10 @@ export function QuickActions({
     active: climateOn,
     icon: <IconClimate />,
     onClick: () => {
+      if (!isPro) {
+        goPro();
+        return;
+      }
       if (climateOn) {
         onCommand("climate_stop");
         return;
@@ -58,14 +67,14 @@ export function QuickActions({
           label: locked ? "Entriegeln" : "Verriegeln",
           active: !locked,
           icon: <IconLock locked={locked} />,
-          onClick: () => onCommand(locked ? "unlock" : "lock"),
+          onClick: () => (isPro ? onCommand(locked ? "unlock" : "lock") : goPro()),
         },
         climate,
         {
           id: "flash",
           label: "Finden",
           icon: <IconFind />,
-          onClick: () => onCommand("flash"),
+          onClick: () => (isPro ? onCommand("flash") : goPro()),
         },
       ]
     : [
@@ -74,7 +83,7 @@ export function QuickActions({
           id: "wakeup",
           label: "Wecken",
           icon: <IconWake />,
-          onClick: () => onCommand("wakeup"),
+          onClick: () => (isPro ? onCommand("wakeup") : goPro()),
         },
       ];
 

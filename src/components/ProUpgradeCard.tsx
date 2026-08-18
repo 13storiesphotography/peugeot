@@ -3,31 +3,20 @@
 import { useActionState } from "react";
 import { startCheckout, type CheckoutState } from "@/app/actions/billing";
 import type { Entitlement } from "@/lib/billing/entitlement";
-import {
-  FOUNDER_CAP,
-  FOUNDER_CENTS,
-  PRO_YEAR_CENTS,
-  formatEuroFromCents,
-} from "@/lib/billing/catalog";
+import { PRO_YEAR_CENTS, formatEuroFromCents } from "@/lib/billing/catalog";
 
 const initial: CheckoutState = {};
 
 export function ProUpgradeCard({
   entitlement,
-  founderTaken,
   stripeReady,
-  stripeTest,
   notice,
 }: {
   entitlement: Entitlement;
-  founderTaken: number;
   stripeReady: boolean;
-  stripeTest: boolean;
   notice?: CheckoutState;
 }) {
   const [state, action, pending] = useActionState(startCheckout, initial);
-  const founderOpen = founderTaken < FOUNDER_CAP;
-  const price = founderOpen ? FOUNDER_CENTS : PRO_YEAR_CENTS;
   const error = notice?.error ?? state.error;
   const success = notice?.success ?? state.success;
 
@@ -39,7 +28,7 @@ export function ProUpgradeCard({
       </h2>
       {entitlement.isPro ? (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
-          80%-Ladelimit ist an.{" "}
+          Steuern und 80%-Limit sind an.{" "}
           {entitlement.periodEnd
             ? `Gültig bis ${new Intl.DateTimeFormat("de-DE", {
                 day: "numeric",
@@ -50,19 +39,10 @@ export function ProUpgradeCard({
         </p>
       ) : (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
-          {founderOpen
-            ? `Founder-Preis ${formatEuroFromCents(price)} für 12 Monate — noch ${FOUNDER_CAP - founderTaken} von ${FOUNDER_CAP} Plätzen.`
-            : `Pro ${formatEuroFromCents(price)} für 12 Monate.`}{" "}
-          Schaltet das 80%-Limit frei.
+          {formatEuroFromCents(PRO_YEAR_CENTS)} / Jahr — Vorklima, Schloss,
+          Finden und 80%-Limit.
         </p>
       )}
-
-      {stripeTest ? (
-        <p className="mt-3 text-xs text-[var(--warn)]">
-          Stripe Testmodus — Karte 4242 4242 4242 4242, beliebiges Datum, CVC
-          123.
-        </p>
-      ) : null}
 
       {error ? (
         <p role="alert" className="mt-3 text-sm text-[var(--danger)]">
@@ -83,10 +63,10 @@ export function ProUpgradeCard({
             className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
           >
             {pending
-              ? "Weiter zu Stripe…"
+              ? "Weiter zur Zahlung…"
               : stripeReady
-                ? `Jetzt ${formatEuroFromCents(price)} zahlen`
-                : "Stripe noch nicht verbunden"}
+                ? `Pro für ${formatEuroFromCents(PRO_YEAR_CENTS)} / Jahr`
+                : "Zahlung noch nicht eingerichtet"}
           </button>
         </form>
       ) : null}

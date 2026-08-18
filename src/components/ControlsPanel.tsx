@@ -10,6 +10,7 @@ interface ControlsPanelProps {
   remoteReady?: boolean;
   remoteSignalsOk?: boolean | null;
   onCommand: (command: VehicleCommand) => void;
+  isPro?: boolean;
 }
 
 type ControlTile = {
@@ -28,6 +29,7 @@ export function ControlsPanel({
   remoteReady = false,
   remoteSignalsOk = null,
   onCommand,
+  isPro = false,
 }: ControlsPanelProps) {
   const locked = vehicle.locked;
   const live = vehicle.mode === "live";
@@ -40,13 +42,15 @@ export function ControlsPanel({
       {
         id: "flash",
         label: "Finden",
-        onClick: () => onCommand("flash"),
+        onClick: () =>
+          isPro ? onCommand("flash") : (window.location.href = "/control/settings#pro"),
         icon: <IconFind />,
       },
       {
         id: "horn",
         label: "Hupe",
-        onClick: () => onCommand("horn"),
+        onClick: () =>
+          isPro ? onCommand("horn") : (window.location.href = "/control/settings#pro"),
         icon: <IconHorn />,
       },
     );
@@ -54,7 +58,8 @@ export function ControlsPanel({
   actions.push({
     id: "wakeup",
     label: "Wecken",
-    onClick: () => onCommand("wakeup"),
+    onClick: () =>
+      isPro ? onCommand("wakeup") : (window.location.href = "/control/settings#pro"),
     icon: <IconWake />,
     disabled: wakeDisabled,
     title: wakeDisabled
@@ -93,7 +98,11 @@ export function ControlsPanel({
         <button
           type="button"
           disabled={busy}
-          onClick={() => onCommand(locked ? "unlock" : "lock")}
+          onClick={() =>
+            isPro
+              ? onCommand(locked ? "unlock" : "lock")
+              : (window.location.href = "/control/settings#pro")
+          }
           className="action-btn ui-surface flex w-full flex-col items-center gap-3 px-5 py-7"
           style={{
             borderColor: locked
