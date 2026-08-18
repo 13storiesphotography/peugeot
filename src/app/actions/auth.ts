@@ -19,6 +19,7 @@ import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { notifyNewSignup } from "@/lib/auth/notify-signup";
 import { mapSignupError, mapOutboundMailError } from "@/lib/auth/signup-error";
+import { mapPasswordUpdateError } from "@/lib/auth/password-update-error";
 
 export type AuthState = {
   error?: string;
@@ -260,6 +261,21 @@ export async function requestPasswordReset(
   return generic;
 }
 
+async function clearRecoveryCookie() {
+  const jar = await cookies();
+  jar.delete(RECOVERY_COOKIE);
+  jar.set(RECOVERY_COOKIE, "", recoveryCookieOptions(0));
+}
+
+/**
+ * After the browser has already applied the recovery session and new
+ * password, drop the recovery gate cookie and continue into the app.
+ */
+export async function completePasswordReset(): Promise<AuthState> {
+  await clearRecoveryCookie();
+  return redirectAfterAuth();
+}
+
 export async function updatePassword(
   _prev: AuthState,
   formData: FormData,
@@ -277,58 +293,83 @@ export async function updatePassword(
   const tokenHash = String(formData.get("token_hash") ?? "").trim();
   const supabase = await createClient();
 
+  let userId: string | undefined;
+  let userEmail: string | undefined;
+  let accessToken: string | undefined;
+  let refreshToken: string | undefined;
+
   if (tokenHash) {
-    const { error } = await supabase.auth.verifyOtp({
+    // Use the verify response — do not call getUser() afterwards. In a
+    // Server Action, cookies() still reflects the incoming request, so the
+    // session written by verifyOtp is invisible to a second cookie read.
+    const { data, error } = await supabase.auth.verifyOtp({
       type: otpType(String(formData.get("type") ?? "recovery")),
       token_hash: tokenHash,
     });
-    if (error) {
+    if (error || !data.user) {
       return {
         error:
           "Dieser Link ist ungültig oder abgelaufen. Bitte einen neuen anfordern.",
       };
     }
-    const jar = await cookies();
-    jar.set(RECOVERY_COOKIE, "1", recoveryCookieOptions(60 * 60));
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return {
-      error:
-        "Sitzung abgelaufen. Bitte den Link in der E-Mail erneut öffnen oder einen neuen anfordern.",
-    };
-  }
-
-  if (!isEmailAllowed(user.email)) {
-    await supabase.auth.signOut();
-    return { error: "Dieser Zugang ist nicht freigeschaltet." };
-  }
-
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) {
-    const msg = error.message.toLowerCase();
-    if (msg.includes("same") || msg.includes("different from the old")) {
-      return { error: "Das neue Passwort muss sich vom bisherigen unterscheiden." };
-    }
-    if (msg.includes("at least") || msg.includes("weak") || msg.includes("pwned")) {
-      return { error: "Passwort zu unsicher. Bitte ein längeres wählen." };
-    }
-    if (msg.includes("session") || error.status === 401) {
+    userId = data.user.id;
+    userEmail = data.user.email ?? undefined;
+    accessToken = data.session?.access_token;
+    refreshToken = data.session?.refresh_token;
+  } else {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
       return {
         error:
           "Sitzung abgelaufen. Bitte den Link in der E-Mail erneut öffnen oder einen neuen anfordern.",
       };
     }
-    return { error: "Passwort konnte nicht gespeichert werden. Bitte erneut versuchen." };
+    userId = user.id;
+    userEmail = user.email ?? undefined;
   }
 
-  const jar = await cookies();
-  jar.delete(RECOVERY_COOKIE);
-  jar.set(RECOVERY_COOKIE, "", recoveryCookieOptions(0));
+  if (!isEmailAllowed(userEmail)) {
+    await supabase.auth.signOut();
+    return { error: "Dieser Zugang ist nicht freigeschaltet." };
+  }
 
+  if (userId && getServiceRoleKey()) {
+    const admin = createAdminClient();
+    const { error } = await admin.auth.admin.updateUserById(userId, { password });
+    if (error) {
+      return { error: mapPasswordUpdateError(error) };
+    }
+    if (userEmail) {
+      const { error: signError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password,
+      });
+      if (signError) {
+        await clearRecoveryCookie();
+        redirect("/");
+      }
+    }
+  } else {
+    if (accessToken && refreshToken) {
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (sessionError) {
+        return {
+          error:
+            "Sitzung abgelaufen. Bitte den Link in der E-Mail erneut öffnen oder einen neuen anfordern.",
+        };
+      }
+    }
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      return { error: mapPasswordUpdateError(error) };
+    }
+  }
+
+  await clearRecoveryCookie();
   return redirectAfterAuth();
 }

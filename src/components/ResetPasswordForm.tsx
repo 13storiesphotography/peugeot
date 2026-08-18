@@ -1,14 +1,18 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
+  completePasswordReset,
   requestPasswordReset,
-  updatePassword,
   type AuthState,
 } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
-import { markPasswordRecoveryInBrowser } from "@/lib/auth/recovery-cookie";
+import {
+  clearPasswordRecoveryInBrowser,
+  markPasswordRecoveryInBrowser,
+} from "@/lib/auth/recovery-cookie";
+import { mapPasswordUpdateError } from "@/lib/auth/password-update-error";
 
 const initial: AuthState = {};
 
@@ -22,10 +26,8 @@ export function ResetPasswordForm({
   const [phase, setPhase] = useState<"loading" | "ready" | "request">(
     invalidLink ? "request" : tokenHash ? "ready" : "loading",
   );
-  const [updateState, updateAction, updatePending] = useActionState(
-    updatePassword,
-    initial,
-  );
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updatePending, setUpdatePending] = useState(false);
   const [resetState, resetAction, resetPending] = useActionState(
     requestPasswordReset,
     initial,
@@ -86,6 +88,72 @@ export function ResetPasswordForm({
     };
   }, [invalidLink, tokenHash]);
 
+  async function onSavePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (updatePending) return;
+
+    const formData = new FormData(event.currentTarget);
+    const password = String(formData.get("password") ?? "");
+    const passwordConfirm = String(formData.get("passwordConfirm") ?? "");
+
+    if (password.length < 8) {
+      setUpdateError("Passwort mindestens 8 Zeichen.");
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setUpdateError("Passwörter stimmen nicht überein.");
+      return;
+    }
+
+    setUpdatePending(true);
+    setUpdateError(null);
+
+    try {
+      const supabase = createClient();
+      if (tokenHash) {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          type: "recovery",
+          token_hash: tokenHash,
+        });
+        if (verifyError) {
+          setUpdateError(
+            "Dieser Link ist ungültig oder abgelaufen. Bitte einen neuen anfordern.",
+          );
+          setUpdatePending(false);
+          return;
+        }
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setUpdateError(
+          "Sitzung abgelaufen. Bitte den Link in der E-Mail erneut öffnen oder einen neuen anfordern.",
+        );
+        setUpdatePending(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        setUpdateError(mapPasswordUpdateError(error));
+        setUpdatePending(false);
+        return;
+      }
+    } catch {
+      setUpdateError(
+        "Passwort konnte nicht gespeichert werden. Bitte erneut versuchen.",
+      );
+      setUpdatePending(false);
+      return;
+    }
+
+    // Redirect throws; keep it outside the catch so Next can follow it.
+    clearPasswordRecoveryInBrowser();
+    await completePasswordReset();
+  }
+
   if (phase === "loading") {
     return (
       <p className="text-sm text-[var(--fg-muted)]" role="status">
@@ -145,13 +213,7 @@ export function ResetPasswordForm({
   }
 
   return (
-    <form action={updateAction} className="space-y-4">
-      {tokenHash ? (
-        <>
-          <input type="hidden" name="token_hash" value={tokenHash} />
-          <input type="hidden" name="type" value="recovery" />
-        </>
-      ) : null}
+    <form onSubmit={onSavePassword} className="space-y-4">
       <label className="block">
         <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
           Neues Passwort
@@ -178,9 +240,9 @@ export function ResetPasswordForm({
           className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
         />
       </label>
-      {updateState.error ? (
+      {updateError ? (
         <p role="alert" className="text-sm text-[var(--danger)]">
-          {updateState.error}
+          {updateError}
         </p>
       ) : null}
       <button
