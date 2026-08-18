@@ -22,6 +22,13 @@ export default async function HomePage({
   const params = await searchParams;
   const publicSignup = isPublicSignupEnabled();
   const denied = params.denied === "1";
+  const deleted = params.deleted === "1";
 
-  return <LandingPage publicSignup={publicSignup} denied={denied} />;
+  return (
+    <LandingPage
+      publicSignup={publicSignup}
+      denied={denied}
+      deleted={deleted}
+    />
+  );
 }

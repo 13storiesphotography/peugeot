@@ -4,11 +4,13 @@ import { signOut } from "@/app/actions/auth";
 import { confirmCheckoutSession } from "@/app/actions/billing";
 import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
 import { ProUpgradeCard } from "@/components/ProUpgradeCard";
+import { AccountDeleteCard } from "@/components/AccountDeleteCard";
 import { RemotePinForm } from "@/components/RemotePinForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { SyncIntervalForm } from "@/components/SyncIntervalForm";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { isStripeConfigured } from "@/lib/billing/stripe";
+import { getSubscriptionSnapshot } from "@/lib/billing/subscription";
 import { MFA_GRACE_DAYS } from "@/lib/auth/mfa-policy";
 import { getSettingsBundle } from "@/lib/vehicle/repository";
 
@@ -71,6 +73,10 @@ export default async function SettingsPage({
       : undefined;
 
   const bundle = await getSettingsBundle(session.supabase, session.userId);
+  const subscription = await getSubscriptionSnapshot(
+    session.userId,
+    session.email,
+  );
   const mfa = session.mfa;
   const { connection, vehicle, entitlement } = bundle;
 
@@ -192,6 +198,7 @@ export default async function SettingsPage({
         <div className="mt-6 space-y-4">
           <ProUpgradeCard
             entitlement={entitlement}
+            subscription={subscription}
             stripeReady={isStripeConfigured()}
             notice={checkoutNotice}
           />
@@ -217,6 +224,8 @@ export default async function SettingsPage({
           <section className="animate-rise-delay-3">
             <SettingsForm vehicle={vehicle} />
           </section>
+
+          <AccountDeleteCard />
         </div>
 
         <p className="mt-10 pb-2 text-center text-xs text-[var(--fg-muted)]">
