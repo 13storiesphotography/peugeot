@@ -33,6 +33,15 @@ export function AuthUrlSession() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (window.location.pathname.startsWith("/auth/reset")) return;
+    const url = new URL(window.location.href);
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    if (
+      url.searchParams.get("type") === "recovery" ||
+      hash.get("type") === "recovery"
+    ) {
+      return;
+    }
     if (!hasAuthPayload()) return;
     setBusy(true);
 

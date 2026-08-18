@@ -1,40 +1,59 @@
-import { redirect } from "next/navigation";
-import type { EmailOtpType } from "@supabase/supabase-js";
+import { NextResponse, type NextRequest } from "next/server";
+import { otpType } from "@/lib/auth/otp-type";
+import {
+  RECOVERY_COOKIE,
+  recoveryCookieOptions,
+} from "@/lib/auth/recovery-cookie";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-function otpType(raw: string | null): EmailOtpType {
-  if (
-    raw === "signup" ||
-    raw === "invite" ||
-    raw === "magiclink" ||
-    raw === "recovery" ||
-    raw === "email_change" ||
-    raw === "email"
-  ) {
-    return raw;
-  }
-  return "email";
-}
-
-/** Server-side email confirmation (token_hash) so the session is set in cookies. */
-export async function GET(request: Request) {
+/** Server-side token_hash exchange (confirm + password recovery). */
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
+  const type = otpType(searchParams.get("type"));
+  const next = searchParams.get("next");
+
+  const failed = request.nextUrl.clone();
+  failed.pathname = type === "recovery" ? "/auth/reset" : "/";
+  failed.search = type === "recovery" ? "error=invalid" : "confirm=failed";
+
   if (!tokenHash) {
-    redirect("/?confirm=failed");
+    return NextResponse.redirect(failed);
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.verifyOtp({
-    type: otpType(searchParams.get("type")),
-    token_hash: tokenHash as string,
+    type,
+    token_hash: tokenHash,
   });
 
   if (error) {
-    redirect("/?confirm=failed");
+    return NextResponse.redirect(failed);
   }
 
-  redirect("/control");
+  const dest = request.nextUrl.clone();
+  dest.search = "";
+  dest.pathname = safeNextPath(
+    next,
+    type === "recovery" ? "/auth/reset" : "/control",
+  );
+  const response = NextResponse.redirect(dest);
+  if (type === "recovery") {
+    response.cookies.set(RECOVERY_COOKIE, "1", recoveryCookieOptions(60 * 60));
+  }
+  return response;
+}
+
+function safeNextPath(raw: string | null, fallback: string): string {
+  if (
+    !raw ||
+    !raw.startsWith("/") ||
+    raw.startsWith("//") ||
+    raw.includes("://")
+  ) {
+    return fallback;
+  }
+  return raw;
 }
