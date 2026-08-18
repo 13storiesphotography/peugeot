@@ -2,7 +2,11 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { PRO_YEAR_CENTS } from "@/lib/billing/catalog";
+import {
+  amountForInterval,
+  parseBillingInterval,
+  type BillingInterval,
+} from "@/lib/billing/catalog";
 import { grantProFromStripe } from "@/lib/billing/grant";
 import { getStripe, isStripeConfigured } from "@/lib/billing/stripe";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
@@ -23,9 +27,35 @@ function siteOrigin(headerStore: Headers): string {
   );
 }
 
+async function periodEndFromCheckout(
+  checkoutId: string,
+  interval: BillingInterval,
+): Promise<string | null> {
+  const stripe = getStripe();
+  const checkout = await stripe.checkout.sessions.retrieve(checkoutId, {
+    expand: ["subscription"],
+  });
+  const sub = checkout.subscription;
+  if (sub && typeof sub !== "string") {
+    const end = (sub as { current_period_end?: number }).current_period_end;
+    if (typeof end === "number") {
+      return new Date(end * 1000).toISOString();
+    }
+  }
+  if (typeof sub === "string") {
+    const retrieved = await stripe.subscriptions.retrieve(sub);
+    const end = (retrieved as { current_period_end?: number }).current_period_end;
+    if (typeof end === "number") {
+      return new Date(end * 1000).toISOString();
+    }
+  }
+  void interval;
+  return null;
+}
+
 export async function startCheckout(
   _prev: CheckoutState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<CheckoutState> {
   const session = await assertOwnerSession();
   if (!session) {
@@ -35,11 +65,13 @@ export async function startCheckout(
     return { error: "Zahlung ist gerade nicht verfügbar. Bitte später erneut versuchen." };
   }
 
+  const interval = parseBillingInterval(formData.get("interval"));
   const origin = siteOrigin(await headers());
   const stripe = getStripe();
+  const yearly = interval === "year";
 
   const checkout = await stripe.checkout.sessions.create({
-    mode: "payment",
+    mode: "subscription",
     customer_email: session.email ?? undefined,
     allow_promotion_codes: true,
     success_url: `${origin}/control/settings?pro_session={CHECKOUT_SESSION_ID}`,
@@ -47,17 +79,28 @@ export async function startCheckout(
     metadata: {
       user_id: session.userId,
       source: "stripe",
+      interval,
+    },
+    subscription_data: {
+      metadata: {
+        user_id: session.userId,
+        interval,
+      },
     },
     line_items: [
       {
         quantity: 1,
         price_data: {
           currency: "eur",
-          unit_amount: PRO_YEAR_CENTS,
+          unit_amount: amountForInterval(interval),
+          recurring: { interval },
           product_data: {
-            name: "Peugeot Control Pro (1 Jahr)",
-            description:
-              "Vorklima, Fernbedienung und 80%-Ladelimit für 12 Monate.",
+            name: yearly
+              ? "Peugeot Control Pro (jährlich)"
+              : "Peugeot Control Pro (monatlich)",
+            description: yearly
+              ? "Vorklima, Fernbedienung und 80%-Ladelimit — 12 Monate, günstiger als Monat für Monat."
+              : "Vorklima, Fernbedienung und 80%-Ladelimit, monatlich kündbar.",
           },
         },
       },
@@ -95,14 +138,18 @@ export async function confirmCheckoutSession(
       return { error: "Zahlung konnte nicht bestätigt werden." };
     }
 
+    const interval = parseBillingInterval(checkout.metadata?.interval ?? "year");
     const customerId =
       typeof checkout.customer === "string" ? checkout.customer : null;
+    const periodEnd = await periodEndFromCheckout(checkout.id, interval);
 
     await grantProFromStripe({
       userId,
       source: "stripe",
       stripeCustomerId: customerId,
       stripeCheckoutSessionId: checkout.id,
+      interval,
+      periodEnd,
     });
 
     return {

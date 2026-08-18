@@ -3,7 +3,13 @@
 import { useActionState } from "react";
 import { startCheckout, type CheckoutState } from "@/app/actions/billing";
 import type { Entitlement } from "@/lib/billing/entitlement";
-import { PRO_YEAR_CENTS, formatEuroFromCents } from "@/lib/billing/catalog";
+import {
+  PRO_MONTH_CENTS,
+  PRO_YEAR_CENTS,
+  PRO_YEAR_IF_MONTHLY_CENTS,
+  formatEuroFromCents,
+  yearlySavingsCents,
+} from "@/lib/billing/catalog";
 
 const initial: CheckoutState = {};
 
@@ -39,8 +45,8 @@ export function ProUpgradeCard({
         </p>
       ) : (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
-          {formatEuroFromCents(PRO_YEAR_CENTS)} / Jahr — Vorklima, Schloss,
-          Finden und 80%-Limit.
+          Vorklima, Schloss, Finden und 80%-Limit. Jahr spart{" "}
+          {formatEuroFromCents(yearlySavingsCents())} gegenüber Monat für Monat.
         </p>
       )}
 
@@ -56,18 +62,33 @@ export function ProUpgradeCard({
       ) : null}
 
       {!entitlement.isPro ? (
-        <form action={action} className="mt-4">
+        <form action={action} className="mt-4 space-y-2">
           <button
             type="submit"
+            name="interval"
+            value="year"
             disabled={pending || !stripeReady}
             className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
           >
             {pending
               ? "Weiter zur Zahlung…"
               : stripeReady
-                ? `Pro für ${formatEuroFromCents(PRO_YEAR_CENTS)} / Jahr`
+                ? `Jahr · ${formatEuroFromCents(PRO_YEAR_CENTS)}`
                 : "Zahlung noch nicht eingerichtet"}
           </button>
+          <button
+            type="submit"
+            name="interval"
+            value="month"
+            disabled={pending || !stripeReady}
+            className="action-btn w-full rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold disabled:opacity-50"
+          >
+            Monat · {formatEuroFromCents(PRO_MONTH_CENTS)}
+          </button>
+          <p className="text-center text-[11px] text-[var(--fg-muted)]">
+            Monatlich {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)} / Jahr ·
+            jährlich {formatEuroFromCents(PRO_YEAR_CENTS)}
+          </p>
         </form>
       ) : null}
     </section>
