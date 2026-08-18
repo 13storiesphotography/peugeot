@@ -23,12 +23,14 @@ export default async function HomePage({
   const publicSignup = isPublicSignupEnabled();
   const denied = params.denied === "1";
   const confirmError = params.confirm === "failed";
+  const deleted = params.deleted === "1";
 
   return (
     <LandingPage
       publicSignup={publicSignup}
       denied={denied}
       confirmError={confirmError}
+      deleted={deleted}
     />
   );
 }

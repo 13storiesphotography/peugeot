@@ -4,6 +4,7 @@ import {
   setEntitlementStatusByCustomer,
 } from "@/lib/billing/grant";
 import { getStripe } from "@/lib/billing/stripe";
+import { subscriptionPeriodEndIso } from "@/lib/billing/subscription";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -49,10 +50,7 @@ export async function POST(request: Request) {
       const subId = typeof subRef === "string" ? subRef : subRef?.id;
       if (subId) {
         const sub = await stripe.subscriptions.retrieve(subId);
-        const end = (sub as { current_period_end?: number }).current_period_end;
-        if (typeof end === "number") {
-          periodEnd = new Date(end * 1000).toISOString();
-        }
+        periodEnd = subscriptionPeriodEndIso(sub);
       }
       await grantProFromStripe({
         userId,
@@ -85,15 +83,18 @@ export async function POST(request: Request) {
     let status = obj.status;
     if (subId) {
       const sub = await stripe.subscriptions.retrieve(subId);
-      const end = (sub as { current_period_end?: number }).current_period_end;
-      if (typeof end === "number") {
-        periodEnd = new Date(end * 1000).toISOString();
-      }
+      periodEnd = subscriptionPeriodEndIso(sub);
       status = sub.status;
     } else if (typeof obj.current_period_end === "number") {
       periodEnd = new Date(obj.current_period_end * 1000).toISOString();
     }
-    if (customerId && (status === "active" || status === "trialing" || event.type === "invoice.paid")) {
+    if (customerId && (status === "canceled" || status === "unpaid" || status === "incomplete_expired")) {
+      await setEntitlementStatusByCustomer({
+        stripeCustomerId: customerId,
+        status: "canceled",
+        periodEnd,
+      });
+    } else if (customerId && (status === "active" || status === "trialing" || event.type === "invoice.paid")) {
       await setEntitlementStatusByCustomer({
         stripeCustomerId: customerId,
         status: "active",
