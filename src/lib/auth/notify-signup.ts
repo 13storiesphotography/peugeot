@@ -1,3 +1,5 @@
+import { authEmailFrom } from "@/lib/auth/email-from";
+
 /** Fire-and-forget owner alert for a new registration. */
 export async function notifyNewSignup(email: string): Promise<void> {
   const tasks: Promise<void>[] = [];
@@ -48,9 +50,7 @@ export async function notifyNewSignup(email: string): Promise<void> {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from:
-            process.env.SIGNUP_NOTIFY_FROM?.trim() ||
-            "Peugeot Control <onboarding@resend.dev>",
+          from: authEmailFrom(),
           to: [notifyEmail],
           subject: `Neue Registrierung: ${email}`,
           text: `${email} hat sich bei Peugeot Control registriert.\n\n${usersUrl}`,
