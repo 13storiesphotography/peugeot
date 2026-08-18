@@ -8,6 +8,7 @@ import {
 } from "@/lib/auth/allowlist";
 import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
 import { createClient } from "@/lib/supabase/server";
+import { notifyNewSignup } from "@/lib/auth/notify-signup";
 
 export type AuthState = {
   error?: string;
@@ -99,6 +100,12 @@ export async function signUp(
       return { error: "Diese E-Mail ist bereits registriert — bitte anmelden." };
     }
     return { error: "Registrierung fehlgeschlagen. Bitte erneut versuchen." };
+  }
+
+  try {
+    await notifyNewSignup(email);
+  } catch (err) {
+    console.warn("signup notify:", err);
   }
 
   if (data.session) {
