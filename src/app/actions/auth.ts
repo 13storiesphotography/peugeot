@@ -14,7 +14,7 @@ import {
 import { getSiteOrigin } from "@/lib/auth/site-origin";
 import { createClient } from "@/lib/supabase/server";
 import { notifyNewSignup } from "@/lib/auth/notify-signup";
-import { mapSignupError } from "@/lib/auth/signup-error";
+import { mapSignupError, mapOutboundMailError } from "@/lib/auth/signup-error";
 
 export type AuthState = {
   error?: string;
@@ -197,19 +197,6 @@ export async function signOut() {
   redirect("/");
 }
 
-function sendRateLimitMessage(message: string, status?: number): string | null {
-  const msg = message.toLowerCase();
-  if (
-    status === 429 ||
-    msg.includes("rate limit") ||
-    msg.includes("over_email_send_rate_limit") ||
-    msg.includes("email rate")
-  ) {
-    return "Zu viele E-Mails. Bitte warte etwa eine Stunde und versuche es erneut.";
-  }
-  return null;
-}
-
 export async function requestPasswordReset(
   _prev: AuthState,
   formData: FormData,
@@ -231,8 +218,8 @@ export async function requestPasswordReset(
   });
 
   if (error) {
-    const rate = sendRateLimitMessage(error.message, error.status);
-    if (rate) return { error: rate };
+    const mail = mapOutboundMailError(error);
+    if (mail) return { error: mail };
     // Do not reveal whether the address is registered.
     return generic;
   }
