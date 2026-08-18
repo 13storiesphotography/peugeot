@@ -13,8 +13,9 @@ import {
 } from "@/lib/auth/recovery-cookie";
 import { otpType } from "@/lib/auth/otp-type";
 import { sendAuthEmail } from "@/lib/auth/send-auth-email";
+import { sendRecoveryWithoutPkce } from "@/lib/auth/send-recovery";
 import { getSiteOrigin } from "@/lib/auth/site-origin";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { notifyNewSignup } from "@/lib/auth/notify-signup";
 import { mapSignupError, mapOutboundMailError } from "@/lib/auth/signup-error";
@@ -215,43 +216,45 @@ export async function requestPasswordReset(
   };
 
   const origin = await getSiteOrigin();
+  const redirectTo = `${origin}/auth/reset`;
 
   try {
-    const admin = createAdminClient();
-    const { data, error } = await admin.auth.admin.generateLink({
-      type: "recovery",
-      email,
-      options: { redirectTo: `${origin}/auth/reset` },
-    });
-    const tokenHash = data?.properties?.hashed_token;
-    if (error || !tokenHash) {
-      const mail = error ? mapOutboundMailError(error) : null;
-      if (mail) return { error: mail };
-      // Unknown address or other Auth error — do not leak account existence.
+    if (getServiceRoleKey()) {
+      const admin = createAdminClient();
+      const { data, error } = await admin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo },
+      });
+      const tokenHash = data?.properties?.hashed_token;
+      if (error || !tokenHash) {
+        const mail = error ? mapOutboundMailError(error) : null;
+        if (mail) return { error: mail };
+        return generic;
+      }
+
+      await sendAuthEmail(email, {
+        token_hash: tokenHash,
+        email_action_type: "recovery",
+        redirect_to: redirectTo,
+      });
       return generic;
     }
 
-    await sendAuthEmail(email, {
-      token_hash: tokenHash,
-      email_action_type: "recovery",
-      redirect_to: `${origin}/auth/reset`,
-    });
+    const { error } = await sendRecoveryWithoutPkce(email, redirectTo);
+    if (error) {
+      const mail = mapOutboundMailError(error);
+      if (mail) return { error: mail };
+    }
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : "";
     const mail = mapOutboundMailError({ message });
     if (mail) return { error: mail };
-    if (message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
-      return {
-        error:
-          "Passwort-Reset ist gerade nicht verfügbar. Bitte später erneut versuchen.",
-      };
-    }
     if (message.toLowerCase().includes("resend")) {
       return {
         error: "E-Mail konnte nicht gesendet werden. Bitte später erneut versuchen.",
       };
     }
-    return generic;
   }
 
   return generic;
