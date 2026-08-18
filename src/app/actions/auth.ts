@@ -21,7 +21,9 @@ import { notifyNewSignup } from "@/lib/auth/notify-signup";
 import { mapSignupError, mapOutboundMailError } from "@/lib/auth/signup-error";
 import { mapPasswordUpdateError } from "@/lib/auth/password-update-error";
 import {
+  elevateMfaSession,
   getUserWithAccessToken,
+  isInsufficientAal,
   setPasswordCookieFree,
   verifyRecoveryTokenHash,
 } from "@/lib/auth/recovery-password";
@@ -30,6 +32,8 @@ export type AuthState = {
   error?: string;
   success?: string;
   needsConfirmation?: boolean;
+  needsMfa?: boolean;
+  recoveryAccessToken?: string;
 };
 
 function publicSiteOrigin(headerStore: Headers): string {
@@ -288,13 +292,27 @@ export async function updatePassword(
 
   const tokenHash = String(formData.get("token_hash") ?? "").trim();
   const accessFromForm = String(formData.get("access_token") ?? "").trim();
+  const totp = String(formData.get("totp") ?? "").replace(/\s+/g, "");
   const type = otpType(String(formData.get("type") ?? "recovery"));
 
   let userId: string | undefined;
   let userEmail: string | undefined;
   let accessToken: string | undefined;
 
-  if (tokenHash) {
+  // Token hash is one-time. After the first verify, continue with the
+  // returned access token — especially when MFA (AAL2) is still required.
+  if (totp && accessFromForm) {
+    const user = await getUserWithAccessToken(accessFromForm);
+    if (!user) {
+      return {
+        error:
+          "Sitzung abgelaufen. Bitte den Link in der E-Mail erneut öffnen oder einen neuen anfordern.",
+      };
+    }
+    userId = user.id;
+    userEmail = user.email;
+    accessToken = accessFromForm;
+  } else if (tokenHash) {
     const verified = await verifyRecoveryTokenHash(tokenHash, type);
     if ("error" in verified) {
       return {
@@ -342,12 +360,32 @@ export async function updatePassword(
     return { error: "Dieser Zugang ist nicht freigeschaltet." };
   }
 
+  if (totp && accessToken) {
+    const elevated = await elevateMfaSession(accessToken, totp);
+    if ("error" in elevated) {
+      return {
+        error: elevated.error,
+        needsMfa: true,
+        recoveryAccessToken: accessToken,
+      };
+    }
+    accessToken = elevated.accessToken;
+  }
+
   const setError = await setPasswordCookieFree({
     userId,
     password,
     accessToken,
   });
   if (setError) {
+    if (isInsufficientAal(setError)) {
+      return {
+        error:
+          "Zwei-Faktor ist aktiv. Bitte den Code aus der Authenticator-App eingeben und speichern.",
+        needsMfa: true,
+        recoveryAccessToken: accessToken,
+      };
+    }
     return { error: mapPasswordUpdateError(setError) };
   }
 

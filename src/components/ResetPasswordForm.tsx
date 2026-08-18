@@ -23,6 +23,9 @@ export function ResetPasswordForm({
     invalidLink ? "request" : tokenHash ? "ready" : "loading",
   );
   const [accessToken, setAccessToken] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [totp, setTotp] = useState("");
   const [updateState, updateAction, updatePending] = useActionState(
     updatePassword,
     initial,
@@ -90,6 +93,8 @@ export function ResetPasswordForm({
     };
   }, [invalidLink, tokenHash]);
 
+  const sessionAccess = updateState.recoveryAccessToken || accessToken;
+
   if (phase === "loading") {
     return (
       <p className="text-sm text-[var(--fg-muted)]" role="status">
@@ -154,8 +159,8 @@ export function ResetPasswordForm({
           <input type="hidden" name="type" value="recovery" />
         </>
       ) : null}
-      {accessToken ? (
-        <input type="hidden" name="access_token" value={accessToken} />
+      {sessionAccess ? (
+        <input type="hidden" name="access_token" value={sessionAccess} />
       ) : null}
       <label className="block">
         <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
@@ -166,6 +171,8 @@ export function ResetPasswordForm({
           type="password"
           required
           minLength={8}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
           autoComplete="new-password"
           className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
         />
@@ -179,10 +186,31 @@ export function ResetPasswordForm({
           type="password"
           required
           minLength={8}
+          value={passwordConfirm}
+          onChange={(event) => setPasswordConfirm(event.target.value)}
           autoComplete="new-password"
           className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
         />
       </label>
+      {updateState.needsMfa ? (
+        <label className="block">
+          <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
+            Authenticator-Code
+          </span>
+          <input
+            name="totp"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            required
+            minLength={6}
+            maxLength={6}
+            value={totp}
+            onChange={(event) => setTotp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="123456"
+            className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
+          />
+        </label>
+      ) : null}
       {updateState.error ? (
         <p role="alert" className="text-sm text-[var(--danger)]">
           {updateState.error}
