@@ -1,5 +1,5 @@
 /* E-3008 Control — lightweight offline shell */
-const CACHE = "e3008-shell-v1";
+const CACHE = "e3008-shell-v3";
 const PRECACHE = [
   "/manifest.webmanifest",
   "/icon.svg",
