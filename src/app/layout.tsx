@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Syne } from "next/font/google";
+import { AuthRecoveryRedirect } from "@/components/AuthRecoveryRedirect";
 import { PwaRegister } from "@/components/PwaRegister";
+import { AuthUrlSession } from "@/components/AuthUrlSession";
 import "./globals.css";
 
 const display = Syne({
@@ -62,6 +64,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="antialiased">
         {children}
+        <AuthRecoveryRedirect />
+        <AuthUrlSession />
         <PwaRegister />
       </body>
     </html>

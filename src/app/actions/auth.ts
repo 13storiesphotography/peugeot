@@ -1,19 +1,44 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   isEmailAllowed,
   isPublicSignupEnabled,
 } from "@/lib/auth/allowlist";
 import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
+import {
+  RECOVERY_COOKIE,
+  recoveryCookieOptions,
+} from "@/lib/auth/recovery-cookie";
+import { getSiteOrigin } from "@/lib/auth/site-origin";
 import { createClient } from "@/lib/supabase/server";
 import { notifyNewSignup } from "@/lib/auth/notify-signup";
+import { mapSignupError } from "@/lib/auth/signup-error";
 
 export type AuthState = {
   error?: string;
   success?: string;
 };
+
+function publicSiteOrigin(headerStore: Headers): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  const origin = headerStore.get("origin")?.replace(/\/$/, "") ?? "";
+  const host =
+    headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "";
+  const proto = headerStore.get("x-forwarded-proto") ?? "https";
+  const fromHost = host ? `${proto}://${host}`.replace(/\/$/, "") : "";
+  const candidate =
+    origin || fromHost || configured || "https://www.peugeotcontrol.app";
+  if (candidate.includes("localhost") || candidate.includes("127.0.0.1")) {
+    return configured || "https://www.peugeotcontrol.app";
+  }
+  return candidate;
+}
+
+function confirmEmailRedirectTo(headerStore: Headers): string {
+  return `${publicSiteOrigin(headerStore)}/auth/callback`;
+}
 
 async function redirectAfterAuth(): Promise<never> {
   const supabase = await createClient();
@@ -40,6 +65,14 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    const msg = error.message.toLowerCase();
+    const code = error.code?.toLowerCase() ?? "";
+    if (code === "email_not_confirmed" || msg.includes("email not confirmed")) {
+      return {
+        error:
+          "E-Mail ist noch nicht bestätigt. Unten kannst du die Bestätigungsmail erneut senden.",
+      };
+    }
     return { error: "Anmeldung fehlgeschlagen. E-Mail oder Passwort prüfen." };
   }
 
@@ -80,26 +113,26 @@ export async function signUp(
 
   const supabase = await createClient();
   const headerStore = await headers();
-  const origin =
-    headerStore.get("origin") ??
-    headerStore.get("x-forwarded-host")?.replace(/^/, "https://") ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    "https://e3008-control.vercel.app";
+  const emailRedirectTo = confirmEmailRedirectTo(headerStore);
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      emailRedirectTo: `${origin.replace(/\/$/, "")}/control`,
-    },
+    options: { emailRedirectTo },
   });
 
   if (error) {
-    const msg = error.message.toLowerCase();
-    if (msg.includes("already registered")) {
-      return { error: "Diese E-Mail ist bereits registriert — bitte anmelden." };
-    }
-    return { error: "Registrierung fehlgeschlagen. Bitte erneut versuchen." };
+    console.error("signUp failed", {
+      code: error.code,
+      message: error.message,
+      status: error.status,
+      emailRedirectTo,
+    });
+    return { error: mapSignupError(error) };
+  }
+
+  if (data.user?.identities && data.user.identities.length === 0) {
+    return { error: "Diese E-Mail ist bereits registriert — bitte anmelden." };
   }
 
   try {
@@ -114,7 +147,43 @@ export async function signUp(
 
   return {
     success:
-      "Konto angelegt. Falls nötig, bestätige deine E-Mail — danach kannst du dich anmelden und MyPeugeot verbinden.",
+      "Konto angelegt. Bestätige deine E-Mail — danach kannst du dich anmelden. Falls keine Mail kommt: unten erneut senden, Spam-Ordner prüfen.",
+  };
+}
+
+export async function resendConfirmation(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  if (!isPublicSignupEnabled()) {
+    return {
+      error: "Registrierung ist deaktiviert. Nur freigeschaltete Konten.",
+    };
+  }
+
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) {
+    return { error: "Bitte die E-Mail eintragen, dann erneut senden." };
+  }
+
+  const supabase = await createClient();
+  const headerStore = await headers();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: confirmEmailRedirectTo(headerStore),
+    },
+  });
+
+  if (error) {
+    console.error("resend confirmation", error.code, error.message, error.status);
+    return { error: mapSignupError(error) };
+  }
+
+  return {
+    success:
+      "Falls ein unbestätigtes Konto existiert, ist die Bestätigungsmail unterwegs. Spam-Ordner prüfen.",
   };
 }
 
@@ -122,4 +191,103 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");
+}
+
+function sendRateLimitMessage(message: string, status?: number): string | null {
+  const msg = message.toLowerCase();
+  if (
+    status === 429 ||
+    msg.includes("rate limit") ||
+    msg.includes("over_email_send_rate_limit") ||
+    msg.includes("email rate")
+  ) {
+    return "Zu viele E-Mails. Bitte warte etwa eine Stunde und versuche es erneut.";
+  }
+  return null;
+}
+
+export async function requestPasswordReset(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) {
+    return { error: "E-Mail ist erforderlich." };
+  }
+
+  const generic = {
+    success:
+      "Falls ein Konto mit dieser E-Mail existiert, haben wir einen Link zum Zurücksetzen geschickt. Prüfe auch den Spam-Ordner.",
+  };
+
+  const supabase = await createClient();
+  const origin = await getSiteOrigin();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/reset`,
+  });
+
+  if (error) {
+    const rate = sendRateLimitMessage(error.message, error.status);
+    if (rate) return { error: rate };
+    // Do not reveal whether the address is registered.
+    return generic;
+  }
+
+  return generic;
+}
+
+export async function updatePassword(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const password = String(formData.get("password") ?? "");
+  const passwordConfirm = String(formData.get("passwordConfirm") ?? "");
+
+  if (password.length < 8) {
+    return { error: "Passwort mindestens 8 Zeichen." };
+  }
+  if (password !== passwordConfirm) {
+    return { error: "Passwörter stimmen nicht überein." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      error:
+        "Sitzung abgelaufen. Bitte den Link in der E-Mail erneut öffnen oder einen neuen anfordern.",
+    };
+  }
+
+  if (!isEmailAllowed(user.email)) {
+    await supabase.auth.signOut();
+    return { error: "Dieser Zugang ist nicht freigeschaltet." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("same") || msg.includes("different from the old")) {
+      return { error: "Das neue Passwort muss sich vom bisherigen unterscheiden." };
+    }
+    if (msg.includes("at least") || msg.includes("weak") || msg.includes("pwned")) {
+      return { error: "Passwort zu unsicher. Bitte ein längeres wählen." };
+    }
+    if (msg.includes("session") || error.status === 401) {
+      return {
+        error:
+          "Sitzung abgelaufen. Bitte den Link in der E-Mail erneut öffnen oder einen neuen anfordern.",
+      };
+    }
+    return { error: "Passwort konnte nicht gespeichert werden. Bitte erneut versuchen." };
+  }
+
+  const jar = await cookies();
+  jar.delete(RECOVERY_COOKIE);
+  jar.set(RECOVERY_COOKIE, "", recoveryCookieOptions(0));
+
+  return redirectAfterAuth();
 }

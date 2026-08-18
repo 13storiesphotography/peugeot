@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isEmailAllowed } from "@/lib/auth/allowlist";
 import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
+import { RECOVERY_COOKIE } from "@/lib/auth/recovery-cookie";
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -38,10 +39,15 @@ export async function proxy(request: NextRequest) {
   const allowed = Boolean(user && isEmailAllowed(email));
 
   const path = request.nextUrl.pathname;
+  const hasAuthCode =
+    request.nextUrl.searchParams.has("code") ||
+    request.nextUrl.searchParams.has("token_hash");
   const isAuthPage = path === "/";
+  const isResetPage = path === "/auth/reset" || path.startsWith("/auth/reset/");
   const isMfaPage = path === "/mfa" || path.startsWith("/mfa/");
   const isProtected =
     path.startsWith("/control") || path.startsWith("/api/vehicle");
+  const recovering = request.cookies.get(RECOVERY_COOKIE)?.value === "1";
 
   // Signed in but not on allowlist → force sign-out cookie clear via redirect home
   if (user && !allowed) {
@@ -60,7 +66,10 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = hasAuthCode ? "/auth/callback" : "/";
+    if (!hasAuthCode) {
+      url.search = "";
+    }
     return NextResponse.redirect(url);
   }
 
@@ -73,6 +82,19 @@ export async function proxy(request: NextRequest) {
   let mfaDecision = null as Awaited<ReturnType<typeof getMfaDecision>> | null;
   if (allowed && (isProtected || isAuthPage || isMfaPage)) {
     mfaDecision = await getMfaDecision(supabase);
+  }
+
+  if (recovering && (isProtected || isAuthPage || isMfaPage) && !isResetPage) {
+    if (path.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Password recovery required" },
+        { status: 403 },
+      );
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/reset";
+    url.search = "";
+    return NextResponse.redirect(url);
   }
 
   if (allowed && isProtected && mfaDecision && mfaBlocksAccess(mfaDecision)) {

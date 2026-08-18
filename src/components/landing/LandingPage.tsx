@@ -71,9 +71,13 @@ const steps = [
 export function LandingPage({
   publicSignup,
   denied,
+  confirmError,
+  deleted,
 }: {
   publicSignup: boolean;
   denied?: boolean;
+  confirmError?: boolean;
+  deleted?: boolean;
 }) {
   return (
     <div className="relative">
@@ -258,7 +262,21 @@ export function LandingPage({
                   : "Privater Zugang — nur freigeschaltete E-Mail-Adressen."}
               </p>
             </div>
-            <AuthForm publicSignup={publicSignup} denied={denied} />
+            <div>
+              {deleted ? (
+                <p
+                  role="status"
+                  className="mb-4 rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
+                >
+                  Konto gelöscht. Du kannst dich jederzeit neu registrieren.
+                </p>
+              ) : null}
+              <AuthForm
+                publicSignup={publicSignup}
+                denied={denied}
+                confirmError={confirmError}
+              />
+            </div>
           </div>
         </section>
       </main>
