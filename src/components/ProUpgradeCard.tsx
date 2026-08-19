@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   cancelSubscriptionAtPeriodEnd,
   changeSubscriptionPlan,
@@ -83,6 +83,7 @@ export function ProUpgradeCard({
   const periodEnd = subscription?.periodEnd ?? entitlement.periodEnd;
   const interval = subscription?.interval;
   const cancelScheduled = Boolean(subscription?.cancelAtPeriodEnd);
+  const [chooseInterval, setChooseInterval] = useState(false);
 
   return (
     <section id="pro" className="ui-surface scroll-mt-24 p-4 sm:p-5">
@@ -121,34 +122,64 @@ export function ProUpgradeCard({
       ) : null}
 
       {!entitlement.isPro ? (
-        <form action={checkoutAction} className="mt-4 space-y-2">
-          <button
-            type="submit"
-            name="interval"
-            value="year"
-            disabled={pending || !stripeReady}
-            className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
-          >
-            {checkoutPending
-              ? "Weiter zur Zahlung…"
-              : stripeReady
-                ? `Jahr · ${formatEuroFromCents(PRO_YEAR_CENTS)}`
-                : "Zahlung noch nicht eingerichtet"}
-          </button>
-          <button
-            type="submit"
-            name="interval"
-            value="month"
-            disabled={pending || !stripeReady}
-            className="action-btn w-full rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold disabled:opacity-50"
-          >
-            Monat · {formatEuroFromCents(PRO_MONTH_CENTS)}
-          </button>
-          <p className="text-center text-[11px] text-[var(--fg-muted)]">
-            Monatlich {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)} / Jahr ·
-            jährlich {formatEuroFromCents(PRO_YEAR_CENTS)}
-          </p>
-        </form>
+        <div className="mt-4 space-y-2">
+          {!chooseInterval ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setChooseInterval(true)}
+                disabled={pending || !stripeReady}
+                className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
+              >
+                {stripeReady ? "Pro freischalten" : "Zahlung noch nicht eingerichtet"}
+              </button>
+              {stripeReady ? null : (
+                <p className="text-center text-[11px] text-[var(--fg-muted)]">
+                  Stripe muss in Vercel konfiguriert werden.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <form action={checkoutAction} className="space-y-2">
+                <button
+                  type="submit"
+                  name="interval"
+                  value="year"
+                  disabled={pending || !stripeReady}
+                  className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
+                >
+                  {checkoutPending
+                    ? "Weiter zur Zahlung…"
+                    : `Jahr · ${formatEuroFromCents(PRO_YEAR_CENTS)}`}
+                </button>
+                <button
+                  type="submit"
+                  name="interval"
+                  value="month"
+                  disabled={pending || !stripeReady}
+                  className="action-btn w-full rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold disabled:opacity-50"
+                >
+                  Monat · {formatEuroFromCents(PRO_MONTH_CENTS)}
+                </button>
+                <p className="text-center text-[11px] text-[var(--fg-muted)]">
+                  12x monatlich = {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)}{" "}
+                  pro Jahr · jährlich {formatEuroFromCents(PRO_YEAR_CENTS)} · du
+                  sparst {formatEuroFromCents(yearlySavingsCents())}
+                </p>
+              </form>
+
+              <button
+                type="button"
+                onClick={() => setChooseInterval(false)}
+                disabled={pending}
+                className="mx-auto block text-sm font-semibold text-[var(--fg-muted)] underline-offset-4 hover:underline"
+              >
+                Abbrechen
+              </button>
+            </>
+          )}
+        </div>
       ) : subscription ? (
         <div className="mt-4 space-y-2">
           {cancelScheduled ? (
