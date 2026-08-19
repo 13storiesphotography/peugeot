@@ -599,14 +599,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           <h1 className="mt-1 truncate font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight">
             {vehicle.nickname}
           </h1>
-          {vehicle.mode === "demo" ? (
-            <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white/5 px-3 py-1">
-              <span className="h-2 w-2 rounded-full bg-[var(--warn)]" aria-hidden />
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--warn)]">
-                Demo-Modus
-              </span>
-            </div>
-          ) : null}
           <div className="mt-1.5 flex items-center gap-2">
             <p className="min-w-0 text-xs text-[var(--fg-muted)]">
               Stand {formatAge(vehicle.lastUpdatedAt, nowMs)}
@@ -713,14 +705,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
       {vehicle.mode === "demo" ? (
         <div
-          className="mb-3 rounded-2xl border px-4 py-3"
-          style={{
-            borderColor: "rgba(232,184,109,0.35)",
-            background: "rgba(232,184,109,0.1)",
-          }}
+          className="mb-3 rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3"
           role="status"
         >
-          <p className="text-sm font-semibold" style={{ color: "var(--warn)" }}>
+          <p className="text-sm font-semibold text-[var(--accent-bright)]">
             Demo-Modus
           </p>
           <p className="mt-1 text-sm text-[var(--fg-muted)]">
