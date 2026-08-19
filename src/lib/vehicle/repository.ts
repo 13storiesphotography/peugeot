@@ -475,6 +475,17 @@ async function loadVehicleBundle(
     mode: isLive ? "live" : "demo",
   };
 
+  if (!isLive) {
+    // Keep the demo car consistent for all users, even when older rows were
+    // created with the former blue placeholder.
+    vehicle = {
+      ...vehicle,
+      color: "Perla Nera Black",
+      colorHex: "#111418",
+      pictureUrl: null,
+    };
+  }
+
   // Demo only: advance charge by elapsed wall-clock time (realistic kW math).
   // Live never simulates SoC — MyPeugeot status is the source of truth.
   if (!isLive) {
@@ -1624,7 +1635,7 @@ async function runLiveClimateCommand(
   bundle: VehicleBundle,
   activate: boolean,
 ): Promise<CommandResult> {
-  let remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
   if (!remote.ok) {
     return { ok: false, message: remote.message, vehicle: bundle.vehicle };
   }
