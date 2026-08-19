@@ -617,21 +617,39 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
                 viewBox="0 0 24 24"
                 fill="none"
                 aria-hidden
-                className={refreshing || isPending ? "animate-spin" : undefined}
+                className={
+                  refreshing || isPending
+                    ? "origin-center animate-spin"
+                    : undefined
+                }
               >
-                <path
-                  d="M20 12a8 8 0 1 1-2.2-5.5"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M20 5v5h-5"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                {refreshing || isPending ? (
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray="28 28"
+                  />
+                ) : (
+                  <>
+                    <path
+                      d="M20 12a8 8 0 1 1-2.2-5.5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M20 5v5h-5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </>
+                )}
               </svg>
             </button>
           </div>
