@@ -145,8 +145,9 @@ export function ProUpgradeCard({
             Monat · {formatEuroFromCents(PRO_MONTH_CENTS)}
           </button>
           <p className="text-center text-[11px] text-[var(--fg-muted)]">
-            Monatlich {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)} / Jahr ·
-            jährlich {formatEuroFromCents(PRO_YEAR_CENTS)}
+            12x monatlich = {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)} pro
+            Jahr · jährlich {formatEuroFromCents(PRO_YEAR_CENTS)} · du sparst{" "}
+            {formatEuroFromCents(yearlySavingsCents())}
           </p>
         </form>
       ) : subscription ? (
