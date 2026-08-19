@@ -482,7 +482,6 @@ async function loadVehicleBundle(
       ...vehicle,
       color: "Perla Nera Black",
       colorHex: "#111418",
-      pictureUrl: null,
     };
   }
 
