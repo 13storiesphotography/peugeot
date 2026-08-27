@@ -57,23 +57,14 @@ export function TrafficBeacon() {
       referrer: typeof document !== "undefined" ? document.referrer : "",
     });
 
-    try {
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(
-          "/api/traffic",
-          new Blob([body], { type: "application/json" }),
-        );
-      } else {
-        void fetch("/api/traffic", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body,
-          keepalive: true,
-        });
-      }
-    } catch {
+    void fetch("/api/traffic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    }).catch(() => {
       // best-effort
-    }
+    });
   }, [pathname]);
 
   return null;
