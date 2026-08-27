@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Syne } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthRecoveryRedirect } from "@/components/AuthRecoveryRedirect";
 import { PwaRegister } from "@/components/PwaRegister";
 import { AuthUrlSession } from "@/components/AuthUrlSession";
+import { TrafficBeacon } from "@/components/TrafficBeacon";
 import "./globals.css";
 
 const display = Syne({
@@ -67,6 +69,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AuthRecoveryRedirect />
         <AuthUrlSession />
         <PwaRegister />
+        <TrafficBeacon />
+        <Analytics />
       </body>
     </html>
   );

@@ -8,6 +8,7 @@ import { AccountDeleteCard } from "@/components/AccountDeleteCard";
 import { RemotePinForm } from "@/components/RemotePinForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { SyncIntervalForm } from "@/components/SyncIntervalForm";
+import { isAdminEmail } from "@/lib/auth/admin";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { isStripeConfigured } from "@/lib/billing/stripe";
 import { getSubscriptionSnapshot } from "@/lib/billing/subscription";
@@ -143,6 +144,18 @@ export default async function SettingsPage({
         <p className="animate-rise-delay-1 mt-3 truncate text-center text-sm text-[var(--fg-muted)]">
           {session.email}
         </p>
+
+        {isAdminEmail(session.email) ? (
+          <Link
+            href="/control/stats"
+            className="animate-rise-delay-1 mt-4 flex items-center justify-between rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 text-sm font-semibold"
+          >
+            <span>Traffic & Stats</span>
+            <span className="text-[var(--fg-muted)]" aria-hidden>
+              →
+            </span>
+          </Link>
+        ) : null}
 
         <section
           className="animate-rise-delay-1 mt-6 ui-surface divide-y divide-[var(--line)] overflow-hidden"
