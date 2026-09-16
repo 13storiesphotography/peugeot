@@ -6,7 +6,7 @@ import {
   type BillingInterval,
 } from "@/lib/billing/catalog";
 import { grantProFromStripe } from "@/lib/billing/grant";
-import { getProPriceId } from "@/lib/billing/prices";
+import { getProPriceId, PRO_TAX_CODE } from "@/lib/billing/prices";
 import { getStripe, isStripeConfigured } from "@/lib/billing/stripe";
 import {
   getActiveSubscription,
@@ -116,6 +116,9 @@ async function createCheckoutSession(input: {
     // Do not set payment_method_types — modern Stripe rejects it when the
     // Dashboard Payment Method Configuration is active; methods come from there.
     allow_promotion_codes: true,
+    // Stripe Tax is on for this account — needs address + product tax_code.
+    automatic_tax: { enabled: true },
+    billing_address_collection: "required",
     success_url: `${origin}/control/settings?pro_session={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/control/settings?pro=cancel`,
     metadata: {
@@ -134,6 +137,7 @@ async function createCheckoutSession(input: {
 
   if (customerId) {
     params.customer = customerId;
+    params.customer_update = { address: "auto", name: "auto" };
   } else {
     params.customer_email = email ?? undefined;
   }
@@ -149,6 +153,7 @@ async function createCheckoutSession(input: {
         message.includes("No such customer:"))
     ) {
       delete params.customer;
+      delete params.customer_update;
       params.customer_email = email ?? undefined;
       return await stripe.checkout.sessions.create(params);
     }
@@ -159,6 +164,14 @@ async function createCheckoutSession(input: {
       )
     ) {
       params.payment_method_types = ["card"];
+      return await stripe.checkout.sessions.create(params);
+    }
+    // Product predates Stripe Tax — attach SaaS tax code and retry once.
+    if (/tax_code is missing|product tax code/i.test(message)) {
+      const price = await stripe.prices.retrieve(priceId);
+      const productId =
+        typeof price.product === "string" ? price.product : price.product.id;
+      await stripe.products.update(productId, { tax_code: PRO_TAX_CODE });
       return await stripe.checkout.sessions.create(params);
     }
     throw error;

@@ -12,6 +12,22 @@ const ENV_PRICE_KEYS: Record<BillingInterval, string> = {
   year: "STRIPE_PRICE_PRO_YEAR",
 };
 
+/** Stripe Tax: Software as a service — required when Tax is enabled. */
+export const PRO_TAX_CODE = "txcd_10103001";
+
+async function ensureProductTaxCode(productId: string): Promise<void> {
+  const stripe = getStripe();
+  const product = await stripe.products.retrieve(productId);
+  if (product.tax_code) return;
+  await stripe.products.update(productId, { tax_code: PRO_TAX_CODE });
+}
+
+async function productIdFromPrice(
+  price: { product: string | { id: string } },
+): Promise<string> {
+  return typeof price.product === "string" ? price.product : price.product.id;
+}
+
 async function getOrCreateProductId(): Promise<string> {
   const stripe = getStripe();
   for (const interval of ["year", "month"] as const) {
@@ -22,28 +38,38 @@ async function getOrCreateProductId(): Promise<string> {
     });
     const price = listed.data[0];
     if (price) {
-      return typeof price.product === "string" ? price.product : price.product.id;
+      const productId = await productIdFromPrice(price);
+      await ensureProductTaxCode(productId);
+      return productId;
     }
   }
   const product = await stripe.products.create({
     name: "Peugeot Control Pro",
+    tax_code: PRO_TAX_CODE,
     metadata: { app: "peugeot-control" },
   });
   return product.id;
 }
 
 export async function getProPriceId(interval: BillingInterval): Promise<string> {
-  const fromEnv = process.env[ENV_PRICE_KEYS[interval]]?.trim();
-  if (fromEnv) return fromEnv;
-
   const stripe = getStripe();
+  const fromEnv = process.env[ENV_PRICE_KEYS[interval]]?.trim();
+  if (fromEnv) {
+    const price = await stripe.prices.retrieve(fromEnv);
+    await ensureProductTaxCode(await productIdFromPrice(price));
+    return fromEnv;
+  }
+
   const lookup = LOOKUP[interval];
   const listed = await stripe.prices.list({
     lookup_keys: [lookup],
     active: true,
     limit: 1,
   });
-  if (listed.data[0]) return listed.data[0].id;
+  if (listed.data[0]) {
+    await ensureProductTaxCode(await productIdFromPrice(listed.data[0]));
+    return listed.data[0].id;
+  }
 
   const productId = await getOrCreateProductId();
   try {
@@ -63,7 +89,10 @@ export async function getProPriceId(interval: BillingInterval): Promise<string> 
       active: true,
       limit: 1,
     });
-    if (again.data[0]) return again.data[0].id;
+    if (again.data[0]) {
+      await ensureProductTaxCode(await productIdFromPrice(again.data[0]));
+      return again.data[0].id;
+    }
     throw error;
   }
 }
