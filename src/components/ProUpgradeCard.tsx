@@ -40,11 +40,13 @@ export function ProUpgradeCard({
   entitlement,
   subscription,
   stripeReady,
+  stripeTestMode = false,
   notice,
 }: {
   entitlement: Entitlement;
   subscription: SubscriptionSnapshot | null;
   stripeReady: boolean;
+  stripeTestMode?: boolean;
   notice?: CheckoutState;
 }) {
   const [checkoutState, checkoutAction, checkoutPending] = useActionState(
@@ -120,6 +122,13 @@ export function ProUpgradeCard({
           {formatEuroFromCents(yearlySavingsCents())} gegenüber Monat für Monat.
         </p>
       )}
+
+      {stripeTestMode ? (
+        <p role="status" className="mt-3 text-sm text-[var(--warn)]">
+          Stripe läuft noch im Testmodus (Sandbox). Für echte Zahlungen in
+          Vercel den Live-Secret-Key und den Live-Webhook setzen.
+        </p>
+      ) : null}
 
       {error ? (
         <p role="alert" className="mt-3 text-sm text-[var(--danger)]">
