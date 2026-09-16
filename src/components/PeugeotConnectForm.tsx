@@ -516,9 +516,16 @@ export function PeugeotConnectForm({
                 <button
                   type="submit"
                   disabled={codePending || !oauthCode.trim()}
-                  className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+                  className="action-btn inline-flex items-center justify-center gap-2 rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
                 >
-                  {codePending ? "Verbinde…" : "Code einlösen"}
+                  {codePending ? (
+                    <>
+                      <LoginSpinner />
+                      Verbinde…
+                    </>
+                  ) : (
+                    "Code einlösen"
+                  )}
                 </button>
               </div>
             </form>
