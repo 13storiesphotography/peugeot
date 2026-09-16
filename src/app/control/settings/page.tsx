@@ -66,18 +66,19 @@ export default async function SettingsPage({
   const checkoutId = Array.isArray(params.pro_session)
     ? params.pro_session[0]
     : params.pro_session;
-  const checkoutNotice = checkoutId
-    ? await confirmCheckoutSession(checkoutId)
-    : params.pro === "cancel" ||
-        (Array.isArray(params.pro) && params.pro[0] === "cancel")
-      ? { error: "Zahlung abgebrochen." }
-      : undefined;
 
-  const bundle = await getSettingsBundle(session.supabase, session.userId);
-  const subscription = await getSubscriptionSnapshot(
-    session.userId,
-    session.email,
-  );
+  const [checkoutNotice, bundle, subscription] = await Promise.all([
+    checkoutId
+      ? confirmCheckoutSession(checkoutId)
+      : Promise.resolve(
+          params.pro === "cancel" ||
+            (Array.isArray(params.pro) && params.pro[0] === "cancel")
+            ? { error: "Zahlung abgebrochen." as string }
+            : undefined,
+        ),
+    getSettingsBundle(session.supabase, session.userId),
+    getSubscriptionSnapshot(session.userId, session.email),
+  ]);
   const mfa = session.mfa;
   const { connection, vehicle, entitlement } = bundle;
 

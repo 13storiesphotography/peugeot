@@ -359,13 +359,19 @@ async function loadChargeCurve(
 export async function getVehicleBundle(
   supabase: SupabaseClient,
   userId: string,
-  options: { forceSync?: boolean; hardRefresh?: boolean } = {},
+  options: {
+    forceSync?: boolean;
+    hardRefresh?: boolean;
+    /** When true, serve DB state only — no Peugeot HTTP (fast page navigations). */
+    skipRemoteSync?: boolean;
+  } = {},
 ): Promise<VehicleBundle> {
   if (options.hardRefresh) {
     return hardRefreshVehicle(supabase, userId);
   }
   return loadVehicleBundle(supabase, userId, {
     forceSync: options.forceSync,
+    skipRemoteSync: options.skipRemoteSync,
   });
 }
 
@@ -441,7 +447,7 @@ export async function getSettingsBundle(
 async function loadVehicleBundle(
   supabase: SupabaseClient,
   userId: string,
-  options: { forceSync?: boolean } = {},
+  options: { forceSync?: boolean; skipRemoteSync?: boolean } = {},
 ): Promise<VehicleBundle> {
   const { vehicleId, vehicle: base } = await ensureVehicle(supabase, userId);
 
@@ -510,6 +516,7 @@ async function loadVehicleBundle(
     ? Math.min(configuredIntervalSec, 30) * 1000
     : configuredIntervalSec * 1000;
   const shouldSync =
+    !options.skipRemoteSync &&
     isLive &&
     (options.forceSync ||
       !lastSyncMs ||

@@ -12,7 +12,10 @@ export default async function ControlPage() {
     redirect("/");
   }
 
-  const bundle = await getVehicleBundle(session.supabase, session.userId);
+  const bundle = await getVehicleBundle(session.supabase, session.userId, {
+    // Instant navigation: client soft-refreshes after paint.
+    skipRemoteSync: true,
+  });
   const graceDaysLeft =
     session.mfa.status === "enroll_optional" ? session.mfa.daysLeft : 0;
 

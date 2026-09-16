@@ -107,7 +107,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(
     null,
   );
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [refreshing, setRefreshing] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
@@ -118,6 +118,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     null | "unlock" | "climate_start" | "flash"
   >(null);
   const refreshInFlight = useRef(false);
+  const pendingHardRefresh = useRef(false);
   const followUpTimer = useRef<number | null>(null);
   const climatePollTimer = useRef<number | null>(null);
   const climateJobRef = useRef<ClimateJob | null>(null);
@@ -225,6 +226,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       opts?: { silent?: boolean; feedback?: boolean; hard?: boolean },
     ): Promise<VehicleBundle | null> => {
       if (refreshInFlight.current) {
+        // Silent polls must not swallow a user tap — queue a hard refresh.
+        if (opts?.hard || opts?.feedback) {
+          pendingHardRefresh.current = true;
+          setRefreshing(true);
+          setToast({ text: "Aktualisierung läuft…", ok: true });
+        }
         return null;
       }
       refreshInFlight.current = true;
@@ -342,16 +349,23 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         return null;
       } finally {
         refreshInFlight.current = false;
-        if (!opts?.silent) setRefreshing(false);
+        if (pendingHardRefresh.current) {
+          pendingHardRefresh.current = false;
+          setRefreshing(true);
+          // Run user-requested hard refresh right after the silent poll.
+          void refresh(true, { feedback: true, hard: true });
+        } else if (!opts?.silent) {
+          setRefreshing(false);
+        }
       }
     },
     [],
   );
 
-  const manualRefresh = useCallback(async () => {
-    if (refreshInFlight.current) return;
+  const manualRefresh = useCallback(() => {
     setToast({ text: "Hole Fahrzeugdaten…", ok: true });
-    await refresh(true, { feedback: true, hard: true });
+    setRefreshing(true);
+    void refresh(true, { feedback: true, hard: true });
   }, [refresh]);
 
   useEffect(() => {
@@ -611,7 +625,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               aria-label="Fahrzeugdaten aktualisieren"
               title="Fahrzeug wecken und Daten holen"
             >
-              {refreshing || isPending ? (
+              {refreshing ? (
                 <span
                   className="block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
                   aria-hidden
