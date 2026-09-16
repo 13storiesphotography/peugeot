@@ -394,7 +394,10 @@ export async function getSettingsBundle(
     .maybeSingle();
 
   const oauthMeta = asOAuthMeta(connection?.oauth_meta);
-  const needsReconnect = Boolean(oauthMeta.needsReconnect);
+  const needsReconnect =
+    Boolean(oauthMeta.needsReconnect) ||
+    // Connected row without a usable token is the same as expired auth.
+    Boolean(connection?.connected && !connection?.access_token);
   const isLive = Boolean(
     connection?.connected && connection.access_token && connection.vehicle_api_id,
   );
@@ -688,9 +691,29 @@ async function loadVehicleBundle(
   }
 
   const chargeCurve = await loadChargeCurve(supabase, vehicleId);
+  const { isPeugeotAuthFailure } = await import("@/lib/stellantis/api");
   const reconnectNeeded =
     needsReconnect ||
-    Boolean(syncError && /neu verbinden|abgelaufen|invalid_grant|grant invalid/i.test(syncError));
+    Boolean(syncError && isPeugeotAuthFailure(syncError));
+
+  // Keep settings / dashboard in sync: if this load discovered an expired
+  // session via syncError, persist the flag so Settings is not still green.
+  if (reconnectNeeded && !needsReconnect && connection) {
+    const message =
+      syncError ||
+      "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.";
+    await supabase
+      .from("peugeot_connections")
+      .update({
+        oauth_meta: {
+          ...oauthMeta,
+          needsReconnect: true,
+          authError: message,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+  }
 
   return {
     vehicleId,
@@ -930,9 +953,20 @@ async function ensurePeugeotAccessToken(
       current.mypeugeotPasswordEnc,
     );
     if (healed) return healed;
-    throw new Error(
-      "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.",
-    );
+    const message =
+      "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.";
+    await supabase
+      .from("peugeot_connections")
+      .update({
+        oauth_meta: {
+          ...current.oauthMeta,
+          needsReconnect: true,
+          authError: message,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+    throw new Error(message);
   }
 
   // Another request may have refreshed already — use the freshest row.

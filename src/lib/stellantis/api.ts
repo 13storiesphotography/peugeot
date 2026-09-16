@@ -160,32 +160,28 @@ export function formatOAuthErrorPayload(
   return humanizePeugeotOAuthError(combined || fallback);
 }
 
-/** Map Peugeot OAuth failures to a clear German reconnect hint. */
-export function humanizePeugeotOAuthError(message: string): string {
-  const lower = message.toLowerCase();
-  if (
-    lower.includes("invalid_grant") ||
-    lower.includes("grant invalid") ||
-    lower.includes("invalid grant") ||
-    lower.includes("token has expired") ||
-    (lower.includes("refresh token") && lower.includes("expired")) ||
-    lower.includes("not authorized")
-  ) {
-    return "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.";
-  }
-  return message || "Peugeot-Anmeldung fehlgeschlagen.";
-}
-
-/** True only for confirmed Peugeot OAuth auth failures (not network blips). */
+/** True for confirmed Peugeot auth/session failures (not network blips). */
 export function isPeugeotAuthFailure(message: string): boolean {
   const lower = message.toLowerCase();
   return (
     lower.includes("invalid_grant") ||
     lower.includes("grant invalid") ||
     lower.includes("invalid grant") ||
+    lower.includes("not authorized") ||
+    lower.includes("unauthorized") ||
+    lower.includes("token has expired") ||
     (lower.includes("refresh token") && lower.includes("expired")) ||
-    lower.includes("token has expired")
+    lower.includes("anmeldung abgelaufen") ||
+    lower.includes("neu verbinden")
   );
+}
+
+/** Map Peugeot OAuth failures to a clear German reconnect hint. */
+export function humanizePeugeotOAuthError(message: string): string {
+  if (isPeugeotAuthFailure(message)) {
+    return "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.";
+  }
+  return message || "Peugeot-Anmeldung fehlgeschlagen.";
 }
 
 async function carApiGet(

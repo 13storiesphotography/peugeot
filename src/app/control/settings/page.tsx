@@ -96,7 +96,7 @@ export default async function SettingsPage({
       ? "ok"
       : "off";
   const peugeotLabel = connection.needsReconnect
-    ? "Neu verbinden"
+    ? "Anmeldung abgelaufen — neu verbinden"
     : connection.connected
       ? "Verbunden"
       : "Nicht verbunden";
