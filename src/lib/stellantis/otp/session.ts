@@ -124,7 +124,9 @@ export function isOtpAccessFailure(message: string): boolean {
     lower.includes("otp code fehlgeschlagen") ||
     lower.includes("otp finalize fehlgeschlagen") ||
     lower.includes("otp-aktivierung fehlgeschlagen") ||
-    lower.includes("otp defi fehlt")
+    lower.includes("otp defi fehlt") ||
+    lower.includes("fernbedienung abgelaufen") ||
+    lower.includes("fernbedienung braucht neue")
   );
 }
 
