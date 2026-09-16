@@ -40,7 +40,12 @@ function StatCard({
 
 export function StatsDashboard({ initial }: { initial: TrafficStats }) {
   const [stats, setStats] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initial.loadError ?? null);
+
+  useEffect(() => {
+    setStats(initial);
+    setError(initial.loadError ?? null);
+  }, [initial]);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +59,7 @@ export function StatsDashboard({ initial }: { initial: TrafficStats }) {
         const data = (await res.json()) as TrafficStats;
         if (!cancelled) {
           setStats(data);
-          setError(null);
+          setError(data.loadError ?? null);
         }
       } catch {
         if (!cancelled) setError("Offline — letzte Zahlen bleiben sichtbar");

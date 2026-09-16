@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 import { StatsDashboard } from "@/components/StatsDashboard";
 import { isAdminEmail } from "@/lib/auth/admin";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
-import { getTrafficStats } from "@/lib/traffic/stats";
+import { emptyTrafficStats, getTrafficStats } from "@/lib/traffic/stats";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export default async function StatsPage() {
   const session = await assertOwnerSession();
@@ -13,7 +14,17 @@ export default async function StatsPage() {
     redirect("/control");
   }
 
-  const stats = await getTrafficStats();
+  let stats = emptyTrafficStats();
+  try {
+    stats = await getTrafficStats();
+  } catch (err) {
+    console.error("stats page:", err);
+    stats = emptyTrafficStats(
+      err instanceof Error
+        ? err.message
+        : "Stats konnten nicht geladen werden.",
+    );
+  }
 
   return (
     <main className="min-h-dvh pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -43,6 +54,15 @@ export default async function StatsPage() {
             </h1>
           </div>
         </header>
+
+        {stats.loadError ? (
+          <div className="ui-alert mt-6" role="alert">
+            <p className="font-semibold text-[var(--danger)]">
+              Stats nicht vollständig geladen
+            </p>
+            <p className="mt-1 text-sm text-[var(--fg-muted)]">{stats.loadError}</p>
+          </div>
+        ) : null}
 
         <div className="animate-rise-delay-1 mt-6">
           <StatsDashboard initial={stats} />
