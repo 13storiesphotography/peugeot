@@ -38,13 +38,24 @@ export async function getProPriceId(interval: BillingInterval): Promise<string> 
   if (listed.data[0]) return listed.data[0].id;
 
   const productId = await getOrCreateProductId();
-  const price = await stripe.prices.create({
-    product: productId,
-    currency: "eur",
-    unit_amount: amountForInterval(interval),
-    recurring: { interval },
-    lookup_key: lookup,
-    transfer_lookup_key: true,
-  });
-  return price.id;
+  try {
+    const price = await stripe.prices.create({
+      product: productId,
+      currency: "eur",
+      unit_amount: amountForInterval(interval),
+      recurring: { interval },
+      lookup_key: lookup,
+      transfer_lookup_key: true,
+    });
+    return price.id;
+  } catch (error) {
+    // Race / existing lookup key — re-read instead of crashing checkout.
+    const again = await stripe.prices.list({
+      lookup_keys: [lookup],
+      active: true,
+      limit: 1,
+    });
+    if (again.data[0]) return again.data[0].id;
+    throw error;
+  }
 }

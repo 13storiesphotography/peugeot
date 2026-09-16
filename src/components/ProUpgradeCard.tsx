@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   cancelSubscriptionAtPeriodEnd,
   changeSubscriptionPlan,
@@ -27,6 +27,13 @@ function formatDay(iso: string) {
     month: "long",
     year: "numeric",
   }).format(new Date(iso));
+}
+
+function useHardRedirect(url: string | undefined) {
+  useEffect(() => {
+    if (!url) return;
+    window.location.assign(url);
+  }, [url]);
 }
 
 export function ProUpgradeCard({
@@ -61,12 +68,16 @@ export function ProUpgradeCard({
     initial,
   );
 
+  useHardRedirect(checkoutState.redirectUrl);
+  useHardRedirect(portalState.redirectUrl);
+
   const pending =
     checkoutPending ||
     cancelPending ||
     resumePending ||
     changePending ||
-    portalPending;
+    portalPending ||
+    Boolean(checkoutState.redirectUrl || portalState.redirectUrl);
   const error =
     notice?.error ??
     checkoutState.error ??
@@ -149,7 +160,7 @@ export function ProUpgradeCard({
                   disabled={pending || !stripeReady}
                   className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
                 >
-                  {checkoutPending
+                  {checkoutPending || checkoutState.redirectUrl
                     ? "Weiter zur Zahlung…"
                     : `Jahr · ${formatEuroFromCents(PRO_YEAR_CENTS)}`}
                 </button>
@@ -160,7 +171,9 @@ export function ProUpgradeCard({
                   disabled={pending || !stripeReady}
                   className="action-btn w-full rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold disabled:opacity-50"
                 >
-                  Monat · {formatEuroFromCents(PRO_MONTH_CENTS)}
+                  {checkoutPending || checkoutState.redirectUrl
+                    ? "Weiter zur Zahlung…"
+                    : `Monat · ${formatEuroFromCents(PRO_MONTH_CENTS)}`}
                 </button>
                 <p className="text-center text-[11px] text-[var(--fg-muted)]">
                   12x monatlich = {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)}{" "}
@@ -243,7 +256,7 @@ export function ProUpgradeCard({
               disabled={pending}
               className="w-full pt-1 text-center text-sm text-[var(--fg-muted)] underline-offset-4 hover:text-[var(--fg)] hover:underline disabled:opacity-60"
             >
-              {portalPending
+              {portalPending || portalState.redirectUrl
                 ? "Öffne Portal…"
                 : "Zahlungsdaten und Rechnungen"}
             </button>

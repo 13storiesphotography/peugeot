@@ -1,7 +1,6 @@
 "use server";
 
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import {
   parseBillingInterval,
   type BillingInterval,
@@ -17,7 +16,25 @@ import {
 import { getEntitlement } from "@/lib/billing/entitlement";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
 
-export type CheckoutState = { error?: string; success?: string };
+export type CheckoutState = {
+  error?: string;
+  success?: string;
+  /** External Stripe URL — client must hard-navigate (soft redirect breaks). */
+  redirectUrl?: string;
+};
+
+function stripeActionError(error: unknown, fallback: string): CheckoutState {
+  const message = error instanceof Error ? error.message : "";
+  console.error("billing action:", error);
+  if (!message) return { error: fallback };
+  if (message.includes("No such price") || message.includes("No such product")) {
+    return { error: "Preis in Stripe fehlt noch. Bitte kurz später erneut versuchen." };
+  }
+  if (message.includes("Invalid API Key") || message.includes("api_key")) {
+    return { error: "Stripe-Schlüssel ungültig. Bitte Admin informieren." };
+  }
+  return { error: message.length > 180 ? fallback : message };
+}
 
 function siteOrigin(headerStore: Headers): string {
   const origin = headerStore.get("origin");
@@ -67,47 +84,53 @@ export async function startCheckout(
 
   const interval = parseBillingInterval(formData.get("interval"));
   const origin = siteOrigin(await headers());
-  const stripe = getStripe();
 
-  const current = await getEntitlement(session.supabase, session.userId);
-  if (current.isPro) {
-    return {
-      error: "Pro ist schon aktiv. Unten kannst du kündigen oder den Plan wechseln.",
-    };
-  }
+  try {
+    const stripe = getStripe();
+    const current = await getEntitlement(session.supabase, session.userId);
+    if (current.isPro) {
+      return {
+        error: "Pro ist schon aktiv. Unten kannst du kündigen oder den Plan wechseln.",
+      };
+    }
 
-  const priceId = await getProPriceId(interval);
-  const customerId = await resolveStripeCustomerId(
-    session.userId,
-    session.email,
-  );
+    const priceId = await getProPriceId(interval);
+    const customerId = await resolveStripeCustomerId(
+      session.userId,
+      session.email,
+    );
 
-  const checkout = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId ?? undefined,
-    customer_email: customerId ? undefined : (session.email ?? undefined),
-    allow_promotion_codes: true,
-    success_url: `${origin}/control/settings?pro_session={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/control/settings?pro=cancel`,
-    metadata: {
-      user_id: session.userId,
-      source: "stripe",
-      interval,
-    },
-    subscription_data: {
+    const checkout = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId ?? undefined,
+      customer_email: customerId ? undefined : (session.email ?? undefined),
+      allow_promotion_codes: true,
+      success_url: `${origin}/control/settings?pro_session={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/control/settings?pro=cancel`,
       metadata: {
         user_id: session.userId,
+        source: "stripe",
         interval,
       },
-    },
-    line_items: [{ quantity: 1, price: priceId }],
-  });
+      subscription_data: {
+        metadata: {
+          user_id: session.userId,
+          interval,
+        },
+      },
+      line_items: [{ quantity: 1, price: priceId }],
+    });
 
-  if (!checkout.url) {
-    return { error: "Zahlung konnte nicht gestartet werden." };
+    if (!checkout.url) {
+      return { error: "Zahlung konnte nicht gestartet werden." };
+    }
+
+    // Hard client navigation — next/navigation redirect() to Stripe via
+    // useActionState soft-nav often surfaces as "This page couldn't load".
+    return { redirectUrl: checkout.url };
+  } catch (error) {
+    return stripeActionError(error, "Zahlung konnte nicht gestartet werden.");
   }
-
-  redirect(checkout.url);
 }
 
 export async function confirmCheckoutSession(
@@ -184,19 +207,23 @@ export async function cancelSubscriptionAtPeriodEnd(
 ): Promise<CheckoutState> {
   const loaded = await requireManagedSubscription();
   if ("error" in loaded) return loaded;
-  await getStripe().subscriptions.update(loaded.sub.id, {
-    cancel_at_period_end: true,
-  });
-  const until = subscriptionPeriodEndIso(loaded.sub);
-  return {
-    success: until
-      ? `Gekündigt. Pro bleibt bis ${new Intl.DateTimeFormat("de-DE", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }).format(new Date(until))} aktiv, danach Free.`
-      : "Gekündigt zum Periodenende. Pro bleibt bis dahin aktiv.",
-  };
+  try {
+    await getStripe().subscriptions.update(loaded.sub.id, {
+      cancel_at_period_end: true,
+    });
+    const until = subscriptionPeriodEndIso(loaded.sub);
+    return {
+      success: until
+        ? `Gekündigt. Pro bleibt bis ${new Intl.DateTimeFormat("de-DE", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          }).format(new Date(until))} aktiv, danach Free.`
+        : "Gekündigt zum Periodenende. Pro bleibt bis dahin aktiv.",
+    };
+  } catch (error) {
+    return stripeActionError(error, "Kündigung fehlgeschlagen.");
+  }
 }
 
 export async function resumeSubscription(
@@ -205,10 +232,14 @@ export async function resumeSubscription(
 ): Promise<CheckoutState> {
   const loaded = await requireManagedSubscription();
   if ("error" in loaded) return loaded;
-  await getStripe().subscriptions.update(loaded.sub.id, {
-    cancel_at_period_end: false,
-  });
-  return { success: "Kündigung zurückgenommen. Das Abo läuft weiter." };
+  try {
+    await getStripe().subscriptions.update(loaded.sub.id, {
+      cancel_at_period_end: false,
+    });
+    return { success: "Kündigung zurückgenommen. Das Abo läuft weiter." };
+  } catch (error) {
+    return stripeActionError(error, "Wiederaufnahme fehlgeschlagen.");
+  }
 }
 
 export async function changeSubscriptionPlan(
@@ -220,25 +251,29 @@ export async function changeSubscriptionPlan(
   const interval = parseBillingInterval(formData.get("interval"));
   const item = loaded.sub.items.data[0];
   if (!item) return { error: "Abo-Position nicht gefunden." };
-  const priceId = await getProPriceId(interval);
-  if (item.price.id === priceId) {
-    return { error: "Das ist schon dein aktueller Plan." };
+  try {
+    const priceId = await getProPriceId(interval);
+    if (item.price.id === priceId) {
+      return { error: "Das ist schon dein aktueller Plan." };
+    }
+    await getStripe().subscriptions.update(loaded.sub.id, {
+      items: [{ id: item.id, price: priceId }],
+      proration_behavior: "create_prorations",
+      metadata: {
+        ...(loaded.sub.metadata ?? {}),
+        user_id: loaded.session.userId,
+        interval,
+      },
+    });
+    return {
+      success:
+        interval === "year"
+          ? "Wechsel auf jährlich. Stripe verrechnet die Differenz."
+          : "Wechsel auf monatlich. Stripe verrechnet die Differenz.",
+    };
+  } catch (error) {
+    return stripeActionError(error, "Planwechsel fehlgeschlagen.");
   }
-  await getStripe().subscriptions.update(loaded.sub.id, {
-    items: [{ id: item.id, price: priceId }],
-    proration_behavior: "create_prorations",
-    metadata: {
-      ...(loaded.sub.metadata ?? {}),
-      user_id: loaded.session.userId,
-      interval,
-    },
-  });
-  return {
-    success:
-      interval === "year"
-        ? "Wechsel auf jährlich. Stripe verrechnet die Differenz."
-        : "Wechsel auf monatlich. Stripe verrechnet die Differenz.",
-  };
 }
 
 export async function openBillingPortal(
@@ -256,13 +291,15 @@ export async function openBillingPortal(
   );
   if (!customerId) return { error: "Kein Stripe-Kunde gefunden." };
   const origin = siteOrigin(await headers());
-  let url: string | null = null;
   try {
     const portal = await getStripe().billingPortal.sessions.create({
       customer: customerId,
       return_url: `${origin}/control/settings#pro`,
     });
-    url = portal.url;
+    if (!portal.url) {
+      return { error: "Kundenportal konnte nicht geöffnet werden." };
+    }
+    return { redirectUrl: portal.url };
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("No configuration provided")) {
@@ -271,8 +308,6 @@ export async function openBillingPortal(
           "Stripe-Kundenportal ist noch nicht eingerichtet. Kündigung und Planwechsel gehen über die Buttons oben.",
       };
     }
-    return { error: message || "Kundenportal fehlgeschlagen." };
+    return stripeActionError(error, "Kundenportal fehlgeschlagen.");
   }
-  if (!url) return { error: "Kundenportal konnte nicht geöffnet werden." };
-  redirect(url);
 }
