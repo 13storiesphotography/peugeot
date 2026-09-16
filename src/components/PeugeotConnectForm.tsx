@@ -22,25 +22,10 @@ const LOGIN_PHASES = [
 
 function LoginSpinner({ className }: { className?: string }) {
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
+    <span
+      className={`block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent ${className ?? ""}`}
       aria-hidden
-      className={`origin-center animate-spin ${className ?? ""}`}
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeDasharray="28 28"
-        opacity="0.9"
-      />
-    </svg>
+    />
   );
 }
 

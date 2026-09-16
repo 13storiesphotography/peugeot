@@ -611,46 +611,35 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               aria-label="Fahrzeugdaten aktualisieren"
               title="Fahrzeug wecken und Daten holen"
             >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden
-                className={
-                  refreshing || isPending
-                    ? "origin-center animate-spin"
-                    : undefined
-                }
-              >
-                {refreshing || isPending ? (
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="9"
+              {refreshing || isPending ? (
+                <span
+                  className="block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                  aria-hidden
+                />
+              ) : (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden
+                  className="block"
+                >
+                  <path
+                    d="M20 12a8 8 0 1 1-2.2-5.5"
                     stroke="currentColor"
-                    strokeWidth="2"
+                    strokeWidth="1.8"
                     strokeLinecap="round"
-                    strokeDasharray="28 28"
                   />
-                ) : (
-                  <>
-                    <path
-                      d="M20 12a8 8 0 1 1-2.2-5.5"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M20 5v5h-5"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </>
-                )}
-              </svg>
+                  <path
+                    d="M20 5v5h-5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
             </button>
           </div>
         </div>
