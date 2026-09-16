@@ -69,21 +69,23 @@ function stripeActionError(error: unknown, fallback: string): CheckoutState {
     return { error: "Stripe-Schlüssel ungültig. Bitte Admin informieren." };
   }
   if (
-    rawMessage.includes("payment method") ||
-    rawMessage.includes("payment_method")
-  ) {
-    return {
-      error:
-        "In Stripe ist keine Zahlungsmethode für Checkout freigeschaltet (z. B. Karte).",
-    };
-  }
-  if (
     rawMessage.includes("live charges") ||
     rawMessage.includes("activate your account")
   ) {
     return {
       error:
         "Stripe-Konto kann noch keine Live-Zahlungen annehmen. Dashboard prüfen.",
+    };
+  }
+  // Dashboard has no usable methods for Checkout / subscriptions.
+  if (
+    /no payment method|enable at least one payment method|payment methods? (are )?not available/i.test(
+      rawMessage,
+    )
+  ) {
+    return {
+      error:
+        "In Stripe unter Settings → Payment methods Karte (Cards) für Checkout aktivieren.",
     };
   }
 
@@ -111,8 +113,8 @@ async function createCheckoutSession(input: {
   const params: Parameters<typeof stripe.checkout.sessions.create>[0] = {
     mode: "subscription",
     ui_mode: "hosted",
-    // Explicit card — Dashboard dynamic PMs often leave Checkout unable to start.
-    payment_method_types: ["card"],
+    // Do not set payment_method_types — modern Stripe rejects it when the
+    // Dashboard Payment Method Configuration is active; methods come from there.
     allow_promotion_codes: true,
     success_url: `${origin}/control/settings?pro_session={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/control/settings?pro=cancel`,
@@ -148,6 +150,15 @@ async function createCheckoutSession(input: {
     ) {
       delete params.customer;
       params.customer_email = email ?? undefined;
+      return await stripe.checkout.sessions.create(params);
+    }
+    // Older accounts without a Payment Method Configuration still need types.
+    if (
+      /payment method configuration|enable at least one payment method|no valid payment/i.test(
+        message,
+      )
+    ) {
+      params.payment_method_types = ["card"];
       return await stripe.checkout.sessions.create(params);
     }
     throw error;
