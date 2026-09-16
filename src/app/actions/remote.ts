@@ -138,13 +138,16 @@ export async function activateRemotePinAction(
       session.userId,
       connection,
     );
+    // Always enroll a fresh OTP device. Reusing a blocked/expired otp_state
+    // is a common cause of NOK_BLOCKED / NOK:ACCESS on re-setup.
+    const deviceSeed = `${Date.now().toString(36)}${accessToken}`.slice(0, 16);
     const result = await setupRemotePin({
       accessToken,
       countryCode: String(connection.country_code ?? "DE"),
       smsCode,
       pin,
-      deviceIdSeed: accessToken,
-      previousOtp: connection.otp_state,
+      deviceIdSeed: deviceSeed,
+      previousOtp: null,
     });
 
     await session.supabase
@@ -164,11 +167,31 @@ export async function activateRemotePinAction(
     revalidatePath("/control/settings");
     return { success: "Fernbedienung eingerichtet.", ready: true };
   } catch (error) {
-    return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "PIN-Einrichtung fehlgeschlagen.",
-    };
+    const raw =
+      error instanceof Error
+        ? error.message
+        : "PIN-Einrichtung fehlgeschlagen.";
+    const { humanizeOtpError, isOtpAccessFailure } = await import(
+      "@/lib/stellantis/otp/session"
+    );
+    try {
+      const session = await assertOwnerSession();
+      if (session && isOtpAccessFailure(raw)) {
+        await session.supabase
+          .from("peugeot_connections")
+          .update({
+            remote_ready: false,
+            otp_state: null,
+            remote_access_token: null,
+            remote_refresh_token: null,
+            remote_token_updated_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", session.userId);
+      }
+    } catch {
+      // best-effort cleanup
+    }
+    return { error: humanizeOtpError(raw) };
   }
 }

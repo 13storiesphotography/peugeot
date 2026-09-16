@@ -94,6 +94,13 @@ function str(v: unknown, fallback = ""): string {
 export function humanizeOtpError(message: string): string {
   const lower = message.toLowerCase();
   if (
+    lower.includes("nok_blocked") ||
+    lower.includes("nok:blocked") ||
+    (lower.includes("blocked") && lower.includes("otp"))
+  ) {
+    return "Fernbedienung vorübergehend gesperrt (zu viele Versuche oder alter Zugang). 10–15 Min. warten, neue SMS anfordern und die 4-stellige MyPeugeot-PIN erneut freischalten.";
+  }
+  if (
     lower.includes("nok:access") ||
     lower.includes('"access"') ||
     lower.includes("'access'") ||
@@ -106,9 +113,10 @@ export function humanizeOtpError(message: string): string {
     lower.includes("otp code") ||
     lower.includes("otp finalize") ||
     lower.includes("otp-aktivierung") ||
-    lower.includes("otp defi")
+    lower.includes("otp defi") ||
+    lower.includes("otp ms-finalize")
   ) {
-    return "Fernbedienung braucht neue Freischaltung — PIN unter Einstellungen erneut einrichten.";
+    return "Fernbedienung braucht neue Freischaltung — neue SMS anfordern und PIN erneut einrichten.";
   }
   return message;
 }
@@ -118,6 +126,8 @@ export function isOtpAccessFailure(message: string): boolean {
   const lower = message.toLowerCase();
   return (
     lower.includes("nok:access") ||
+    lower.includes("nok_blocked") ||
+    lower.includes("nok:blocked") ||
     lower.includes('"access"') ||
     lower.includes("'access'") ||
     lower.includes("otp setup fehlgeschlagen") ||
@@ -126,7 +136,8 @@ export function isOtpAccessFailure(message: string): boolean {
     lower.includes("otp-aktivierung fehlgeschlagen") ||
     lower.includes("otp defi fehlt") ||
     lower.includes("fernbedienung abgelaufen") ||
-    lower.includes("fernbedienung braucht neue")
+    lower.includes("fernbedienung braucht neue") ||
+    lower.includes("fernbedienung vorübergehend gesperrt")
   );
 }
 
@@ -220,7 +231,11 @@ export async function activateOtpSession(input: {
   });
   const setup = asRec(setupXml.ActionSetup) ?? setupXml;
   if (str(setup.err) !== "OK") {
-    throw new Error(`OTP-Aktivierung fehlgeschlagen: ${JSON.stringify(setup.err ?? setup)}`);
+    throw new Error(
+      humanizeOtpError(
+        `OTP-Aktivierung fehlgeschlagen: ${JSON.stringify(setup.err ?? setup)}`,
+      ),
+    );
   }
 
   const Kfact = str(setup.Kfact);
@@ -254,7 +269,11 @@ export async function activateOtpSession(input: {
   });
   const final = asRec(finalXml.ActionFinalize) ?? finalXml;
   if (str(final.err) !== "OK") {
-    throw new Error(`OTP Finalize fehlgeschlagen: ${JSON.stringify(final.err ?? final)}`);
+    throw new Error(
+      humanizeOtpError(
+        `OTP Finalize fehlgeschlagen: ${JSON.stringify(final.err ?? final)}`,
+      ),
+    );
   }
   synchroKeys(state, final, kma);
 
