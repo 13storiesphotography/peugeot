@@ -7,6 +7,11 @@ const LOOKUP: Record<BillingInterval, string> = {
   year: "peugeot_control_pro_year",
 };
 
+const ENV_PRICE_KEYS: Record<BillingInterval, string> = {
+  month: "STRIPE_PRICE_PRO_MONTH",
+  year: "STRIPE_PRICE_PRO_YEAR",
+};
+
 async function getOrCreateProductId(): Promise<string> {
   const stripe = getStripe();
   for (const interval of ["year", "month"] as const) {
@@ -28,6 +33,9 @@ async function getOrCreateProductId(): Promise<string> {
 }
 
 export async function getProPriceId(interval: BillingInterval): Promise<string> {
+  const fromEnv = process.env[ENV_PRICE_KEYS[interval]]?.trim();
+  if (fromEnv) return fromEnv;
+
   const stripe = getStripe();
   const lookup = LOOKUP[interval];
   const listed = await stripe.prices.list({

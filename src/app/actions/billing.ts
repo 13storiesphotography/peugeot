@@ -24,16 +24,134 @@ export type CheckoutState = {
 };
 
 function stripeActionError(error: unknown, fallback: string): CheckoutState {
-  const message = error instanceof Error ? error.message : "";
   console.error("billing action:", error);
-  if (!message) return { error: fallback };
-  if (message.includes("No such price") || message.includes("No such product")) {
-    return { error: "Preis in Stripe fehlt noch. Bitte kurz später erneut versuchen." };
+
+  const stripeErr = error as {
+    message?: string;
+    code?: string;
+    type?: string;
+    raw?: { message?: string; code?: string };
+  } | null;
+
+  const code =
+    (typeof stripeErr?.code === "string" && stripeErr.code) ||
+    (typeof stripeErr?.raw?.code === "string" && stripeErr.raw.code) ||
+    "";
+  const rawMessage =
+    (typeof stripeErr?.message === "string" && stripeErr.message) ||
+    (typeof stripeErr?.raw?.message === "string" && stripeErr.raw.message) ||
+    (error instanceof Error ? error.message : "") ||
+    "";
+
+  if (code === "resource_missing") {
+    if (rawMessage.toLowerCase().includes("customer")) {
+      return { error: "Stripe-Kunde ungültig. Bitte erneut versuchen." };
+    }
+    return {
+      error:
+        "Stripe-Preis fehlt oder passt nicht zum Schlüssel (Test/Live). Bitte Preise prüfen.",
+    };
   }
-  if (message.includes("Invalid API Key") || message.includes("api_key")) {
+  if (
+    rawMessage.includes("No such price") ||
+    rawMessage.includes("No such product")
+  ) {
+    return {
+      error:
+        "Stripe-Preis fehlt oder passt nicht zum Schlüssel (Test/Live). Bitte Preise prüfen.",
+    };
+  }
+  if (
+    rawMessage.includes("Invalid API Key") ||
+    rawMessage.includes("api_key") ||
+    code === "api_key_expired"
+  ) {
     return { error: "Stripe-Schlüssel ungültig. Bitte Admin informieren." };
   }
-  return { error: message.length > 180 ? fallback : message };
+  if (
+    rawMessage.includes("payment method") ||
+    rawMessage.includes("payment_method")
+  ) {
+    return {
+      error:
+        "In Stripe ist keine Zahlungsmethode für Checkout freigeschaltet (z. B. Karte).",
+    };
+  }
+  if (
+    rawMessage.includes("live charges") ||
+    rawMessage.includes("activate your account")
+  ) {
+    return {
+      error:
+        "Stripe-Konto kann noch keine Live-Zahlungen annehmen. Dashboard prüfen.",
+    };
+  }
+
+  if (!rawMessage) return { error: fallback };
+  const trimmed =
+    rawMessage.length > 160 ? `${rawMessage.slice(0, 157)}…` : rawMessage;
+  return { error: code ? `${trimmed} (${code})` : trimmed };
+}
+
+async function createCheckoutSession(input: {
+  stripe: ReturnType<typeof getStripe>;
+  priceId: string;
+  customerId: string | null;
+  email: string | null;
+  origin: string;
+  userId: string;
+  interval: BillingInterval;
+}) {
+  const { stripe, priceId, customerId, email, origin, userId, interval } = input;
+
+  if (!customerId && !email) {
+    throw new Error("Keine E-Mail für Stripe Checkout.");
+  }
+
+  const params: Parameters<typeof stripe.checkout.sessions.create>[0] = {
+    mode: "subscription",
+    ui_mode: "hosted",
+    // Explicit card — Dashboard dynamic PMs often leave Checkout unable to start.
+    payment_method_types: ["card"],
+    allow_promotion_codes: true,
+    success_url: `${origin}/control/settings?pro_session={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/control/settings?pro=cancel`,
+    metadata: {
+      user_id: userId,
+      source: "stripe",
+      interval,
+    },
+    subscription_data: {
+      metadata: {
+        user_id: userId,
+        interval,
+      },
+    },
+    line_items: [{ quantity: 1, price: priceId }],
+  };
+
+  if (customerId) {
+    params.customer = customerId;
+  } else {
+    params.customer_email = email ?? undefined;
+  }
+
+  try {
+    return await stripe.checkout.sessions.create(params);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    // Stale customer id (test↔live) — retry with email only.
+    if (
+      customerId &&
+      (message.includes("No such customer") ||
+        message.includes("No such customer:"))
+    ) {
+      delete params.customer;
+      params.customer_email = email ?? undefined;
+      return await stripe.checkout.sessions.create(params);
+    }
+    throw error;
+  }
 }
 
 function siteOrigin(headerStore: Headers): string {
@@ -100,29 +218,21 @@ export async function startCheckout(
       session.email,
     );
 
-    const checkout = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId ?? undefined,
-      customer_email: customerId ? undefined : (session.email ?? undefined),
-      allow_promotion_codes: true,
-      success_url: `${origin}/control/settings?pro_session={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/control/settings?pro=cancel`,
-      metadata: {
-        user_id: session.userId,
-        source: "stripe",
-        interval,
-      },
-      subscription_data: {
-        metadata: {
-          user_id: session.userId,
-          interval,
-        },
-      },
-      line_items: [{ quantity: 1, price: priceId }],
+    const checkout = await createCheckoutSession({
+      stripe,
+      priceId,
+      customerId,
+      email: session.email,
+      origin,
+      userId: session.userId,
+      interval,
     });
 
     if (!checkout.url) {
-      return { error: "Zahlung konnte nicht gestartet werden." };
+      return {
+        error:
+          "Stripe hat keine Checkout-URL geliefert. Zahlungsmethoden im Stripe-Dashboard prüfen.",
+      };
     }
 
     // Hard client navigation — next/navigation redirect() to Stripe via
