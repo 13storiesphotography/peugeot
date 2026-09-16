@@ -32,18 +32,27 @@ export async function resolveStripeCustomerId(
   email: string | null,
 ): Promise<string | null> {
   if (!isStripeConfigured()) return null;
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("entitlements")
-    .select("stripe_customer_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (typeof data?.stripe_customer_id === "string" && data.stripe_customer_id) {
-    return data.stripe_customer_id;
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("entitlements")
+      .select("stripe_customer_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (typeof data?.stripe_customer_id === "string" && data.stripe_customer_id) {
+      return data.stripe_customer_id;
+    }
+  } catch (error) {
+    console.warn("resolveStripeCustomerId entitlements:", error);
   }
   if (!email) return null;
-  const customers = await getStripe().customers.list({ email, limit: 3 });
-  return customers.data[0]?.id ?? null;
+  try {
+    const customers = await getStripe().customers.list({ email, limit: 3 });
+    return customers.data[0]?.id ?? null;
+  } catch (error) {
+    console.warn("resolveStripeCustomerId customers.list:", error);
+    return null;
+  }
 }
 
 export async function getActiveSubscription(
