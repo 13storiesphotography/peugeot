@@ -90,6 +90,44 @@ function str(v: unknown, fallback = ""): string {
   return typeof v === "string" || typeof v === "number" ? String(v) : fallback;
 }
 
+/** Map Peugeot OTP / remote-access failures to a clear German hint. */
+export function humanizeOtpError(message: string): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("nok:access") ||
+    lower.includes('"access"') ||
+    lower.includes("'access'") ||
+    lower.includes("access denied")
+  ) {
+    return "Fernbedienung abgelaufen — bitte unter Einstellungen die PIN neu freischalten.";
+  }
+  if (
+    lower.includes("otp setup") ||
+    lower.includes("otp code") ||
+    lower.includes("otp finalize") ||
+    lower.includes("otp-aktivierung") ||
+    lower.includes("otp defi")
+  ) {
+    return "Fernbedienung braucht neue Freischaltung — PIN unter Einstellungen erneut einrichten.";
+  }
+  return message;
+}
+
+/** True when OTP/remote session must be re-enrolled (PIN flow). */
+export function isOtpAccessFailure(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("nok:access") ||
+    lower.includes('"access"') ||
+    lower.includes("'access'") ||
+    lower.includes("otp setup fehlgeschlagen") ||
+    lower.includes("otp code fehlgeschlagen") ||
+    lower.includes("otp finalize fehlgeschlagen") ||
+    lower.includes("otp-aktivierung fehlgeschlagen") ||
+    lower.includes("otp defi fehlt")
+  );
+}
+
 export function createEmptyOtpState(deviceId: string): OtpPersistedState {
   return {
     deviceId,
@@ -272,7 +310,11 @@ export async function generateOtpCode(
     });
     const setup = asRec(setupXml.ActionSetup) ?? setupXml;
     if (str(setup.err) !== "OK") {
-      throw new Error(`OTP Setup fehlgeschlagen: ${JSON.stringify(setup.err ?? setup)}`);
+      throw new Error(
+        humanizeOtpError(
+          `OTP Setup fehlgeschlagen: ${JSON.stringify(setup.err ?? setup)}`,
+        ),
+      );
     }
     const challenge = str(setup.challenge);
     const R = getR(next, challenge, "", next.codePin);
@@ -291,7 +333,11 @@ export async function generateOtpCode(
     });
     const final = asRec(finalXml.ActionFinalize) ?? finalXml;
     if (str(final.err) !== "OK") {
-      throw new Error(`OTP Code fehlgeschlagen: ${JSON.stringify(final.err ?? final)}`);
+      throw new Error(
+        humanizeOtpError(
+          `OTP Code fehlgeschlagen: ${JSON.stringify(final.err ?? final)}`,
+        ),
+      );
     }
     synchroKeys(next, final, generateKma(next, next.codePin));
     defi = str(final.defi);

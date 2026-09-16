@@ -1300,12 +1300,28 @@ async function ensureLiveRemoteSession(
       remoteAccessToken: remoteAccess,
     };
   } catch (error) {
+    const raw =
+      error instanceof Error
+        ? error.message
+        : "Fernbedienung konnte nicht vorbereitet werden.";
+    const { humanizeOtpError, isOtpAccessFailure } = await import(
+      "@/lib/stellantis/otp/session"
+    );
+    if (isOtpAccessFailure(raw)) {
+      await supabase
+        .from("peugeot_connections")
+        .update({
+          remote_ready: false,
+          remote_access_token: null,
+          remote_refresh_token: null,
+          remote_token_updated_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+    }
     return {
       ok: false,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Fernbedienung konnte nicht vorbereitet werden.",
+      message: humanizeOtpError(raw),
     };
   }
 }

@@ -306,13 +306,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             });
           } else if (hard?.wakeAttempted && hard.wakeOk === false) {
             setToast({
-              text: `Stand ${formatAge(patched.vehicle.lastUpdatedAt)}. Aufwecken: ${hard.wakeSkippedReason ?? "fehlgeschlagen"}`,
+              text: `${formatAge(patched.vehicle.lastUpdatedAt)} · ${hard.wakeSkippedReason ?? "Aufwecken fehlgeschlagen"}`,
               ok: false,
             });
           } else if (hard?.wakeSkippedReason) {
             setToast({
-              text: `Stand ${formatAge(patched.vehicle.lastUpdatedAt)}. ${hard.wakeSkippedReason}`,
-              ok: true,
+              text: `${formatAge(patched.vehicle.lastUpdatedAt)} · ${hard.wakeSkippedReason}`,
+              ok: false,
             });
           } else if (age >= 5) {
             setToast({
