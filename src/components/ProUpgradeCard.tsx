@@ -152,35 +152,37 @@ export function ProUpgradeCard({
             </>
           ) : (
             <>
-              <form action={checkoutAction} className="space-y-2">
-                <button
-                  type="submit"
-                  name="interval"
-                  value="year"
-                  disabled={pending || !stripeReady}
-                  className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
-                >
-                  {checkoutPending || checkoutState.redirectUrl
-                    ? "Weiter zur Zahlung…"
-                    : `Jahr · ${formatEuroFromCents(PRO_YEAR_CENTS)}`}
-                </button>
-                <button
-                  type="submit"
-                  name="interval"
-                  value="month"
-                  disabled={pending || !stripeReady}
-                  className="action-btn w-full rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold disabled:opacity-50"
-                >
-                  {checkoutPending || checkoutState.redirectUrl
-                    ? "Weiter zur Zahlung…"
-                    : `Monat · ${formatEuroFromCents(PRO_MONTH_CENTS)}`}
-                </button>
+              <div className="space-y-2">
+                <form action={checkoutAction}>
+                  <input type="hidden" name="interval" value="year" />
+                  <button
+                    type="submit"
+                    disabled={pending || !stripeReady}
+                    className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
+                  >
+                    {checkoutPending || checkoutState.redirectUrl
+                      ? "Weiter zur Zahlung…"
+                      : `Jahr · ${formatEuroFromCents(PRO_YEAR_CENTS)}`}
+                  </button>
+                </form>
+                <form action={checkoutAction}>
+                  <input type="hidden" name="interval" value="month" />
+                  <button
+                    type="submit"
+                    disabled={pending || !stripeReady}
+                    className="action-btn w-full rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold disabled:opacity-50"
+                  >
+                    {checkoutPending || checkoutState.redirectUrl
+                      ? "Weiter zur Zahlung…"
+                      : `Monat · ${formatEuroFromCents(PRO_MONTH_CENTS)}`}
+                  </button>
+                </form>
                 <p className="text-center text-[11px] text-[var(--fg-muted)]">
                   12x monatlich = {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)}{" "}
                   pro Jahr · jährlich {formatEuroFromCents(PRO_YEAR_CENTS)} · du
                   sparst {formatEuroFromCents(yearlySavingsCents())}
                 </p>
-              </form>
+              </div>
 
               <button
                 type="button"
