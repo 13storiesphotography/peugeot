@@ -112,9 +112,8 @@ async function createCheckoutSession(input: {
 
   const params: Parameters<typeof stripe.checkout.sessions.create>[0] = {
     mode: "subscription",
-    ui_mode: "hosted",
-    // Do not set payment_method_types — modern Stripe rejects it when the
-    // Dashboard Payment Method Configuration is active; methods come from there.
+    // Default ui_mode is hosted_page (returns checkout.url). Do not set
+    // legacy "hosted" — Stripe API rejects it.
     allow_promotion_codes: true,
     // Stripe Tax is on for this account — needs address + product tax_code.
     automatic_tax: { enabled: true },
