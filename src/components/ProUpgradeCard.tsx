@@ -41,12 +41,14 @@ export function ProUpgradeCard({
   subscription,
   stripeReady,
   stripeTestMode = false,
+  stripeSetupError,
   notice,
 }: {
   entitlement: Entitlement;
   subscription: SubscriptionSnapshot | null;
   stripeReady: boolean;
   stripeTestMode?: boolean;
+  stripeSetupError?: string;
   notice?: CheckoutState;
 }) {
   const [checkoutState, checkoutAction, checkoutPending] = useActionState(
@@ -82,6 +84,7 @@ export function ProUpgradeCard({
     Boolean(checkoutState.redirectUrl || portalState.redirectUrl);
   const error =
     notice?.error ??
+    stripeSetupError ??
     checkoutState.error ??
     cancelState.error ??
     resumeState.error ??
