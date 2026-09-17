@@ -191,6 +191,11 @@ export function ProUpgradeCard({
                   pro Jahr · jährlich {formatEuroFromCents(PRO_YEAR_CENTS)} · du
                   sparst {formatEuroFromCents(yearlySavingsCents())}
                 </p>
+                <p className="text-center text-[11px] text-[var(--fg-muted)]">
+                  Nach der Zahlung schickt Stripe die Rechnung als PDF per
+                  E-Mail. Name, Adresse und optional USt-Id werden im Checkout
+                  erfasst.
+                </p>
               </div>
 
               <button

@@ -114,10 +114,22 @@ async function createCheckoutSession(input: {
     mode: "subscription",
     // Default ui_mode is hosted_page (returns checkout.url). Do not set
     // legacy "hosted" — Stripe API rejects it.
+    locale: "de",
     allow_promotion_codes: true,
-    // Stripe Tax is on for this account — needs address + product tax_code.
+    // Stripe Tax + adequate German invoice fields (name, address, optional USt-Id).
     automatic_tax: { enabled: true },
     billing_address_collection: "required",
+    tax_id_collection: { enabled: true },
+    name_collection: {
+      individual: { enabled: true, optional: false },
+      business: { enabled: true, optional: true },
+    },
+    custom_text: {
+      submit: {
+        message:
+          "Du erhältst die Rechnung per E-Mail von Stripe (PDF mit Adresse und MwSt.).",
+      },
+    },
     success_url: `${origin}/control/settings?pro_session={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/control/settings?pro=cancel`,
     metadata: {
@@ -126,6 +138,10 @@ async function createCheckoutSession(input: {
       interval,
     },
     subscription_data: {
+      description:
+        interval === "month"
+          ? "Peugeot Control Pro — monatlich"
+          : "Peugeot Control Pro — jährlich",
       metadata: {
         user_id: userId,
         interval,
