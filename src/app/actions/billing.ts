@@ -7,7 +7,7 @@ import {
 } from "@/lib/billing/catalog";
 import { grantProFromStripe } from "@/lib/billing/grant";
 import { getProPriceId, PRO_TAX_CODE } from "@/lib/billing/prices";
-import { getStripe, isStripeConfigured } from "@/lib/billing/stripe";
+import { getStripe, isStripeConfigured, stripeConfigError } from "@/lib/billing/stripe";
 import {
   getActiveSubscription,
   resolveStripeCustomerId,
@@ -236,7 +236,11 @@ export async function startCheckout(
     return { error: "Bitte zuerst anmelden." };
   }
   if (!isStripeConfigured()) {
-    return { error: "Zahlung ist gerade nicht verfügbar. Bitte später erneut versuchen." };
+    return {
+      error:
+        stripeConfigError() ??
+        "Zahlung ist gerade nicht verfügbar. Bitte später erneut versuchen.",
+    };
   }
 
   const interval = parseBillingInterval(formData.get("interval"));
@@ -290,7 +294,7 @@ export async function confirmCheckoutSession(
     return { error: "Bitte zuerst anmelden." };
   }
   if (!isStripeConfigured()) {
-    return { error: "Zahlung ist nicht verfügbar." };
+    return { error: stripeConfigError() ?? "Zahlung ist nicht verfügbar." };
   }
   if (!checkoutSessionId.startsWith("cs_")) {
     return { error: "Ungültige Zahlungssitzung." };
@@ -334,7 +338,7 @@ async function requireManagedSubscription() {
   const session = await assertOwnerSession();
   if (!session) return { error: "Bitte zuerst anmelden." } as const;
   if (!isStripeConfigured()) {
-    return { error: "Zahlung ist nicht verfügbar." } as const;
+    return { error: stripeConfigError() ?? "Zahlung ist nicht verfügbar." } as const;
   }
   const customerId = await resolveStripeCustomerId(
     session.userId,
@@ -432,7 +436,7 @@ export async function openBillingPortal(
   const session = await assertOwnerSession();
   if (!session) return { error: "Bitte zuerst anmelden." };
   if (!isStripeConfigured()) {
-    return { error: "Zahlung ist nicht verfügbar." };
+    return { error: stripeConfigError() ?? "Zahlung ist nicht verfügbar." };
   }
   const customerId = await resolveStripeCustomerId(
     session.userId,

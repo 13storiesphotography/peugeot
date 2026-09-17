@@ -10,7 +10,7 @@ import { SettingsForm } from "@/components/SettingsForm";
 import { SyncIntervalForm } from "@/components/SyncIntervalForm";
 import { isAdminEmail } from "@/lib/auth/admin";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
-import { isStripeConfigured, isStripeTestMode } from "@/lib/billing/stripe";
+import { isStripeConfigured, isStripeTestMode, stripeConfigError } from "@/lib/billing/stripe";
 import { getSubscriptionSnapshot } from "@/lib/billing/subscription";
 import { MFA_GRACE_DAYS } from "@/lib/auth/mfa-policy";
 import { getSettingsBundle } from "@/lib/vehicle/repository";
@@ -215,6 +215,7 @@ export default async function SettingsPage({
             subscription={subscription}
             stripeReady={isStripeConfigured()}
             stripeTestMode={isStripeTestMode()}
+            stripeSetupError={stripeConfigError() ?? undefined}
             notice={checkoutNotice}
           />
 
