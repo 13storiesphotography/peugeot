@@ -151,14 +151,17 @@ export function ProUpgradeCard({
               <button
                 type="button"
                 onClick={() => setChooseInterval(true)}
-                disabled={pending || !stripeReady}
+                disabled={pending || !stripeReady || Boolean(stripeSetupError)}
                 className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
               >
-                {stripeReady ? "Pro freischalten" : "Zahlung noch nicht eingerichtet"}
+                {stripeReady && !stripeSetupError
+                  ? "Pro freischalten"
+                  : "Zahlung noch nicht eingerichtet"}
               </button>
-              {stripeReady ? null : (
+              {stripeReady && !stripeSetupError ? null : (
                 <p className="text-center text-[11px] text-[var(--fg-muted)]">
-                  Stripe muss in Vercel konfiguriert werden.
+                  {stripeSetupError ??
+                    "Stripe muss in Vercel konfiguriert werden."}
                 </p>
               )}
             </>
@@ -169,7 +172,7 @@ export function ProUpgradeCard({
                   <input type="hidden" name="interval" value="year" />
                   <button
                     type="submit"
-                    disabled={pending || !stripeReady}
+                    disabled={pending || !stripeReady || Boolean(stripeSetupError)}
                     className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
                   >
                     {checkoutPending || checkoutState.redirectUrl
@@ -181,7 +184,7 @@ export function ProUpgradeCard({
                   <input type="hidden" name="interval" value="month" />
                   <button
                     type="submit"
-                    disabled={pending || !stripeReady}
+                    disabled={pending || !stripeReady || Boolean(stripeSetupError)}
                     className="action-btn w-full rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold disabled:opacity-50"
                   >
                     {checkoutPending || checkoutState.redirectUrl
