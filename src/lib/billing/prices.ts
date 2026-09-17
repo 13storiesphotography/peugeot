@@ -15,11 +15,23 @@ const ENV_PRICE_KEYS: Record<BillingInterval, string> = {
 /** Stripe Tax: Software as a service — required when Tax is enabled. */
 export const PRO_TAX_CODE = "txcd_10103001";
 
-async function ensureProductTaxCode(productId: string): Promise<void> {
+const PRO_PRODUCT_NAME = "Peugeot Control Pro";
+const PRO_PRODUCT_DESCRIPTION =
+  "Vorklima, Schloss, Finden und 80%-Ladelimit — digitales Abo für Peugeot Control.";
+
+async function ensureProductInvoiceFields(productId: string): Promise<void> {
   const stripe = getStripe();
   const product = await stripe.products.retrieve(productId);
-  if (product.tax_code) return;
-  await stripe.products.update(productId, { tax_code: PRO_TAX_CODE });
+  const patch: {
+    tax_code?: string;
+    name?: string;
+    description?: string;
+  } = {};
+  if (!product.tax_code) patch.tax_code = PRO_TAX_CODE;
+  if (!product.name?.trim()) patch.name = PRO_PRODUCT_NAME;
+  if (!product.description?.trim()) patch.description = PRO_PRODUCT_DESCRIPTION;
+  if (Object.keys(patch).length === 0) return;
+  await stripe.products.update(productId, patch);
 }
 
 async function productIdFromPrice(
@@ -39,12 +51,13 @@ async function getOrCreateProductId(): Promise<string> {
     const price = listed.data[0];
     if (price) {
       const productId = await productIdFromPrice(price);
-      await ensureProductTaxCode(productId);
+      await ensureProductInvoiceFields(productId);
       return productId;
     }
   }
   const product = await stripe.products.create({
-    name: "Peugeot Control Pro",
+    name: PRO_PRODUCT_NAME,
+    description: PRO_PRODUCT_DESCRIPTION,
     tax_code: PRO_TAX_CODE,
     metadata: { app: "peugeot-control" },
   });
@@ -56,7 +69,7 @@ export async function getProPriceId(interval: BillingInterval): Promise<string> 
   const fromEnv = process.env[ENV_PRICE_KEYS[interval]]?.trim();
   if (fromEnv) {
     const price = await stripe.prices.retrieve(fromEnv);
-    await ensureProductTaxCode(await productIdFromPrice(price));
+    await ensureProductInvoiceFields(await productIdFromPrice(price));
     return fromEnv;
   }
 
@@ -67,7 +80,7 @@ export async function getProPriceId(interval: BillingInterval): Promise<string> 
     limit: 1,
   });
   if (listed.data[0]) {
-    await ensureProductTaxCode(await productIdFromPrice(listed.data[0]));
+    await ensureProductInvoiceFields(await productIdFromPrice(listed.data[0]));
     return listed.data[0].id;
   }
 
@@ -90,7 +103,7 @@ export async function getProPriceId(interval: BillingInterval): Promise<string> 
       limit: 1,
     });
     if (again.data[0]) {
-      await ensureProductTaxCode(await productIdFromPrice(again.data[0]));
+      await ensureProductInvoiceFields(await productIdFromPrice(again.data[0]));
       return again.data[0].id;
     }
     throw error;
