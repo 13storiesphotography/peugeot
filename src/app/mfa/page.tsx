@@ -5,6 +5,7 @@ import { isEmailAllowed } from "@/lib/auth/allowlist";
 import { getMfaDecision } from "@/lib/auth/mfa";
 import { MfaEnrollForm } from "@/components/MfaEnrollForm";
 import { MfaChallengeForm } from "@/components/MfaChallengeForm";
+import { MfaSwitchAccount } from "@/components/MfaSwitchAccount";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function MfaPage() {
   }
 
   const decision = await getMfaDecision(supabase);
+  const email = user.email ?? null;
 
   if (decision.status === "ok") {
     redirect("/control");
@@ -50,6 +52,7 @@ export default async function MfaPage() {
         >
           Später fortfahren
         </Link>
+        <MfaSwitchAccount email={email} />
       </main>
     );
   }
@@ -70,6 +73,7 @@ export default async function MfaPage() {
         <div className="mt-8">
           <MfaEnrollForm forced />
         </div>
+        <MfaSwitchAccount email={email} />
       </main>
     );
   }
@@ -88,6 +92,7 @@ export default async function MfaPage() {
       <div className="mt-8">
         <MfaChallengeForm />
       </div>
+      <MfaSwitchAccount email={email} />
     </main>
   );
 }
