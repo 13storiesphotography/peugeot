@@ -17,17 +17,12 @@ export function AuthForm({
   publicSignup,
   denied,
   confirmError,
-  defaultMode = "login",
 }: {
   publicSignup: boolean;
   denied?: boolean;
   confirmError?: boolean;
-  /** Prefer register on marketing pages when public signup is open. */
-  defaultMode?: AuthMode;
 }) {
-  const [mode, setMode] = useState<AuthMode>(() =>
-    publicSignup && defaultMode === "register" ? "register" : "login",
-  );
+  const [mode, setMode] = useState<AuthMode>("login");
   const [loginState, loginAction, loginPending] = useActionState(
     signIn,
     initial,
@@ -106,18 +101,18 @@ export function AuthForm({
         className={`${mode === "forgot" ? "mt-0" : "mt-6"} font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight`}
       >
         {mode === "register"
-          ? "Kostenlos starten"
+          ? "Konto anlegen"
           : mode === "forgot"
             ? "Passwort vergessen"
             : "Willkommen zurück"}
       </h2>
       <p className="mt-2 text-sm text-[var(--fg-muted)]">
         {mode === "register"
-          ? "Konto anlegen, MyPeugeot verbinden — dann steuerst du dein Auto."
+          ? "Eigener Zugang — danach MyPeugeot in den Einstellungen verbinden."
           : mode === "forgot"
             ? "Wir schicken dir einen Link zum Setzen eines neuen Passworts."
             : publicSignup
-              ? "Anmelden und weitersteuern."
+              ? "Melde dich an und steuere deinen Peugeot."
               : "Privater Zugang — nur freigeschaltete Konten."}
       </p>
 

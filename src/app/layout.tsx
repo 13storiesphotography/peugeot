@@ -6,6 +6,7 @@ import { OptionalAnalytics } from "@/components/OptionalAnalytics";
 import { PwaRegister } from "@/components/PwaRegister";
 import { AuthUrlSession } from "@/components/AuthUrlSession";
 import { TrafficBeacon } from "@/components/TrafficBeacon";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
 const display = Syne({
@@ -21,10 +22,13 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Peugeot Control · Schneller als die Serien-App",
-  description:
-    "Peugeot steuern ohne App-Frust: Batterie, Laden, Klima und Fernbedienung im Browser. Getestet am E-3008. Free ansehen, Pro steuern.",
-  applicationName: "Peugeot Control",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} · Peugeot im Browser steuern`,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -36,7 +40,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Peugeot Control",
+    title: SITE_NAME,
     statusBarStyle: "black-translucent",
   },
   formatDetection: {
