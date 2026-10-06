@@ -10,8 +10,26 @@ export function mapOutboundMailError(error: SignupAuthError): string | null {
   const msg = (error.message ?? "").toLowerCase();
   const status = error.status ?? 0;
 
-  if (msg.includes("domain is not verified") || msg.includes("add and verify your domain")) {
+  if (
+    msg.includes("resend_api_key missing") ||
+    msg.includes("resend_api_key fehlt")
+  ) {
+    return "RESEND_API_KEY fehlt in Vercel (Production). Ohne den Key kann keine Passwort-Reset-Mail raus.";
+  }
+
+  if (
+    msg.includes("domain is not verified") ||
+    msg.includes("add and verify your domain") ||
+    msg.includes("verify a domain")
+  ) {
     return "Absender-Domain peugeotcontrol.app ist in Resend nicht verifiziert. Unter resend.com/domains die Domain anlegen und die DNS-Einträge bei Vercel setzen.";
+  }
+
+  if (
+    msg.includes("only send testing emails") ||
+    msg.includes("you can only send testing")
+  ) {
+    return "Resend ist noch im Testmodus — Domain peugeotcontrol.app unter resend.com/domains verifizieren.";
   }
 
   if (
@@ -26,7 +44,8 @@ export function mapOutboundMailError(error: SignupAuthError): string | null {
   if (
     code === "unexpected_failure" ||
     msg.includes("could not send email") ||
-    msg.includes("gomail")
+    msg.includes("gomail") ||
+    /^resend \d+/.test(msg)
   ) {
     return "E-Mail konnte nicht gesendet werden. Resend-Domain und SMTP-Absender prüfen.";
   }

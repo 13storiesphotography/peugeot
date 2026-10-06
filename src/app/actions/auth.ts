@@ -227,9 +227,11 @@ export async function requestPasswordReset(
 
   const origin = await getSiteOrigin();
   const redirectTo = `${origin}/auth/reset`;
+  const resendKey = process.env.RESEND_API_KEY?.trim();
 
   try {
-    if (getServiceRoleKey()) {
+    // Branded Resend path (no PKCE). Needs RESEND_API_KEY in Vercel.
+    if (getServiceRoleKey() && resendKey) {
       const admin = createAdminClient();
       const { data, error } = await admin.auth.admin.generateLink({
         type: "recovery",
@@ -251,13 +253,29 @@ export async function requestPasswordReset(
       return generic;
     }
 
+    if (getServiceRoleKey() && !resendKey) {
+      console.error(
+        "requestPasswordReset: RESEND_API_KEY missing — falling back to Supabase mail",
+      );
+    }
+
     const { error } = await sendRecoveryWithoutPkce(email, redirectTo);
     if (error) {
+      console.error(
+        "requestPasswordReset supabase mail",
+        error.code,
+        error.message,
+        error.status,
+      );
       const mail = mapOutboundMailError(error);
       if (mail) return { error: mail };
+      return {
+        error: "E-Mail konnte nicht gesendet werden. Bitte später erneut versuchen.",
+      };
     }
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : "";
+    console.error("requestPasswordReset", message);
     const mail = mapOutboundMailError({ message });
     if (mail) return { error: mail };
     if (message.toLowerCase().includes("resend")) {
