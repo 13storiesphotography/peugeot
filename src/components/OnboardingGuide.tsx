@@ -37,7 +37,7 @@ function buildSteps(state: OnboardingState): Step[] {
         : "MyPeugeot verbinden",
       body: state.needsReconnect
         ? "Die Anmeldung ist abgelaufen. Bitte einmal neu verbinden, dann kommen wieder Live-Daten."
-        : "Verbinde dein MyPeugeot-Konto in den Einstellungen — dann siehst du dein echtes Fahrzeug.",
+        : "Verbinde dein MyPeugeot-Konto — danach siehst du dein echtes Fahrzeug.",
       href: "/control/settings#peugeot",
       cta: state.needsReconnect ? "Neu verbinden" : "Jetzt verbinden",
       done: !needsConnect,
@@ -100,25 +100,22 @@ export function OnboardingGuide({ state }: { state: OnboardingState }) {
           </h2>
           <p className="mt-1.5 text-sm text-[var(--fg-muted)]">{next.body}</p>
         </div>
-        <button
-          type="button"
-          onClick={dismiss}
-          className="shrink-0 text-xs text-[var(--fg-muted)] underline-offset-2 hover:text-[var(--fg)] hover:underline"
-        >
-          Später
-        </button>
       </div>
 
       <ol className="mt-4 space-y-2">
         {steps.map((step, index) => {
           const active = step.id === next.id;
-          return (
-            <li
-              key={step.id}
-              className={`flex items-start gap-3 rounded-xl px-2 py-1.5 text-sm ${
-                active ? "bg-[var(--accent-bright)]/10" : ""
-              }`}
-            >
+          const labelClass = step.done
+            ? "text-[var(--fg-muted)] line-through decoration-[var(--line)]"
+            : active
+              ? "font-semibold text-[var(--fg)]"
+              : "text-[var(--fg-muted)]";
+          const rowClass = `flex w-full items-start gap-3 rounded-xl px-2 py-1.5 text-left text-sm transition ${
+            active ? "bg-[var(--accent-bright)]/10" : ""
+          } ${!step.done ? "hover:bg-white/[0.04]" : ""}`;
+
+          const inner = (
+            <>
               <span
                 className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
                   step.done
@@ -131,23 +128,25 @@ export function OnboardingGuide({ state }: { state: OnboardingState }) {
               >
                 {step.done ? "✓" : index + 1}
               </span>
-              <span
-                className={
-                  step.done
-                    ? "text-[var(--fg-muted)] line-through decoration-[var(--line)]"
-                    : active
-                      ? "font-semibold text-[var(--fg)]"
-                      : "text-[var(--fg-muted)]"
-                }
-              >
-                {step.title}
-              </span>
+              <span className={labelClass}>{step.title}</span>
+            </>
+          );
+
+          return (
+            <li key={step.id}>
+              {step.done ? (
+                <div className={rowClass}>{inner}</div>
+              ) : (
+                <a href={step.href} className={rowClass}>
+                  {inner}
+                </a>
+              )}
             </li>
           );
         })}
       </ol>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-4 flex flex-wrap items-center gap-4">
         {/* Native <a>: Next Link + hash can fail to navigate on iOS/PWA. */}
         <a
           href={next.href}
@@ -155,8 +154,15 @@ export function OnboardingGuide({ state }: { state: OnboardingState }) {
         >
           {next.cta}
         </a>
+        <button
+          type="button"
+          onClick={dismiss}
+          className="text-sm text-[var(--fg-muted)] underline-offset-2 hover:text-[var(--fg)] hover:underline"
+        >
+          Später
+        </button>
         {next.id === "pro" ? (
-          <p className="text-xs text-[var(--fg-muted)]">
+          <p className="w-full text-xs text-[var(--fg-muted)] sm:w-auto">
             Free bleibt — Status und Ladekurve siehst du weiter.
           </p>
         ) : null}

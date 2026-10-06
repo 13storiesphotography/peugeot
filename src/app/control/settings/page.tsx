@@ -12,32 +12,11 @@ import { isAdminEmail } from "@/lib/auth/admin";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { isStripeConfigured, isStripeTestMode, stripeConfigError } from "@/lib/billing/stripe";
 import { getSubscriptionSnapshot } from "@/lib/billing/subscription";
-import { MFA_GRACE_DAYS } from "@/lib/auth/mfa-policy";
 import { getSettingsBundle } from "@/lib/vehicle/repository";
 
 export const dynamic = "force-dynamic";
 /** Password auto-login runs headless Chromium — needs a long function window. */
 export const maxDuration = 60;
-
-function StatusDot({
-  tone,
-}: {
-  tone: "ok" | "warn" | "off";
-}) {
-  const color =
-    tone === "ok"
-      ? "var(--accent-bright)"
-      : tone === "warn"
-        ? "var(--warn)"
-        : "var(--fg-muted)";
-  return (
-    <span
-      className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full"
-      style={{ background: color, boxShadow: `0 0 10px ${color}` }}
-      aria-hidden
-    />
-  );
-}
 
 export default async function SettingsPage({
   searchParams,
@@ -82,45 +61,6 @@ export default async function SettingsPage({
   const mfa = session.mfa;
   const { connection, vehicle, entitlement } = bundle;
 
-  const mfaTone =
-    mfa.status === "ok" ? "ok" : mfa.status === "enroll_optional" ? "warn" : "off";
-  const mfaLabel =
-    mfa.status === "ok"
-      ? "Aktiv"
-      : mfa.status === "enroll_optional"
-        ? `Optional · noch ${mfa.daysLeft} Tag${mfa.daysLeft === 1 ? "" : "e"}`
-        : "Einrichten";
-
-  const peugeotTone = connection.needsReconnect
-    ? "warn"
-    : connection.connected
-      ? "ok"
-      : "off";
-  const peugeotLabel = connection.needsReconnect
-    ? "Anmeldung abgelaufen — neu verbinden"
-    : connection.connected
-      ? "Verbunden"
-      : "Nicht verbunden";
-
-  const remoteTone = connection.remoteReady ? "ok" : "off";
-  const remoteLabel = connection.remoteReady ? "Freigeschaltet" : "Nicht eingerichtet";
-  const proTone = !entitlement.isPro
-    ? "off"
-    : subscription?.cancelAtPeriodEnd
-      ? "warn"
-      : "ok";
-  const proLabel = !entitlement.isPro
-    ? "Free"
-    : subscription?.cancelAtPeriodEnd
-      ? subscription.periodEnd
-        ? `Gekündigt · bis ${new Intl.DateTimeFormat("de-DE", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          }).format(new Date(subscription.periodEnd))}`
-        : "Gekündigt zum Periodenende"
-      : "Aktiv";
-
   return (
     <ControlPageShell section="settings">
         <header className="animate-rise flex items-center justify-between gap-3">
@@ -153,10 +93,19 @@ export default async function SettingsPage({
         </p>
 
         <Link
-          href="/control/account"
+          href={mfa.status !== "ok" ? "/control/account#mfa" : "/control/account"}
           className="animate-rise-delay-1 mt-4 flex items-center justify-between rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 text-sm font-semibold"
         >
-          <span>Konto · Passwort & MFA</span>
+          <span className="min-w-0">
+            <span className="block">Konto · Passwort & MFA</span>
+            {mfa.status !== "ok" ? (
+              <span className="mt-0.5 block text-xs font-normal text-[var(--fg-muted)]">
+                {mfa.status === "enroll_optional"
+                  ? `Zwei-Faktor optional · noch ${mfa.daysLeft} Tag${mfa.daysLeft === 1 ? "" : "e"}`
+                  : "Zwei-Faktor einrichten"}
+              </span>
+            ) : null}
+          </span>
           <span className="text-[var(--fg-muted)]" aria-hidden>
             →
           </span>
@@ -173,64 +122,6 @@ export default async function SettingsPage({
             </span>
           </Link>
         ) : null}
-
-        <section
-          className="animate-rise-delay-1 mt-6 ui-surface divide-y divide-[var(--line)] overflow-hidden"
-          aria-label="Status"
-        >
-          <div className="flex items-start gap-3 px-4 py-3.5">
-            <StatusDot tone={peugeotTone} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">MyPeugeot</p>
-              <p className="text-xs text-[var(--fg-muted)]">{peugeotLabel}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 px-4 py-3.5">
-            <StatusDot tone={remoteTone} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Fernbedienung</p>
-              <p className="text-xs text-[var(--fg-muted)]">{remoteLabel}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 px-4 py-3.5">
-            <StatusDot tone={mfaTone} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">Zwei-Faktor</p>
-                  <p className="text-xs text-[var(--fg-muted)]">{mfaLabel}</p>
-                </div>
-                {mfa.status !== "ok" ? (
-                  <Link
-                    href="/control/account#mfa"
-                    className="action-btn btn-primary shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold"
-                  >
-                    Einrichten
-                  </Link>
-                ) : (
-                  <Link
-                    href="/control/account#mfa"
-                    className="shrink-0 text-xs font-semibold text-[var(--fg-muted)] underline-offset-4 hover:underline"
-                  >
-                    Verwalten
-                  </Link>
-                )}
-              </div>
-              {mfa.status === "enroll_optional" ? (
-                <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
-                  Pflicht nach {MFA_GRACE_DAYS} Tagen.
-                </p>
-              ) : null}
-            </div>
-          </div>
-          <div className="flex items-start gap-3 px-4 py-3.5">
-            <StatusDot tone={proTone} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Pro</p>
-              <p className="text-xs text-[var(--fg-muted)]">{proLabel}</p>
-            </div>
-          </div>
-        </section>
 
         <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0">
           <div className="lg:col-span-2">
