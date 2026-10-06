@@ -1,6 +1,14 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type CSSProperties,
+} from "react";
 import {
   connectPeugeotWithCode,
   connectPeugeotWithPassword,
@@ -10,10 +18,6 @@ import {
 import { buildPeugeotAuthorizeUrl } from "@/lib/stellantis/authorize-url";
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
 import type { PeugeotConnection } from "@/lib/vehicle/repository";
-
-/** Form action host for Android/Chrome heuristics (may prefer Peugeot vault).
- *  iOS Safari ignores this and always keys AutoFill to the page origin. */
-const MYPEUGEOT_PASSWORD_ORIGIN = "https://idpcvs.peugeot.com/";
 
 const initial: ConnectState = {};
 
@@ -247,14 +251,12 @@ export function PeugeotConnectForm({
               </select>
             </label>
 
-            {/* action URL helps some Android managers; iOS always uses page origin.
-                Fields deliberately avoid site-login autocomplete so Safari does
-                not stuff the peugeotcontrol.app password into MyPeugeot. */}
+            {/* Safari ignores autocomplete=off on username/password-looking fields.
+                Avoid login heuristics: non-credential names, text+masked password,
+                readonly until focus. */}
             <form
-              action={MYPEUGEOT_PASSWORD_ORIGIN}
-              method="post"
               autoComplete="off"
-              className="grid gap-3"
+              className="relative grid gap-3"
               onSubmit={(event) => {
                 event.preventDefault();
                 const formData = new FormData(event.currentTarget);
@@ -264,6 +266,19 @@ export function PeugeotConnectForm({
               }}
             >
               <input type="hidden" name="countryCode" value={countryCode} />
+              {/* Honeypot login fields — absorb iOS Autofill for peugeotcontrol.app */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+              >
+                <input type="text" name="email" autoComplete="username" tabIndex={-1} />
+                <input
+                  type="password"
+                  name="site-password"
+                  autoComplete="current-password"
+                  tabIndex={-1}
+                />
+              </div>
               <p className="text-xs text-[var(--fg-muted)]">
                 MyPeugeot-Zugangsdaten (nicht peugeotcontrol.app). Auf dem iPhone:
                 Tastatur → Schlüssel → „Andere Passwörter…“ → nach Peugeot suchen.
@@ -271,9 +286,9 @@ export function PeugeotConnectForm({
               <label className="block text-sm">
                 <span className="text-[var(--fg-muted)]">MyPeugeot E-Mail</span>
                 <input
-                  id="mypeugeot-username"
-                  name="username"
-                  type="email"
+                  id="mypeugeot-email"
+                  name="mypeugeotEmail"
+                  type="text"
                   required
                   defaultValue={connection.mypeugeotEmail ?? ""}
                   className="mt-1 ui-field"
@@ -282,18 +297,23 @@ export function PeugeotConnectForm({
                   autoCorrect="off"
                   spellCheck={false}
                   inputMode="email"
-                  data-1p-ignore
+                  data-1p-ignore="true"
                   data-lpignore="true"
+                  data-bwignore="true"
                   data-form-type="other"
+                  readOnly
+                  onFocus={(e) => {
+                    e.currentTarget.readOnly = false;
+                  }}
                   disabled={passwordPending}
                 />
               </label>
               <label className="block text-sm">
                 <span className="text-[var(--fg-muted)]">Passwort</span>
                 <input
-                  id="mypeugeot-password"
-                  name="password"
-                  type="password"
+                  id="mypeugeot-secret"
+                  name="mypeugeotPassword"
+                  type="text"
                   required={!connection.hasPasswordStored}
                   placeholder={
                     connection.hasPasswordStored
@@ -301,10 +321,19 @@ export function PeugeotConnectForm({
                       : undefined
                   }
                   className="mt-1 ui-field"
+                  style={{ WebkitTextSecurity: "disc" } as CSSProperties}
                   autoComplete="off"
-                  data-1p-ignore
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  data-1p-ignore="true"
                   data-lpignore="true"
+                  data-bwignore="true"
                   data-form-type="other"
+                  readOnly
+                  onFocus={(e) => {
+                    e.currentTarget.readOnly = false;
+                  }}
                   disabled={passwordPending}
                 />
                 {connection.hasPasswordStored ? (
