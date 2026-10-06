@@ -261,11 +261,21 @@ export function PeugeotConnectForm({
                 <input
                   name="mypeugeotPassword"
                   type="password"
-                  required
+                  required={!connection.hasPasswordStored}
+                  placeholder={
+                    connection.hasPasswordStored
+                      ? "Gespeichert — nur bei Wechsel neu eingeben"
+                      : undefined
+                  }
                   className="mt-1 ui-field"
                   autoComplete="current-password"
                   disabled={passwordPending}
                 />
+                {connection.hasPasswordStored ? (
+                  <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
+                    Passwort liegt verschlüsselt für Auto-Login vor.
+                  </p>
+                ) : null}
               </label>
               {passwordPending ? (
                 <div
