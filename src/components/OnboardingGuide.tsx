@@ -1,7 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  readOnboardingDismissed,
+  writeOnboardingDismissed,
+} from "@/lib/onboarding-dismiss";
 
 export type OnboardingState = {
   connected: boolean;
@@ -21,8 +24,6 @@ type Step = {
   cta: string;
   done: boolean;
 };
-
-const DISMISS_KEY = "pc_onboarding_pro_dismiss";
 
 function buildSteps(state: OnboardingState): Step[] {
   const needsConnect =
@@ -64,26 +65,21 @@ function buildSteps(state: OnboardingState): Step[] {
 export function OnboardingGuide({ state }: { state: OnboardingState }) {
   const steps = buildSteps(state);
   const next = steps.find((step) => !step.done) ?? null;
-  const [proDismissed, setProDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      setProDismissed(sessionStorage.getItem(DISMISS_KEY) === "1");
-    } catch {
-      setProDismissed(false);
-    }
+    setDismissed(readOnboardingDismissed());
+    setReady(true);
   }, []);
 
   if (!next) return null;
-  if (next.id === "pro" && proDismissed) return null;
+  // Avoid flash of guide before sessionStorage is read.
+  if (!ready || dismissed) return null;
 
-  const dismissPro = () => {
-    try {
-      sessionStorage.setItem(DISMISS_KEY, "1");
-    } catch {
-      // ignore
-    }
-    setProDismissed(true);
+  const dismiss = () => {
+    writeOnboardingDismissed();
+    setDismissed(true);
   };
 
   return (
@@ -104,15 +100,13 @@ export function OnboardingGuide({ state }: { state: OnboardingState }) {
           </h2>
           <p className="mt-1.5 text-sm text-[var(--fg-muted)]">{next.body}</p>
         </div>
-        {next.id === "pro" ? (
-          <button
-            type="button"
-            onClick={dismissPro}
-            className="shrink-0 text-xs text-[var(--fg-muted)] underline-offset-2 hover:text-[var(--fg)] hover:underline"
-          >
-            Später
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={dismiss}
+          className="shrink-0 text-xs text-[var(--fg-muted)] underline-offset-2 hover:text-[var(--fg)] hover:underline"
+        >
+          Später
+        </button>
       </div>
 
       <ol className="mt-4 space-y-2">
@@ -154,12 +148,13 @@ export function OnboardingGuide({ state }: { state: OnboardingState }) {
       </ol>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link
+        {/* Native <a>: Next Link + hash can fail to navigate on iOS/PWA. */}
+        <a
           href={next.href}
           className="action-btn btn-primary inline-flex rounded-full px-4 py-2.5 text-sm font-semibold"
         >
           {next.cta}
-        </Link>
+        </a>
         {next.id === "pro" ? (
           <p className="text-xs text-[var(--fg-muted)]">
             Free bleibt — Status und Ladekurve siehst du weiter.

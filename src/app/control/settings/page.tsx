@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { signOut } from "@/app/actions/auth";
 import { confirmCheckoutSession } from "@/app/actions/billing";
 import { ControlPageShell } from "@/components/ControlPageShell";
+import { SignOutButton } from "@/components/SignOutButton";
 import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
 import { ProUpgradeCard } from "@/components/ProUpgradeCard";
 import { RemotePinForm } from "@/components/RemotePinForm";
@@ -145,14 +145,7 @@ export default async function SettingsPage({
               Einstellungen
             </h1>
           </div>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--fg-muted)]"
-            >
-              Abmelden
-            </button>
-          </form>
+          <SignOutButton className="rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--fg-muted)]" />
         </header>
 
         <p className="animate-rise-delay-1 mt-3 truncate text-center text-sm text-[var(--fg-muted)] lg:text-left">

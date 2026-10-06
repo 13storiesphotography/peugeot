@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { signOut } from "@/app/actions/auth";
+import { SignOutButton } from "@/components/SignOutButton";
 import { AccountDeleteCard } from "@/components/AccountDeleteCard";
 import { ControlPageShell } from "@/components/ControlPageShell";
 import { MfaManageCard } from "@/components/MfaManageCard";
@@ -68,14 +68,7 @@ export default async function AccountPage() {
               Konto
             </h1>
           </div>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--fg-muted)]"
-            >
-              Abmelden
-            </button>
-          </form>
+          <SignOutButton className="rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--fg-muted)]" />
         </header>
 
         <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
