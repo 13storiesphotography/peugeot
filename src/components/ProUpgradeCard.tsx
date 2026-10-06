@@ -143,32 +143,30 @@ export function ProUpgradeCard({
             ? "Pro gekündigt"
             : "Pro aktiv"}
       </h2>
-      {entitlement.isPro ? (
+      {entitlement.isPro && !cancelScheduled ? (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
-          {cancelScheduled
-            ? `Kündigung vorgemerkt. Steuern bleibt bis ${periodEnd ? formatDay(periodEnd) : "Periodenende"} an, danach Free.`
-            : `Steuern und 80%-Limit sind an${
-                interval === "month"
-                  ? " · monatlich"
-                  : interval === "year"
-                    ? " · jährlich"
-                    : ""
-              }${periodEnd ? ` · gültig bis ${formatDay(periodEnd)}` : ""}.`}
+          {`Steuern und 80%-Limit sind an${
+            interval === "month"
+              ? " · monatlich"
+              : interval === "year"
+                ? " · jährlich"
+                : ""
+          }${periodEnd ? ` · gültig bis ${formatDay(periodEnd)}` : ""}.`}
         </p>
-      ) : (
+      ) : !entitlement.isPro ? (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
           Vorklima, Schloss, Finden und 80%-Limit.
         </p>
-      )}
+      ) : null}
 
       {entitlement.isPro && cancelScheduled ? (
         <p
           role="status"
           className="mt-3 rounded-xl border border-[var(--warn)]/40 bg-[var(--warn)]/10 px-3 py-2 text-sm text-[var(--warn)]"
         >
-          Gekündigt zum Periodenende
-          {periodEnd ? ` · aktiv bis ${formatDay(periodEnd)}` : ""}. Danach
-          Free.
+          {periodEnd
+            ? `Aktiv bis ${formatDay(periodEnd)}, danach Free.`
+            : "Aktiv bis Periodenende, danach Free."}
         </p>
       ) : null}
 
@@ -329,11 +327,12 @@ export function ProUpgradeCard({
                 : "Zahlungsdaten und Rechnungen"}
             </button>
           </form>
-          <p className="text-[11px] text-[var(--fg-muted)]">
-            {cancelScheduled
-              ? "Die Kündigung greift erst zum Periodenende. Bis dahin bleibt Pro nutzbar."
-              : "Planwechsel gilt sofort, Stripe verrechnet die Differenz. Kündigung erst zum Ende der bezahlten Laufzeit."}
-          </p>
+          {!cancelScheduled ? (
+            <p className="text-[11px] text-[var(--fg-muted)]">
+              Planwechsel gilt sofort, Stripe verrechnet die Differenz.
+              Kündigung erst zum Ende der bezahlten Laufzeit.
+            </p>
+          ) : null}
         </div>
       ) : (
         <p className="mt-3 text-sm text-[var(--fg-muted)]">
