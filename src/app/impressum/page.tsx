@@ -66,11 +66,6 @@ export default function ImpressumPage() {
             Kontakt
           </h2>
           <p className="mt-3 text-sm leading-relaxed">
-            Telefon:{" "}
-            <a className="underline decoration-[var(--line)] underline-offset-4" href="tel:+4917631256822">
-              +49 176 31256822
-            </a>
-            <br />
             E-Mail:{" "}
             <a
               className="underline decoration-[var(--line)] underline-offset-4"
