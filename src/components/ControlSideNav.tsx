@@ -106,7 +106,7 @@ export function ControlSideNav({
       </nav>
 
       <div className="mt-auto space-y-1 border-t border-[var(--line)] pt-4">
-        <Link
+        <a
           href="/control/settings"
           className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
             section === "settings"
@@ -117,7 +117,7 @@ export function ControlSideNav({
         >
           <GearIcon />
           Einstellungen
-        </Link>
+        </a>
         <Link
           href="/control/account"
           className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${

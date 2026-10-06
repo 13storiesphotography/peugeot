@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -678,7 +677,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             </button>
           </div>
         </div>
-        <Link
+        {/* Native <a>: Next Link can fail on iOS/PWA for this settings jump. */}
+        <a
           href="/control/settings"
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] lg:hidden"
           aria-label="Einstellungen"
@@ -706,7 +706,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               strokeWidth="1.75"
             />
           </svg>
-        </Link>
+        </a>
       </header>
 
       {bundle.connection.needsReconnect ? (
@@ -716,12 +716,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </p>
           <p className="mt-1 text-[var(--fg-muted)]">
             Keine neuen Fahrzeugdaten, bis du dich erneut verbindest.{" "}
-            <Link
+            <a
               href="/control/settings"
               className="text-[var(--accent-bright)] underline-offset-2 hover:underline"
             >
               Zu den Einstellungen
-            </Link>
+            </a>
           </p>
         </div>
       ) : null}

@@ -1,4 +1,4 @@
-import { signOut } from "@/app/actions/auth";
+import { SignOutButton } from "@/components/SignOutButton";
 
 /** Escape hatch when the user realizes they signed in as the wrong account. */
 export function MfaSwitchAccount({ email }: { email: string | null | undefined }) {
@@ -9,14 +9,9 @@ export function MfaSwitchAccount({ email }: { email: string | null | undefined }
           Angemeldet als <span className="text-[var(--fg)]">{email}</span>
         </p>
       ) : null}
-      <form action={signOut}>
-        <button
-          type="submit"
-          className="text-sm font-semibold text-[var(--fg-muted)] underline-offset-4 hover:text-[var(--fg)] hover:underline"
-        >
-          Falscher Benutzer? Abmelden und neu anmelden
-        </button>
-      </form>
+      <SignOutButton className="text-sm font-semibold text-[var(--fg-muted)] underline-offset-4 hover:text-[var(--fg)] hover:underline">
+        Falscher Benutzer? Abmelden und neu anmelden
+      </SignOutButton>
     </div>
   );
 }
