@@ -1,13 +1,6 @@
-import {
-  PRO_MONTH_CENTS,
-  PRO_YEAR_CENTS,
-  PRO_YEAR_IF_MONTHLY_CENTS,
-  formatEuroFromCents,
-  yearlySavingsCents,
-} from "@/lib/billing/catalog";
+import { PRO_MONTH_CENTS, formatEuroFromCents } from "@/lib/billing/catalog";
 
 const freeItems = [
-  "Konto anlegen und MyPeugeot verbinden",
   "Live-Status: Batterie, Reichweite, Ladezustand",
   "Standort ansehen",
   "Ladekurve ansehen",
@@ -17,12 +10,10 @@ const proItems = [
   "Alles aus Free",
   "Vorklima starten und stoppen",
   "Entriegeln, Verriegeln, Finden, Hupe",
-  "80%-Ladelimit, das wirklich stoppt",
+  "80%-Ladelimit",
 ];
 
 export function PricingSection() {
-  const yearPerMonth = Math.round(PRO_YEAR_CENTS / 12);
-
   return (
     <section
       id="preise"
@@ -46,7 +37,6 @@ export function PricingSection() {
             <p className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold">
               0 €
             </p>
-            <p className="mt-1 text-sm text-[var(--fg-muted)]">Nur ansehen</p>
             <ul className="mt-6 space-y-2 text-sm text-[var(--fg-muted)]">
               {freeItems.map((item) => (
                 <li key={item}>· {item}</li>
@@ -61,25 +51,13 @@ export function PricingSection() {
           </article>
 
           <article className="panel rounded-2xl p-6 ring-1 ring-[var(--accent-bright)]/35">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-[var(--accent-bright)]">
-                Pro
-              </p>
-              <span className="rounded-full bg-[var(--accent-bright)]/15 px-3 py-1 text-xs font-semibold text-[var(--accent-bright)]">
-                {formatEuroFromCents(yearlySavingsCents())} sparen im Jahr
-              </span>
-            </div>
+            <p className="text-sm font-semibold text-[var(--accent-bright)]">
+              Pro
+            </p>
             <p className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold">
-              {formatEuroFromCents(PRO_YEAR_CENTS)}
+              {formatEuroFromCents(PRO_MONTH_CENTS)}
             </p>
-            <p className="mt-1 text-sm text-[var(--fg-muted)]">
-              pro Jahr · {formatEuroFromCents(yearPerMonth)} / Monat
-            </p>
-            <p className="mt-2 text-sm text-[var(--fg-muted)]">
-              Monatlich {formatEuroFromCents(PRO_MONTH_CENTS)} — wären{" "}
-              {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)} im Jahr. Jährlich
-              zahlen lohnt sich.
-            </p>
+            <p className="mt-1 text-sm text-[var(--fg-muted)]">/ Monat</p>
             <ul className="mt-6 space-y-2 text-sm text-[var(--fg)]">
               {proItems.map((item) => (
                 <li key={item}>· {item}</li>
@@ -91,9 +69,6 @@ export function PricingSection() {
             >
               Pro holen
             </a>
-            <p className="mt-3 text-xs text-[var(--fg-muted)]">
-              Nach der Anmeldung Jahr oder Monat unter Einstellungen wählen.
-            </p>
           </article>
         </div>
       </div>
