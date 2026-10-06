@@ -623,7 +623,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       />
       <ControlBottomNav tab={tab} onChange={selectTab} />
 
-      <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6 lg:ml-[15.5rem] lg:max-w-none lg:px-10 lg:pb-12 lg:pt-8 xl:px-12">
+      <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6 lg:ml-[15.5rem] lg:w-[calc(100%-15.5rem)] lg:max-w-none lg:px-10 lg:pb-12 lg:pt-8 xl:px-12">
       <header className="animate-rise flex items-start justify-between gap-3 py-3 lg:items-end lg:pb-5">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[var(--accent-bright)] lg:hidden">
@@ -769,47 +769,45 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             </div>
           ) : null}
 
-          <div className="min-w-0 space-y-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(14rem,16.5rem)] lg:items-stretch lg:gap-0 lg:space-y-0 lg:overflow-hidden lg:rounded-[1.5rem] lg:border lg:border-[var(--line)] lg:bg-[rgba(14,28,40,0.4)]">
-            <section className="min-w-0 space-y-5 lg:border-r lg:border-[var(--line)] lg:bg-[radial-gradient(ellipse_at_50%_18%,rgba(95,227,192,0.12),transparent_55%)] lg:px-8 lg:py-8">
-              <VehicleHero vehicle={vehicle} />
-              <ChargeCompleteBanner
-                vehicle={vehicle}
-                onOpenCharge={() => selectTab("charge")}
-              />
-              <ChargeLiveStrip vehicle={vehicle} />
-            </section>
-            <aside className="min-w-0 space-y-4 lg:flex lg:flex-col lg:space-y-0 lg:p-5">
-              <div className="min-w-0">
-                <p className="eyebrow hidden lg:block">Schnellaktionen</p>
-                <div className="lg:mt-3">
-                  <QuickActions
-                    locked={vehicle.locked}
-                    climateOn={climateOn || climateJob?.action === "start"}
-                    busy={climateBusy}
-                    remoteReady={bundle.connection.remoteReady}
-                    remoteSignalsOk={bundle.connection.remoteSignalsOk}
-                    isPro={bundle.isPro}
-                    onCommand={(command) => void runCommand(command)}
-                    onOpenClimate={() => selectTab("climate")}
+          <DesktopPanel className="space-y-6 lg:space-y-7">
+            <VehicleHero vehicle={vehicle} />
+            <ChargeCompleteBanner
+              vehicle={vehicle}
+              onOpenCharge={() => selectTab("charge")}
+            />
+            <ChargeLiveStrip vehicle={vehicle} />
+
+            <div>
+              <p className="eyebrow hidden lg:block">Schnellaktionen</p>
+              <div className="mt-3 lg:mt-4">
+                <QuickActions
+                  locked={vehicle.locked}
+                  climateOn={climateOn || climateJob?.action === "start"}
+                  busy={climateBusy}
+                  remoteReady={bundle.connection.remoteReady}
+                  remoteSignalsOk={bundle.connection.remoteSignalsOk}
+                  isPro={bundle.isPro}
+                  onCommand={(command) => void runCommand(command)}
+                  onOpenClimate={() => selectTab("climate")}
+                />
+              </div>
+              {climateJobView ? (
+                <div className="mt-4">
+                  <ClimateProgressBanner
+                    action={climateJobView.action}
+                    progress={climateJobView.progress}
+                    phaseLabel={climateJobView.phaseLabel}
+                    detail={climateJobView.detail}
                   />
                 </div>
-                {climateJobView ? (
-                  <div className="mt-4">
-                    <ClimateProgressBanner
-                      action={climateJobView.action}
-                      progress={climateJobView.progress}
-                      phaseLabel={climateJobView.phaseLabel}
-                      detail={climateJobView.detail}
-                    />
-                  </div>
-                ) : null}
-              </div>
-              <div className="min-w-0 space-y-4 lg:mt-auto lg:border-t lg:border-[var(--line)] lg:pt-5">
-                <LocationLink location={vehicle.location} />
-                <ActivityLog items={bundle.activity.slice(0, 3)} />
-              </div>
-            </aside>
-          </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-4 border-t border-[var(--line)] pt-5">
+              <LocationLink location={vehicle.location} />
+              <ActivityLog items={bundle.activity.slice(0, 3)} />
+            </div>
+          </DesktopPanel>
         </div>
       ) : null}
 

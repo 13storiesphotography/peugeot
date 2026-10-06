@@ -35,9 +35,9 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
   if (climateOn) statusParts.push("Vorklima an");
 
   return (
-    <div className="relative mx-auto w-full max-w-md overflow-hidden lg:mx-0 lg:max-w-none">
+    <div className="relative mx-auto w-full max-w-md overflow-hidden lg:max-w-xl">
       <div
-        className="pointer-events-none absolute inset-x-8 top-6 h-40 rounded-full opacity-70 lg:inset-x-[12%] lg:top-8 lg:h-48"
+        className="pointer-events-none absolute inset-x-8 top-6 h-40 rounded-full opacity-70 lg:inset-x-12 lg:top-10 lg:h-56"
         style={{
           background: `radial-gradient(ellipse at center, ${halo}, transparent 70%)`,
           animation: charging
@@ -48,7 +48,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         }}
       />
 
-      <div className="relative mx-auto w-full max-w-sm overflow-hidden lg:max-w-lg">
+      <div className="relative mx-auto w-full max-w-sm overflow-hidden lg:max-w-md">
         {vehicle.pictureUrl ? (
           // Official Peugeot 3D asset (includes correct paint).
           // eslint-disable-next-line @next/next/no-img-element
@@ -164,43 +164,16 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         ) : null}
       </div>
 
-      <div className="relative z-[2] -mt-1 px-1 lg:mx-auto lg:mt-2 lg:max-w-lg lg:px-2">
-        <div className="flex items-end justify-between gap-4 lg:gap-8">
-          <div>
-            <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tracking-tight tabular-nums leading-none">
-              {Math.round(vehicle.batteryPercent)}
-              <span className="text-2xl" style={{ color: accent }}>
-                %
-              </span>
-            </p>
-            <p className="mt-2.5 text-sm text-[var(--fg-muted)] lg:mt-2">
-              {statusParts.map((part, i) => (
-                <span key={part}>
-                  {i > 0 ? " · " : null}
-                  {part === "Lädt" ? (
-                    <span
-                      className="font-semibold"
-                      style={{
-                        color:
-                          speed === "quick"
-                            ? "var(--warn)"
-                            : "var(--accent-bright)",
-                      }}
-                    >
-                      Lädt
-                      {vehicle.chargePowerKw != null
-                        ? ` ${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
-                        : ""}
-                    </span>
-                  ) : (
-                    part
-                  )}
-                </span>
-              ))}
-            </p>
-          </div>
-          <div className="pb-0.5 text-right">
-            <p className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums leading-none lg:text-2xl">
+      <div className="relative z-[2] -mt-1 px-1 lg:mx-auto lg:max-w-sm">
+        <div className="flex items-end justify-between gap-4 lg:gap-10">
+          <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tracking-tight tabular-nums leading-none">
+            {Math.round(vehicle.batteryPercent)}
+            <span className="text-2xl" style={{ color: accent }}>
+              %
+            </span>
+          </p>
+          <div className="pb-1 text-right">
+            <p className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums leading-none">
               {vehicle.rangeKm}
               <span className="ml-1 text-sm font-medium text-[var(--fg-muted)]">
                 km
@@ -211,6 +184,31 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
             </p>
           </div>
         </div>
+        <p className="mt-2.5 text-sm text-[var(--fg-muted)]">
+          {statusParts.map((part, i) => (
+            <span key={part}>
+              {i > 0 ? " · " : null}
+              {part === "Lädt" ? (
+                <span
+                  className="font-semibold"
+                  style={{
+                    color:
+                      speed === "quick"
+                        ? "var(--warn)"
+                        : "var(--accent-bright)",
+                  }}
+                >
+                  Lädt
+                  {vehicle.chargePowerKw != null
+                    ? ` ${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
+                    : ""}
+                </span>
+              ) : (
+                part
+              )}
+            </span>
+          ))}
+        </p>
       </div>
     </div>
   );

@@ -489,11 +489,13 @@ async function loadVehicleBundle(
 
   if (!isLive) {
     // Keep the demo car consistent for all users, even when older rows were
-    // created with the former blue placeholder.
+    // created with the former blue placeholder / missing Peugeot render.
+    const demo = createDefaultVehicleState();
     vehicle = {
       ...vehicle,
-      color: "Perla Nera Black",
-      colorHex: "#111418",
+      color: demo.color,
+      colorHex: demo.colorHex,
+      pictureUrl: vehicle.pictureUrl || demo.pictureUrl,
     };
   }
 
