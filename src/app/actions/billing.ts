@@ -124,12 +124,6 @@ async function createCheckoutSession(input: {
       individual: { enabled: true, optional: false },
       business: { enabled: true, optional: true },
     },
-    custom_text: {
-      submit: {
-        message:
-          "Du erhältst die Rechnung per E-Mail von Stripe (PDF mit Adresse und MwSt.).",
-      },
-    },
     success_url: `${origin}/control/settings?pro_session={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/control/settings?pro=cancel`,
     metadata: {
