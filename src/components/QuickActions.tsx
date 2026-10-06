@@ -89,7 +89,7 @@ export function QuickActions({
 
   return (
     <div
-      className={`mx-auto grid w-full max-w-sm gap-3 ${
+      className={`mx-auto grid w-full max-w-sm gap-3 lg:max-w-none ${
         actions.length === 2 ? "grid-cols-2" : "grid-cols-3"
       }`}
     >

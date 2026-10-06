@@ -604,13 +604,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const climateBusy = busy || Boolean(climateJob);
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6">
-      <header className="animate-rise flex items-start justify-between gap-3 py-3">
+    <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6 lg:max-w-5xl lg:pb-10 xl:max-w-6xl">
+      <header className="animate-rise flex items-start justify-between gap-3 py-3 lg:py-5">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[var(--accent-bright)]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[var(--accent-bright)] lg:text-xs">
             Peugeot
           </p>
-          <h1 className="mt-1 truncate font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight">
+          <h1 className="mt-1 truncate font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight lg:text-3xl">
             {vehicle.nickname}
           </h1>
           <div className="mt-1.5 flex items-center gap-2">
@@ -688,6 +688,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         </Link>
       </header>
 
+      <ControlBottomNav tab={tab} onChange={selectTab} />
+
       {bundle.connection.needsReconnect ? (
         <div className="ui-alert mb-3" role="alert">
           <p className="font-semibold text-[var(--danger)]">
@@ -746,72 +748,82 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "home" ? (
-        <div className="animate-rise-delay-1 space-y-6 pt-2">
-          <VehicleHero vehicle={vehicle} />
-          <ChargeCompleteBanner
-            vehicle={vehicle}
-            onOpenCharge={() => selectTab("charge")}
-          />
-          <ChargeLiveStrip vehicle={vehicle} />
-          <QuickActions
-            locked={vehicle.locked}
-            climateOn={climateOn || climateJob?.action === "start"}
-            busy={climateBusy}
-            remoteReady={bundle.connection.remoteReady}
-            remoteSignalsOk={bundle.connection.remoteSignalsOk}
-            isPro={bundle.isPro}
-            onCommand={(command) => void runCommand(command)}
-            onOpenClimate={() => selectTab("climate")}
-          />
-          {climateJobView ? (
-            <ClimateProgressBanner
-              action={climateJobView.action}
-              progress={climateJobView.progress}
-              phaseLabel={climateJobView.phaseLabel}
-              detail={climateJobView.detail}
+        <div className="animate-rise-delay-1 space-y-6 pt-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0 xl:gap-10">
+          <div className="space-y-6">
+            <VehicleHero vehicle={vehicle} />
+            <ChargeCompleteBanner
+              vehicle={vehicle}
+              onOpenCharge={() => selectTab("charge")}
             />
-          ) : null}
-          <LocationLink location={vehicle.location} />
-          <ActivityLog items={bundle.activity.slice(0, 3)} />
+            <ChargeLiveStrip vehicle={vehicle} />
+          </div>
+          <div className="space-y-6 lg:pt-2">
+            <QuickActions
+              locked={vehicle.locked}
+              climateOn={climateOn || climateJob?.action === "start"}
+              busy={climateBusy}
+              remoteReady={bundle.connection.remoteReady}
+              remoteSignalsOk={bundle.connection.remoteSignalsOk}
+              isPro={bundle.isPro}
+              onCommand={(command) => void runCommand(command)}
+              onOpenClimate={() => selectTab("climate")}
+            />
+            {climateJobView ? (
+              <ClimateProgressBanner
+                action={climateJobView.action}
+                progress={climateJobView.progress}
+                phaseLabel={climateJobView.phaseLabel}
+                detail={climateJobView.detail}
+              />
+            ) : null}
+            <LocationLink location={vehicle.location} />
+            <ActivityLog items={bundle.activity.slice(0, 3)} />
+          </div>
         </div>
       ) : null}
 
       {tab === "climate" ? (
-        <ClimatePanel
-          vehicle={vehicle}
-          busy={climateBusy}
-          remoteReady={bundle.connection.remoteReady}
-          climateJob={climateJobView}
-          isPro={bundle.isPro}
-          onCommand={(command) => void runCommand(command)}
-        />
+        <div className="lg:mx-auto lg:w-full lg:max-w-2xl">
+          <ClimatePanel
+            vehicle={vehicle}
+            busy={climateBusy}
+            remoteReady={bundle.connection.remoteReady}
+            climateJob={climateJobView}
+            isPro={bundle.isPro}
+            onCommand={(command) => void runCommand(command)}
+          />
+        </div>
       ) : null}
 
       {tab === "charge" ? (
-        <ChargePanel
-          vehicle={vehicle}
-          busy={busy}
-          chargeCurve={bundle.chargeCurve}
-          isPro={bundle.isPro}
-          onCommand={(command, opts) => void runCommand(command, opts)}
-        />
+        <div className="lg:mx-auto lg:w-full lg:max-w-3xl">
+          <ChargePanel
+            vehicle={vehicle}
+            busy={busy}
+            chargeCurve={bundle.chargeCurve}
+            isPro={bundle.isPro}
+            onCommand={(command, opts) => void runCommand(command, opts)}
+          />
+        </div>
       ) : null}
 
       {tab === "controls" ? (
-        <ControlsPanel
-          vehicle={vehicle}
-          busy={busy}
-          remoteReady={bundle.connection.remoteReady}
-          remoteSignalsOk={bundle.connection.remoteSignalsOk}
-          isPro={bundle.isPro}
-          onCommand={(command) => void runCommand(command)}
-        />
+        <div className="lg:mx-auto lg:w-full lg:max-w-2xl">
+          <ControlsPanel
+            vehicle={vehicle}
+            busy={busy}
+            remoteReady={bundle.connection.remoteReady}
+            remoteSignalsOk={bundle.connection.remoteSignalsOk}
+            isPro={bundle.isPro}
+            onCommand={(command) => void runCommand(command)}
+          />
+        </div>
       ) : null}
 
       {toast ? (
         <div
           role="status"
-          className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4"
+          className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 lg:bottom-8"
         >
           <p
             className="max-w-sm rounded-full border px-4 py-2.5 text-center text-sm shadow-lg"
@@ -875,8 +887,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </div>
         </div>
       ) : null}
-
-      <ControlBottomNav tab={tab} onChange={selectTab} />
     </div>
   );
 }

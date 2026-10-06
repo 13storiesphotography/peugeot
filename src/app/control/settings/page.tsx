@@ -122,7 +122,7 @@ export default async function SettingsPage({
 
   return (
     <main className="min-h-dvh pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto w-full max-w-lg px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6">
+      <div className="mx-auto w-full max-w-lg px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 lg:max-w-5xl">
         <header className="animate-rise flex items-center justify-between gap-3">
           <Link
             href="/control"
@@ -239,15 +239,17 @@ export default async function SettingsPage({
           </div>
         </section>
 
-        <div className="mt-6 space-y-4">
-          <ProUpgradeCard
-            entitlement={entitlement}
-            subscription={subscription}
-            stripeReady={isStripeConfigured()}
-            stripeTestMode={isStripeTestMode()}
-            stripeSetupError={stripeConfigError() ?? undefined}
-            notice={checkoutNotice}
-          />
+        <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+          <div className="lg:col-span-2">
+            <ProUpgradeCard
+              entitlement={entitlement}
+              subscription={subscription}
+              stripeReady={isStripeConfigured()}
+              stripeTestMode={isStripeTestMode()}
+              stripeSetupError={stripeConfigError() ?? undefined}
+              notice={checkoutNotice}
+            />
+          </div>
 
           <section className="animate-rise-delay-2 ui-surface p-4 sm:p-5">
             <PeugeotConnectForm

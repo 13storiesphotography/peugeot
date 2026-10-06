@@ -102,15 +102,10 @@ export function ControlBottomNav({
 }) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)]"
-      style={{
-        background: "rgba(7, 16, 24, 0.88)",
-        backdropFilter: "blur(18px)",
-        paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
-      }}
+      className="control-nav fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[rgba(7,16,24,0.88)] pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-[18px] lg:static lg:z-auto lg:mb-6 lg:rounded-2xl lg:border lg:border-[var(--line)] lg:bg-white/[0.03] lg:pb-0 lg:backdrop-blur-none"
       aria-label="Hauptnavigation"
     >
-      <div className="mx-auto flex max-w-lg items-stretch justify-between px-2 pt-1">
+      <div className="mx-auto flex max-w-lg items-stretch justify-between px-2 pt-1 sm:max-w-xl lg:max-w-none lg:justify-center lg:gap-1 lg:px-3 lg:py-2">
         {TABS.map((item) => {
           const active = tab === item.id;
           return (
@@ -118,10 +113,11 @@ export function ControlBottomNav({
               key={item.id}
               type="button"
               onClick={() => onChange(item.id)}
-              className="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition"
-              style={{
-                color: active ? "var(--accent-bright)" : "var(--fg-muted)",
-              }}
+              className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition lg:flex-none lg:flex-row lg:gap-2 lg:rounded-xl lg:px-4 lg:py-2.5 lg:text-xs lg:normal-case lg:tracking-normal ${
+                active
+                  ? "text-[var(--accent-bright)] lg:bg-[rgba(95,227,192,0.1)]"
+                  : "text-[var(--fg-muted)]"
+              }`}
               aria-current={active ? "page" : undefined}
             >
               {item.icon(active)}
