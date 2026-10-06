@@ -22,7 +22,7 @@ export default async function ControlPage() {
   return (
     <main className="min-h-dvh">
       {graceDaysLeft > 0 ? <MfaGraceBanner daysLeft={graceDaysLeft} /> : null}
-      <VehicleDashboard initial={bundle} />
+      <VehicleDashboard initial={bundle} accountEmail={session.email} />
     </main>
   );
 }

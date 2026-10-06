@@ -104,7 +104,14 @@ function readTab(): ControlTab {
   return "home";
 }
 
-export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
+export function VehicleDashboard({
+  initial,
+  accountEmail,
+}: {
+  initial: VehicleBundle;
+  /** App login email — shown on Demo banner so the wrong account is obvious. */
+  accountEmail?: string | null;
+}) {
   const [bundle, setBundle] = useState(initial);
   const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(
     null,
@@ -125,6 +132,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const climatePollTimer = useRef<number | null>(null);
   const climateJobRef = useRef<ClimateJob | null>(null);
   const lastVehicleRef = useRef(initial.vehicle);
+  const vehicleIdRef = useRef(initial.vehicleId);
   const prevChargeStatus = useRef(initial.vehicle.chargeStatus);
 
   useEffect(() => {
@@ -133,7 +141,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
   useEffect(() => {
     lastVehicleRef.current = bundle.vehicle;
-  }, [bundle.vehicle]);
+    vehicleIdRef.current = bundle.vehicleId;
+  }, [bundle.vehicle, bundle.vehicleId]);
 
   useEffect(() => {
     setTab(readTab());
@@ -247,7 +256,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         if (!res.ok) {
           if (!navigator.onLine) {
             setOffline(true);
-            const cached = loadVehicleBundleCache();
+            const cached = loadVehicleBundleCache(vehicleIdRef.current);
             if (cached) {
               startTransition(() => setBundle(cached.bundle));
             }
@@ -338,7 +347,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         return patched;
       } catch {
         setOffline(true);
-        const cached = loadVehicleBundleCache();
+        const cached = loadVehicleBundleCache(vehicleIdRef.current);
         if (cached) {
           startTransition(() => setBundle(cached.bundle));
         }
@@ -757,6 +766,15 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               Beispieldaten — kein echtes Fahrzeug verbunden. Verbinde MyPeugeot,
               um dein Fahrzeug live zu sehen und zu steuern.
             </p>
+            {accountEmail ? (
+              <p className="mt-1.5 text-xs text-[var(--fg-muted)]">
+                Angemeldet als{" "}
+                <span className="font-medium text-[var(--fg)]">
+                  {accountEmail}
+                </span>
+                . MyPeugeot gilt nur für dieses Konto.
+              </p>
+            ) : null}
           </div>
           <Link
             href="/control/settings"
