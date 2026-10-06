@@ -104,8 +104,22 @@ export default async function SettingsPage({
 
   const remoteTone = connection.remoteReady ? "ok" : "off";
   const remoteLabel = connection.remoteReady ? "Freigeschaltet" : "Nicht eingerichtet";
-  const proTone = entitlement.isPro ? "ok" : "off";
-  const proLabel = entitlement.isPro ? "Aktiv" : "Free";
+  const proTone = !entitlement.isPro
+    ? "off"
+    : subscription?.cancelAtPeriodEnd
+      ? "warn"
+      : "ok";
+  const proLabel = !entitlement.isPro
+    ? "Free"
+    : subscription?.cancelAtPeriodEnd
+      ? subscription.periodEnd
+        ? `Gekündigt · bis ${new Intl.DateTimeFormat("de-DE", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          }).format(new Date(subscription.periodEnd))}`
+        : "Gekündigt zum Periodenende"
+      : "Aktiv";
 
   return (
     <main className="min-h-dvh pb-[max(1.5rem,env(safe-area-inset-bottom))]">

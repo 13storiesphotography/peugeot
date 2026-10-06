@@ -21,6 +21,8 @@ export type CheckoutState = {
   success?: string;
   /** External Stripe URL — client must hard-navigate (soft redirect breaks). */
   redirectUrl?: string;
+  /** After cancel/resume — drives the Pro card without waiting for a full reload. */
+  cancelAtPeriodEnd?: boolean;
 };
 
 function stripeActionError(error: unknown, fallback: string): CheckoutState {
@@ -360,6 +362,7 @@ export async function cancelSubscriptionAtPeriodEnd(
     });
     const until = subscriptionPeriodEndIso(loaded.sub);
     return {
+      cancelAtPeriodEnd: true,
       success: until
         ? `Gekündigt. Pro bleibt bis ${new Intl.DateTimeFormat("de-DE", {
             day: "numeric",
@@ -383,7 +386,10 @@ export async function resumeSubscription(
     await getStripe().subscriptions.update(loaded.sub.id, {
       cancel_at_period_end: false,
     });
-    return { success: "Kündigung zurückgenommen. Das Abo läuft weiter." };
+    return {
+      cancelAtPeriodEnd: false,
+      success: "Kündigung zurückgenommen. Das Abo läuft weiter.",
+    };
   } catch (error) {
     return stripeActionError(error, "Wiederaufnahme fehlgeschlagen.");
   }
