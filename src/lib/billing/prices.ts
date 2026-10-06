@@ -1,6 +1,7 @@
 import type { BillingInterval } from "@/lib/billing/catalog";
 import { amountForInterval } from "@/lib/billing/catalog";
 import { getStripe } from "@/lib/billing/stripe";
+import type Stripe from "stripe";
 
 const LOOKUP: Record<BillingInterval, string> = {
   month: "peugeot_control_pro_month",
@@ -40,6 +41,20 @@ async function productIdFromPrice(
   return typeof price.product === "string" ? price.product : price.product.id;
 }
 
+/** Catalog amounts are brutto (VAT included). */
+function isCatalogGrossPrice(
+  price: Stripe.Price,
+  interval: BillingInterval,
+): boolean {
+  return (
+    price.active === true &&
+    price.currency === "eur" &&
+    price.unit_amount === amountForInterval(interval) &&
+    price.tax_behavior === "inclusive" &&
+    price.recurring?.interval === interval
+  );
+}
+
 async function getOrCreateProductId(): Promise<string> {
   const stripe = getStripe();
   for (const interval of ["year", "month"] as const) {
@@ -64,35 +79,22 @@ async function getOrCreateProductId(): Promise<string> {
   return product.id;
 }
 
-export async function getProPriceId(interval: BillingInterval): Promise<string> {
+async function createInclusivePrice(
+  interval: BillingInterval,
+  productId: string,
+): Promise<string> {
   const stripe = getStripe();
-  const fromEnv = process.env[ENV_PRICE_KEYS[interval]]?.trim();
-  if (fromEnv) {
-    const price = await stripe.prices.retrieve(fromEnv);
-    await ensureProductInvoiceFields(await productIdFromPrice(price));
-    return fromEnv;
-  }
-
   const lookup = LOOKUP[interval];
-  const listed = await stripe.prices.list({
-    lookup_keys: [lookup],
-    active: true,
-    limit: 1,
-  });
-  if (listed.data[0]) {
-    await ensureProductInvoiceFields(await productIdFromPrice(listed.data[0]));
-    return listed.data[0].id;
-  }
-
-  const productId = await getOrCreateProductId();
   try {
     const price = await stripe.prices.create({
       product: productId,
       currency: "eur",
       unit_amount: amountForInterval(interval),
+      tax_behavior: "inclusive",
       recurring: { interval },
       lookup_key: lookup,
       transfer_lookup_key: true,
+      metadata: { app: "peugeot-control", tax: "inclusive" },
     });
     return price.id;
   } catch (error) {
@@ -102,10 +104,55 @@ export async function getProPriceId(interval: BillingInterval): Promise<string> 
       active: true,
       limit: 1,
     });
-    if (again.data[0]) {
+    if (again.data[0] && isCatalogGrossPrice(again.data[0], interval)) {
       await ensureProductInvoiceFields(await productIdFromPrice(again.data[0]));
       return again.data[0].id;
     }
     throw error;
   }
+}
+
+export async function getProPriceId(interval: BillingInterval): Promise<string> {
+  const stripe = getStripe();
+  const fromEnv = process.env[ENV_PRICE_KEYS[interval]]?.trim();
+  if (fromEnv) {
+    const price = await stripe.prices.retrieve(fromEnv);
+    if (isCatalogGrossPrice(price, interval)) {
+      await ensureProductInvoiceFields(await productIdFromPrice(price));
+      return fromEnv;
+    }
+    // Env still points at an exclusive/legacy price — ignore and recreate.
+    console.warn(
+      `billing: ${ENV_PRICE_KEYS[interval]} is not tax-inclusive catalog price; creating replacement`,
+    );
+  }
+
+  const lookup = LOOKUP[interval];
+  const listed = await stripe.prices.list({
+    lookup_keys: [lookup],
+    active: true,
+    limit: 1,
+  });
+  const existing = listed.data[0];
+  if (existing && isCatalogGrossPrice(existing, interval)) {
+    await ensureProductInvoiceFields(await productIdFromPrice(existing));
+    return existing.id;
+  }
+
+  const productId = existing
+    ? await productIdFromPrice(existing)
+    : await getOrCreateProductId();
+  await ensureProductInvoiceFields(productId);
+
+  const createdId = await createInclusivePrice(interval, productId);
+
+  if (existing && existing.id !== createdId) {
+    try {
+      await stripe.prices.update(existing.id, { active: false });
+    } catch (error) {
+      console.warn("billing: could not archive legacy price", existing.id, error);
+    }
+  }
+
+  return createdId;
 }
