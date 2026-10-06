@@ -239,15 +239,17 @@ export default async function SettingsPage({
           </div>
         </section>
 
-        <div className="mt-6 space-y-4">
-          <ProUpgradeCard
-            entitlement={entitlement}
-            subscription={subscription}
-            stripeReady={isStripeConfigured()}
-            stripeTestMode={isStripeTestMode()}
-            stripeSetupError={stripeConfigError() ?? undefined}
-            notice={checkoutNotice}
-          />
+        <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0">
+          <div className="lg:col-span-2">
+            <ProUpgradeCard
+              entitlement={entitlement}
+              subscription={subscription}
+              stripeReady={isStripeConfigured()}
+              stripeTestMode={isStripeTestMode()}
+              stripeSetupError={stripeConfigError() ?? undefined}
+              notice={checkoutNotice}
+            />
+          </div>
 
           <section className="animate-rise-delay-2 ui-surface p-4 sm:p-5">
             <PeugeotConnectForm

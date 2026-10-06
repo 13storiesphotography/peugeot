@@ -67,8 +67,35 @@ export function ControlsPanel({
       : undefined,
   });
 
+  const lockAction = () =>
+    isPro
+      ? onCommand(locked ? "unlock" : "lock")
+      : (window.location.href = "/control/settings#pro");
+
+  const actionGrid = (
+    <div
+      className={`grid gap-3 ${
+        actions.length === 1 ? "grid-cols-1" : "grid-cols-3"
+      } ${showSignals ? "lg:contents" : ""}`}
+    >
+      {actions.map((tile) => (
+        <button
+          key={tile.id}
+          type="button"
+          disabled={busy || tile.disabled}
+          title={tile.title}
+          onClick={tile.onClick}
+          className="action-btn ui-surface ui-tile disabled:opacity-55 lg:py-5"
+        >
+          <span className="ui-tile-icon">{tile.icon}</span>
+          <span className="ui-tile-label lg:text-sm">{tile.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <section className="animate-rise space-y-6 pt-2">
+    <section className="animate-rise space-y-6 pt-2 lg:pt-0">
       <SectionHeader
         title="Steuern"
         hint={
@@ -78,80 +105,63 @@ export function ControlsPanel({
               ? "Wecken braucht Fernbedienung"
               : "Schloss und Signale"
         }
+        hideTitleOnDesktop
       />
 
       {!showSignals ? (
-        <div className="rounded-2xl border border-[var(--line)] px-4 py-4 text-sm">
-          <p className="font-semibold">
-            {locked ? "Verriegelt" : "Entriegelt"}
-            <span className="ml-2 text-xs font-normal text-[var(--fg-muted)]">
-              (nur Anzeige)
-            </span>
-          </p>
-          <p className="mt-2 text-xs text-[var(--fg-muted)]">
-            Fern-Entriegeln geht weder in MyPeugeot noch hier — dafür fehlt{" "}
-            <span className="text-[var(--fg)]">Connect PLUS / Remote Control</span>.
-            Vorklima (e-Remote) funktioniert weiter.
-          </p>
-        </div>
+        <>
+          <div className="rounded-2xl border border-[var(--line)] px-4 py-4 text-sm">
+            <p className="font-semibold">
+              {locked ? "Verriegelt" : "Entriegelt"}
+              <span className="ml-2 text-xs font-normal text-[var(--fg-muted)]">
+                (nur Anzeige)
+              </span>
+            </p>
+            <p className="mt-2 text-xs text-[var(--fg-muted)]">
+              Fern-Entriegeln geht weder in MyPeugeot noch hier — dafür fehlt{" "}
+              <span className="text-[var(--fg)]">Connect PLUS / Remote Control</span>.
+              Vorklima (e-Remote) funktioniert weiter.
+            </p>
+          </div>
+          {actionGrid}
+        </>
       ) : (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            isPro
-              ? onCommand(locked ? "unlock" : "lock")
-              : (window.location.href = "/control/settings#pro")
-          }
-          className="action-btn ui-surface flex w-full flex-col items-center gap-3 px-5 py-7"
-          style={{
-            borderColor: locked
-              ? "rgba(95,227,192,0.45)"
-              : "rgba(232,184,109,0.4)",
-            background: locked
-              ? "rgba(95,227,192,0.1)"
-              : "rgba(232,184,109,0.1)",
-          }}
-        >
-          <span
-            className="grid h-14 w-14 place-items-center rounded-full"
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-4">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={lockAction}
+            className="action-btn ui-surface flex w-full flex-col items-center gap-3 px-5 py-7 lg:gap-2.5 lg:px-3 lg:py-5"
             style={{
+              borderColor: locked
+                ? "rgba(95,227,192,0.45)"
+                : "rgba(232,184,109,0.4)",
               background: locked
-                ? "rgba(95,227,192,0.18)"
-                : "rgba(232,184,109,0.18)",
-              color: locked ? "var(--accent-bright)" : "var(--warn)",
+                ? "rgba(95,227,192,0.1)"
+                : "rgba(232,184,109,0.1)",
             }}
           >
-            <IconLock locked={locked} />
-          </span>
-          <span className="font-[family-name:var(--font-display)] text-xl font-semibold">
-            {locked ? "Entriegeln" : "Verriegeln"}
-          </span>
-          <span className="text-xs text-[var(--fg-muted)]">
-            {locked ? "Aktuell verriegelt" : "Aktuell entriegelt"}
-          </span>
-        </button>
-      )}
-
-      <div
-        className={`grid gap-3 ${
-          actions.length === 1 ? "grid-cols-1" : "grid-cols-3"
-        }`}
-      >
-        {actions.map((tile) => (
-          <button
-            key={tile.id}
-            type="button"
-            disabled={busy || tile.disabled}
-            title={tile.title}
-            onClick={tile.onClick}
-            className="action-btn ui-surface ui-tile disabled:opacity-55"
-          >
-            <span className="ui-tile-icon">{tile.icon}</span>
-            <span className="ui-tile-label">{tile.label}</span>
+            <span
+              className="grid h-14 w-14 place-items-center rounded-full lg:h-11 lg:w-11"
+              style={{
+                background: locked
+                  ? "rgba(95,227,192,0.18)"
+                  : "rgba(232,184,109,0.18)",
+                color: locked ? "var(--accent-bright)" : "var(--warn)",
+              }}
+            >
+              <IconLock locked={locked} />
+            </span>
+            <span className="font-[family-name:var(--font-display)] text-xl font-semibold lg:text-sm">
+              {locked ? "Entriegeln" : "Verriegeln"}
+            </span>
+            <span className="text-xs text-[var(--fg-muted)] lg:text-[11px]">
+              {locked ? "Aktuell verriegelt" : "Aktuell entriegelt"}
+            </span>
           </button>
-        ))}
-      </div>
+          {actionGrid}
+        </div>
+      )}
     </section>
   );
 }

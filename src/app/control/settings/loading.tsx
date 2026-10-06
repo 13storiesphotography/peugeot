@@ -1,7 +1,7 @@
 export default function SettingsLoading() {
   return (
     <main className="min-h-dvh">
-      <div className="mx-auto w-full max-w-lg px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 lg:ml-[15.5rem] lg:max-w-3xl lg:px-10 lg:pt-10">
+      <div className="mx-auto w-full max-w-lg px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 lg:ml-[15.5rem] lg:max-w-5xl lg:px-10 lg:pt-10">
         <div className="flex items-center justify-between gap-3">
           <div className="h-10 w-10 animate-pulse rounded-full bg-white/5 lg:hidden" />
           <div className="mx-auto space-y-2 lg:mx-0">
