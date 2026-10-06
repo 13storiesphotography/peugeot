@@ -383,16 +383,9 @@ export async function cancelSubscriptionAtPeriodEnd(
     await getStripe().subscriptions.update(loaded.sub.id, {
       cancel_at_period_end: true,
     });
-    const until = subscriptionPeriodEndIso(loaded.sub);
     return {
       cancelAtPeriodEnd: true,
-      success: until
-        ? `Gekündigt. Pro bleibt bis ${new Intl.DateTimeFormat("de-DE", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          }).format(new Date(until))} aktiv, danach Free.`
-        : "Gekündigt zum Periodenende. Pro bleibt bis dahin aktiv.",
+      success: "Kündigung vorgemerkt.",
     };
   } catch (error) {
     return stripeActionError(error, "Kündigung fehlgeschlagen.");
