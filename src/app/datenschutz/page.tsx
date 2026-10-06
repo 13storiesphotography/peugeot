@@ -27,9 +27,6 @@ export default function DatenschutzPage() {
           <br />
           E-Mail:{" "}
           <a href={mailto(CONTACT.privacy)}>{CONTACT.privacy}</a>
-          <br />
-          Telefon:{" "}
-          <a href="tel:+4917631256822">+49 176 31256822</a>
         </p>
       </LegalSection>
 
