@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   connectPeugeotWithCode,
   connectPeugeotWithPassword,
@@ -10,6 +10,10 @@ import {
 import { buildPeugeotAuthorizeUrl } from "@/lib/stellantis/authorize-url";
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
 import type { PeugeotConnection } from "@/lib/vehicle/repository";
+
+/** Peugeot IdP host — form action points here so iOS/Android password managers
+ *  offer MyPeugeot credentials instead of peugeotcontrol.app. */
+const MYPEUGEOT_PASSWORD_ORIGIN = "https://idpcvs.peugeot.com/";
 
 const initial: ConnectState = {};
 
@@ -68,6 +72,7 @@ export function PeugeotConnectForm({
     connectPeugeotWithPassword,
     initial,
   );
+  const [, startPasswordTransition] = useTransition();
   const [codeState, codeAction, codePending] = useActionState(
     connectPeugeotWithCode,
     initial,
@@ -242,24 +247,43 @@ export function PeugeotConnectForm({
               </select>
             </label>
 
-            <form action={passwordAction} className="grid gap-3">
+            {/* action URL = Peugeot IdP so password managers suggest MyPeugeot,
+                not peugeotcontrol.app. Submit is intercepted → server action. */}
+            <form
+              action={MYPEUGEOT_PASSWORD_ORIGIN}
+              method="post"
+              className="grid gap-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const formData = new FormData(event.currentTarget);
+                startPasswordTransition(() => {
+                  passwordAction(formData);
+                });
+              }}
+            >
               <input type="hidden" name="countryCode" value={countryCode} />
               <label className="block text-sm">
                 <span className="text-[var(--fg-muted)]">MyPeugeot E-Mail</span>
                 <input
-                  name="mypeugeotEmail"
+                  id="mypeugeot-username"
+                  name="username"
                   type="email"
                   required
                   defaultValue={connection.mypeugeotEmail ?? ""}
                   className="mt-1 ui-field"
                   autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  inputMode="email"
                   disabled={passwordPending}
                 />
               </label>
               <label className="block text-sm">
                 <span className="text-[var(--fg-muted)]">Passwort</span>
                 <input
-                  name="mypeugeotPassword"
+                  id="mypeugeot-password"
+                  name="password"
                   type="password"
                   required={!connection.hasPasswordStored}
                   placeholder={
