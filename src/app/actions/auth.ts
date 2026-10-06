@@ -58,6 +58,57 @@ async function redirectAfterAuth(): Promise<never> {
   redirect(mfaBlocksAccess(mfa) ? "/mfa" : "/control");
 }
 
+/** Consume signup/email OTP only on explicit user submit (prefetch-safe). */
+export async function confirmEmailWithToken(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const tokenHash = String(formData.get("token_hash") ?? "").trim();
+  const type = otpType(String(formData.get("type") ?? "email"));
+
+  if (!tokenHash) {
+    return {
+      error:
+        "Bestätigungslink unvollständig. Bitte die Bestätigungsmail erneut senden oder dich anmelden.",
+    };
+  }
+
+  if (type === "recovery") {
+    return {
+      error: "Das ist ein Passwort-Reset-Link. Bitte den Link aus der Reset-Mail öffnen.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp({
+    type,
+    token_hash: tokenHash,
+  });
+
+  if (error) {
+    const msg = (error.message ?? "").toLowerCase();
+    const code = (error.code ?? "").toLowerCase();
+    console.warn("confirmEmailWithToken failed", { code, message: error.message });
+    if (
+      code === "otp_expired" ||
+      msg.includes("expired") ||
+      msg.includes("invalid") ||
+      msg.includes("already")
+    ) {
+      return {
+        error:
+          "Link ungültig oder schon benutzt. Oft hat Outlook den Link schon vorab geprüft — dann einfach anmelden. Sonst Bestätigungsmail erneut senden.",
+      };
+    }
+    return {
+      error:
+        "Bestätigung fehlgeschlagen. Bitte anmelden oder Bestätigungsmail erneut senden.",
+    };
+  }
+
+  return redirectAfterAuth();
+}
+
 export async function signIn(
   _prev: AuthState,
   formData: FormData,
