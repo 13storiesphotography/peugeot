@@ -25,7 +25,6 @@ export function ResetPasswordForm({
   const [accessToken, setAccessToken] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [totp, setTotp] = useState("");
   const [updateState, updateAction, updatePending] = useActionState(
     updatePassword,
     initial,
@@ -192,25 +191,6 @@ export function ResetPasswordForm({
           className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
         />
       </label>
-      {updateState.needsMfa ? (
-        <label className="block">
-          <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            Authenticator-Code
-          </span>
-          <input
-            name="totp"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            required
-            minLength={6}
-            maxLength={6}
-            value={totp}
-            onChange={(event) => setTotp(event.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="123456"
-            className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 text-[var(--fg)] outline-none transition focus:border-[var(--accent-bright)]"
-          />
-        </label>
-      ) : null}
       {updateState.error ? (
         <p role="alert" className="text-sm text-[var(--danger)]">
           {updateState.error}
