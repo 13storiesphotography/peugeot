@@ -744,33 +744,33 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         </div>
       ) : null}
 
-      {vehicle.mode === "demo" ? (
-        <div
-          className="mb-3 rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 lg:mb-5 lg:flex lg:items-center lg:justify-between lg:gap-6 lg:px-5 lg:py-4"
-          role="status"
-        >
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-[var(--accent-bright)]">
-              Demo-Modus
-            </p>
-            <p className="mt-1 text-sm text-[var(--fg-muted)]">
-              Beispieldaten — kein echtes Fahrzeug verbunden. Verbinde MyPeugeot,
-              um dein Fahrzeug live zu sehen und zu steuern.
-            </p>
-          </div>
-          <Link
-            href="/control/settings"
-            className="action-btn mt-3 inline-flex shrink-0 rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--fg)] lg:mt-0"
-          >
-            MyPeugeot verbinden
-          </Link>
-        </div>
-      ) : null}
-
       {tab === "home" ? (
-        <div className="animate-rise-delay-1 space-y-6 pt-2 lg:pt-0">
-          <div className="space-y-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(15.5rem,18rem)] lg:items-stretch lg:space-y-0 lg:overflow-hidden lg:rounded-[1.5rem] lg:border lg:border-[var(--line)] lg:bg-[rgba(14,28,40,0.4)] xl:grid-cols-[minmax(0,1fr)_minmax(16.5rem,19rem)]">
-            <section className="space-y-5 lg:border-r lg:border-[var(--line)] lg:bg-[radial-gradient(ellipse_at_50%_18%,rgba(95,227,192,0.12),transparent_55%)] lg:px-8 lg:py-8 xl:px-10">
+        <div className="animate-rise-delay-1 w-full min-w-0 space-y-3 pt-2 lg:max-w-4xl lg:space-y-5 lg:pt-0">
+          {vehicle.mode === "demo" ? (
+            <div
+              className="rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 lg:flex lg:items-center lg:justify-between lg:gap-6 lg:px-5 lg:py-4"
+              role="status"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--accent-bright)]">
+                  Demo-Modus
+                </p>
+                <p className="mt-1 text-sm text-[var(--fg-muted)]">
+                  Beispieldaten — kein echtes Fahrzeug verbunden. Verbinde
+                  MyPeugeot, um dein Fahrzeug live zu sehen und zu steuern.
+                </p>
+              </div>
+              <Link
+                href="/control/settings"
+                className="action-btn mt-3 inline-flex shrink-0 rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--fg)] lg:mt-0"
+              >
+                MyPeugeot verbinden
+              </Link>
+            </div>
+          ) : null}
+
+          <div className="min-w-0 space-y-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(14rem,16.5rem)] lg:items-stretch lg:gap-0 lg:space-y-0 lg:overflow-hidden lg:rounded-[1.5rem] lg:border lg:border-[var(--line)] lg:bg-[rgba(14,28,40,0.4)]">
+            <section className="min-w-0 space-y-5 lg:border-r lg:border-[var(--line)] lg:bg-[radial-gradient(ellipse_at_50%_18%,rgba(95,227,192,0.12),transparent_55%)] lg:px-8 lg:py-8">
               <VehicleHero vehicle={vehicle} />
               <ChargeCompleteBanner
                 vehicle={vehicle}
@@ -778,8 +778,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               />
               <ChargeLiveStrip vehicle={vehicle} />
             </section>
-            <aside className="space-y-4 lg:flex lg:flex-col lg:space-y-0 lg:p-5">
-              <div>
+            <aside className="min-w-0 space-y-4 lg:flex lg:flex-col lg:space-y-0 lg:p-5">
+              <div className="min-w-0">
                 <p className="eyebrow hidden lg:block">Schnellaktionen</p>
                 <div className="lg:mt-3">
                   <QuickActions
@@ -804,12 +804,35 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
                   </div>
                 ) : null}
               </div>
-              <div className="space-y-4 lg:mt-auto lg:border-t lg:border-[var(--line)] lg:pt-5">
+              <div className="min-w-0 space-y-4 lg:mt-auto lg:border-t lg:border-[var(--line)] lg:pt-5">
                 <LocationLink location={vehicle.location} />
                 <ActivityLog items={bundle.activity.slice(0, 3)} />
               </div>
             </aside>
           </div>
+        </div>
+      ) : null}
+
+      {tab !== "home" && vehicle.mode === "demo" ? (
+        <div
+          className="mb-3 rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 lg:mb-5 lg:flex lg:max-w-4xl lg:items-center lg:justify-between lg:gap-6 lg:px-5 lg:py-4"
+          role="status"
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[var(--accent-bright)]">
+              Demo-Modus
+            </p>
+            <p className="mt-1 text-sm text-[var(--fg-muted)]">
+              Beispieldaten — kein echtes Fahrzeug verbunden. Verbinde MyPeugeot,
+              um dein Fahrzeug live zu sehen und zu steuern.
+            </p>
+          </div>
+          <Link
+            href="/control/settings"
+            className="action-btn mt-3 inline-flex shrink-0 rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--fg)] lg:mt-0"
+          >
+            MyPeugeot verbinden
+          </Link>
         </div>
       ) : null}
 
