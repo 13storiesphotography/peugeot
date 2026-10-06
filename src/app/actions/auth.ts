@@ -17,7 +17,7 @@ import { sendRecoveryWithoutPkce } from "@/lib/auth/send-recovery";
 import { getSiteOrigin } from "@/lib/auth/site-origin";
 import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { notifyNewSignup } from "@/lib/auth/notify-signup";
+import { notifySignupEvent } from "@/lib/auth/notify-signup";
 import { mapSignupError, mapOutboundMailError } from "@/lib/auth/signup-error";
 import { mapPasswordUpdateError } from "@/lib/auth/password-update-error";
 import {
@@ -118,10 +118,22 @@ export async function signUp(
     return { error: "E-Mail und Passwort sind erforderlich." };
   }
   if (password.length < 8) {
-    return { error: "Passwort mindestens 8 Zeichen." };
+    const error = "Passwort mindestens 8 Zeichen.";
+    void notifySignupEvent({
+      kind: "signup_failed",
+      email,
+      detail: error,
+    }).catch((err) => console.warn("signup notify:", err));
+    return { error };
   }
   if (password !== passwordConfirm) {
-    return { error: "Passwörter stimmen nicht überein." };
+    const error = "Passwörter stimmen nicht überein.";
+    void notifySignupEvent({
+      kind: "signup_failed",
+      email,
+      detail: error,
+    }).catch((err) => console.warn("signup notify:", err));
+    return { error };
   }
 
   const supabase = await createClient();
@@ -141,15 +153,27 @@ export async function signUp(
       status: error.status,
       emailRedirectTo,
     });
-    return { error: mapSignupError(error) };
+    const mapped = mapSignupError(error);
+    void notifySignupEvent({
+      kind: "signup_failed",
+      email,
+      detail: mapped,
+    }).catch((err) => console.warn("signup notify:", err));
+    return { error: mapped };
   }
 
   if (data.user?.identities && data.user.identities.length === 0) {
-    return { error: "Diese E-Mail ist bereits registriert — bitte anmelden." };
+    const mapped = "Diese E-Mail ist bereits registriert — bitte anmelden.";
+    void notifySignupEvent({
+      kind: "signup_failed",
+      email,
+      detail: mapped,
+    }).catch((err) => console.warn("signup notify:", err));
+    return { error: mapped };
   }
 
   try {
-    await notifyNewSignup(email);
+    await notifySignupEvent({ kind: "signup", email });
   } catch (err) {
     console.warn("signup notify:", err);
   }

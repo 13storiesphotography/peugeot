@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   requestPasswordReset,
   resendConfirmation,
@@ -12,6 +12,42 @@ import {
 const initial: AuthState = {};
 
 type AuthMode = "login" | "register" | "forgot";
+
+function looksLikeEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function signalAbandoned(email: string) {
+  const normalized = email.trim().toLowerCase();
+  if (!looksLikeEmail(normalized)) return;
+  try {
+    const key = `pc_signup_abandon_${normalized}`;
+    if (sessionStorage.getItem(key) === "1") return;
+    sessionStorage.setItem(key, "1");
+  } catch {
+    // sessionStorage may be blocked
+  }
+
+  const body = JSON.stringify({ type: "abandoned", email: normalized });
+  try {
+    if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+      const blob = new Blob([body], { type: "application/json" });
+      navigator.sendBeacon("/api/signup-signal", blob);
+      return;
+    }
+  } catch {
+    // fall through to fetch
+  }
+
+  void fetch("/api/signup-signal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {
+    // best-effort
+  });
+}
 
 export function AuthForm({
   publicSignup,
@@ -39,6 +75,28 @@ export function AuthForm({
     resendConfirmation,
     initial,
   );
+  const emailRef = useRef<HTMLInputElement>(null);
+  const registerSucceeded = useRef(false);
+
+  useEffect(() => {
+    if (registerState.success || registerState.needsConfirmation) {
+      registerSucceeded.current = true;
+    }
+  }, [registerState.success, registerState.needsConfirmation]);
+
+  useEffect(() => {
+    if (!publicSignup || mode !== "register") return;
+
+    const onLeave = () => {
+      if (registerSucceeded.current) return;
+      const email = emailRef.current?.value ?? "";
+      if (!looksLikeEmail(email)) return;
+      signalAbandoned(email);
+    };
+
+    window.addEventListener("pagehide", onLeave);
+    return () => window.removeEventListener("pagehide", onLeave);
+  }, [mode, publicSignup]);
 
   const pending =
     loginPending || registerPending || forgotPending || resendPending;
@@ -143,6 +201,7 @@ export function AuthForm({
             E-Mail
           </span>
           <input
+            ref={emailRef}
             name="email"
             type="email"
             required
