@@ -20,7 +20,10 @@ export function MfaGraceBanner({ daysLeft }: { daysLeft: number }) {
           MFA noch nicht aktiv. Noch {daysLeft} Tag{daysLeft === 1 ? "" : "e"}{" "}
           Zeit — danach Pflicht.
         </span>{" "}
-        <Link href="/mfa" className="font-semibold text-[var(--accent-bright)]">
+        <Link
+          href="/control/account#mfa"
+          className="font-semibold text-[var(--accent-bright)]"
+        >
           Jetzt einrichten →
         </Link>
       </div>

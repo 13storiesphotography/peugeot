@@ -4,7 +4,6 @@ import { signOut } from "@/app/actions/auth";
 import { confirmCheckoutSession } from "@/app/actions/billing";
 import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
 import { ProUpgradeCard } from "@/components/ProUpgradeCard";
-import { AccountDeleteCard } from "@/components/AccountDeleteCard";
 import { RemotePinForm } from "@/components/RemotePinForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { SyncIntervalForm } from "@/components/SyncIntervalForm";
@@ -160,10 +159,20 @@ export default async function SettingsPage({
           {session.email}
         </p>
 
+        <Link
+          href="/control/account"
+          className="animate-rise-delay-1 mt-4 flex items-center justify-between rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 text-sm font-semibold"
+        >
+          <span>Konto · Passwort & MFA</span>
+          <span className="text-[var(--fg-muted)]" aria-hidden>
+            →
+          </span>
+        </Link>
+
         {isAdminEmail(session.email) ? (
           <Link
             href="/control/stats"
-            className="animate-rise-delay-1 mt-4 flex items-center justify-between rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 text-sm font-semibold"
+            className="animate-rise-delay-1 mt-3 flex items-center justify-between rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 text-sm font-semibold"
           >
             <span>Traffic & Stats</span>
             <span className="text-[var(--fg-muted)]" aria-hidden>
@@ -200,12 +209,19 @@ export default async function SettingsPage({
                 </div>
                 {mfa.status !== "ok" ? (
                   <Link
-                    href="/mfa"
+                    href="/control/account#mfa"
                     className="action-btn btn-primary shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold"
                   >
                     Einrichten
                   </Link>
-                ) : null}
+                ) : (
+                  <Link
+                    href="/control/account#mfa"
+                    className="shrink-0 text-xs font-semibold text-[var(--fg-muted)] underline-offset-4 hover:underline"
+                  >
+                    Verwalten
+                  </Link>
+                )}
               </div>
               {mfa.status === "enroll_optional" ? (
                 <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
@@ -254,8 +270,6 @@ export default async function SettingsPage({
           <section className="animate-rise-delay-3">
             <SettingsForm vehicle={vehicle} />
           </section>
-
-          <AccountDeleteCard />
         </div>
 
         <p className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2 text-center text-xs text-[var(--fg-muted)]">
