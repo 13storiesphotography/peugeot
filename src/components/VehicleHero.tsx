@@ -35,9 +35,9 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
   if (climateOn) statusParts.push("Vorklima an");
 
   return (
-    <div className="relative mx-auto w-full max-w-md overflow-hidden lg:max-w-none">
+    <div className="relative mx-auto w-full max-w-md overflow-hidden lg:max-w-xl">
       <div
-        className="pointer-events-none absolute inset-x-8 top-6 h-40 rounded-full opacity-70 lg:inset-x-16 lg:h-52"
+        className="pointer-events-none absolute inset-x-8 top-6 h-40 rounded-full opacity-70 lg:inset-x-12 lg:top-10 lg:h-56"
         style={{
           background: `radial-gradient(ellipse at center, ${halo}, transparent 70%)`,
           animation: charging
@@ -48,7 +48,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         }}
       />
 
-      <div className="relative mx-auto w-full max-w-sm overflow-hidden lg:max-w-lg">
+      <div className="relative mx-auto w-full max-w-sm overflow-hidden lg:max-w-md">
         {vehicle.pictureUrl ? (
           // Official Peugeot 3D asset (includes correct paint).
           // eslint-disable-next-line @next/next/no-img-element

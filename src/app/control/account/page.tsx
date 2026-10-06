@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions/auth";
 import { AccountDeleteCard } from "@/components/AccountDeleteCard";
+import { ControlPageShell } from "@/components/ControlPageShell";
 import { MfaManageCard } from "@/components/MfaManageCard";
 import { PasswordChangeForm } from "@/components/PasswordChangeForm";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
@@ -44,12 +45,11 @@ export default async function AccountPage() {
           : "Einrichten";
 
   return (
-    <main className="min-h-dvh pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto w-full max-w-lg px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 lg:max-w-3xl">
+    <ControlPageShell section="account">
         <header className="animate-rise flex items-center justify-between gap-3">
           <Link
             href="/control/settings"
-            className="grid h-10 w-10 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)]"
+            className="grid h-10 w-10 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] lg:hidden"
             aria-label="Zurück zu Einstellungen"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -62,9 +62,9 @@ export default async function AccountPage() {
               />
             </svg>
           </Link>
-          <div className="min-w-0 flex-1 text-center">
+          <div className="min-w-0 flex-1 text-center lg:text-left">
             <p className="eyebrow">Peugeot Control</p>
-            <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
+            <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight lg:text-3xl">
               Konto
             </h1>
           </div>
@@ -128,15 +128,13 @@ export default async function AccountPage() {
           </Link>
         </section>
 
-        <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+        <div className="mt-6 space-y-4">
           <PasswordChangeForm />
           <MfaManageCard mfa={mfa} />
-          <div className="lg:col-span-2">
-            <AccountDeleteCard />
-          </div>
+          <AccountDeleteCard />
         </div>
 
-        <p className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2 text-center text-xs text-[var(--fg-muted)]">
+        <p className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2 text-center text-xs text-[var(--fg-muted)] lg:justify-start">
           <Link
             href="/impressum"
             className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--fg)]"
@@ -162,7 +160,6 @@ export default async function AccountPage() {
             Widerruf
           </Link>
         </p>
-      </div>
-    </main>
+    </ControlPageShell>
   );
 }

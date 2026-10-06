@@ -18,6 +18,7 @@ import {
   ControlBottomNav,
   type ControlTab,
 } from "@/components/ControlBottomNav";
+import { ControlSideNav } from "@/components/ControlSideNav";
 import { ControlsPanel } from "@/components/ControlsPanel";
 import { LocationLink } from "@/components/LocationLink";
 import { QuickActions } from "@/components/QuickActions";
@@ -604,17 +605,26 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const climateBusy = busy || Boolean(climateJob);
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6 lg:max-w-5xl lg:pb-10 xl:max-w-6xl">
-      <header className="animate-rise flex items-start justify-between gap-3 py-3 lg:py-5">
+    <div className="relative lg:min-h-dvh">
+      <ControlSideNav
+        tab={tab}
+        onChange={selectTab}
+        section="control"
+        vehicleName={vehicle.nickname}
+      />
+      <ControlBottomNav tab={tab} onChange={selectTab} />
+
+      <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6 lg:ml-[15.5rem] lg:max-w-none lg:px-10 lg:pb-12 lg:pt-8 xl:px-14">
+      <header className="animate-rise flex items-start justify-between gap-3 py-3 lg:items-end lg:pb-6">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[var(--accent-bright)] lg:text-xs">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[var(--accent-bright)] lg:hidden">
             Peugeot
           </p>
-          <h1 className="mt-1 truncate font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight lg:text-3xl">
+          <h1 className="mt-1 truncate font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight lg:mt-0 lg:text-4xl">
             {vehicle.nickname}
           </h1>
-          <div className="mt-1.5 flex items-center gap-2">
-            <p className="min-w-0 text-xs text-[var(--fg-muted)]">
+          <div className="mt-1.5 flex items-center gap-2 lg:mt-2">
+            <p className="min-w-0 text-xs text-[var(--fg-muted)] lg:text-sm">
               Stand {formatAge(vehicle.lastUpdatedAt, nowMs)}
             </p>
             <button
@@ -659,7 +669,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         </div>
         <Link
           href="/control/settings"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)]"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] lg:hidden"
           aria-label="Einstellungen"
           title="Einstellungen"
         >
@@ -687,8 +697,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </svg>
         </Link>
       </header>
-
-      <ControlBottomNav tab={tab} onChange={selectTab} />
 
       {bundle.connection.needsReconnect ? (
         <div className="ui-alert mb-3" role="alert">
@@ -748,42 +756,54 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "home" ? (
-        <div className="animate-rise-delay-1 space-y-6 pt-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0 xl:gap-10">
-          <div className="space-y-6">
+        <div className="animate-rise-delay-1 space-y-6 pt-2 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.8fr)] lg:items-stretch lg:gap-8 lg:space-y-0 lg:pt-0 xl:gap-10">
+          <section className="space-y-5 lg:flex lg:flex-col lg:justify-center lg:rounded-[1.75rem] lg:border lg:border-[var(--line)] lg:bg-[radial-gradient(ellipse_at_50%_20%,rgba(95,227,192,0.12),transparent_55%),rgba(14,28,40,0.35)] lg:px-8 lg:py-10 xl:px-12">
             <VehicleHero vehicle={vehicle} />
             <ChargeCompleteBanner
               vehicle={vehicle}
               onOpenCharge={() => selectTab("charge")}
             />
             <ChargeLiveStrip vehicle={vehicle} />
-          </div>
-          <div className="space-y-6 lg:pt-2">
-            <QuickActions
-              locked={vehicle.locked}
-              climateOn={climateOn || climateJob?.action === "start"}
-              busy={climateBusy}
-              remoteReady={bundle.connection.remoteReady}
-              remoteSignalsOk={bundle.connection.remoteSignalsOk}
-              isPro={bundle.isPro}
-              onCommand={(command) => void runCommand(command)}
-              onOpenClimate={() => selectTab("climate")}
-            />
-            {climateJobView ? (
-              <ClimateProgressBanner
-                action={climateJobView.action}
-                progress={climateJobView.progress}
-                phaseLabel={climateJobView.phaseLabel}
-                detail={climateJobView.detail}
-              />
-            ) : null}
-            <LocationLink location={vehicle.location} />
-            <ActivityLog items={bundle.activity.slice(0, 3)} />
-          </div>
+          </section>
+          <aside className="space-y-4 lg:flex lg:flex-col">
+            <div className="lg:flex-1 lg:rounded-2xl lg:border lg:border-[var(--line)] lg:bg-[rgba(14,28,40,0.45)] lg:p-6">
+              <p className="eyebrow hidden lg:block">Schnellaktionen</p>
+              <h2 className="mt-1 hidden font-[family-name:var(--font-display)] text-xl font-semibold lg:block">
+                Steuern
+              </h2>
+              <div className="lg:mt-5">
+                <QuickActions
+                  locked={vehicle.locked}
+                  climateOn={climateOn || climateJob?.action === "start"}
+                  busy={climateBusy}
+                  remoteReady={bundle.connection.remoteReady}
+                  remoteSignalsOk={bundle.connection.remoteSignalsOk}
+                  isPro={bundle.isPro}
+                  onCommand={(command) => void runCommand(command)}
+                  onOpenClimate={() => selectTab("climate")}
+                />
+              </div>
+              {climateJobView ? (
+                <div className="mt-4">
+                  <ClimateProgressBanner
+                    action={climateJobView.action}
+                    progress={climateJobView.progress}
+                    phaseLabel={climateJobView.phaseLabel}
+                    detail={climateJobView.detail}
+                  />
+                </div>
+              ) : null}
+            </div>
+            <div className="space-y-4 lg:rounded-2xl lg:border lg:border-[var(--line)] lg:bg-[rgba(14,28,40,0.45)] lg:p-5">
+              <LocationLink location={vehicle.location} />
+              <ActivityLog items={bundle.activity.slice(0, 3)} />
+            </div>
+          </aside>
         </div>
       ) : null}
 
       {tab === "climate" ? (
-        <div className="lg:mx-auto lg:w-full lg:max-w-2xl">
+        <div className="lg:max-w-3xl">
           <ClimatePanel
             vehicle={vehicle}
             busy={climateBusy}
@@ -796,7 +816,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "charge" ? (
-        <div className="lg:mx-auto lg:w-full lg:max-w-3xl">
+        <div className="lg:max-w-4xl">
           <ChargePanel
             vehicle={vehicle}
             busy={busy}
@@ -808,7 +828,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "controls" ? (
-        <div className="lg:mx-auto lg:w-full lg:max-w-2xl">
+        <div className="lg:max-w-3xl">
           <ControlsPanel
             vehicle={vehicle}
             busy={busy}
@@ -823,7 +843,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       {toast ? (
         <div
           role="status"
-          className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 lg:bottom-8"
+          className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 lg:bottom-10 lg:left-[15.5rem]"
         >
           <p
             className="max-w-sm rounded-full border px-4 py-2.5 text-center text-sm shadow-lg"
@@ -887,6 +907,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }
