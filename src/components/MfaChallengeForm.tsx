@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export function MfaChallengeForm() {
@@ -8,7 +8,9 @@ export function MfaChallengeForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const verify = async () => {
+  const verify = async (event?: FormEvent) => {
+    event?.preventDefault();
+    if (pending || code.length < 6) return;
     setPending(true);
     setError(null);
     try {
@@ -37,7 +39,10 @@ export function MfaChallengeForm() {
   };
 
   return (
-    <div className="panel w-full max-w-md rounded-[1.75rem] p-6 sm:p-8">
+    <form
+      onSubmit={(e) => void verify(e)}
+      className="panel w-full max-w-md rounded-[1.75rem] p-6 sm:p-8"
+    >
       <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
         MFA-Bestätigung
       </h2>
@@ -50,8 +55,10 @@ export function MfaChallengeForm() {
           6-stelliger Code
         </span>
         <input
+          name="code"
           inputMode="numeric"
           autoComplete="one-time-code"
+          autoFocus
           value={code}
           onChange={(e) => setCode(e.target.value.trim())}
           className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 outline-none focus:border-[var(--accent-bright)]"
@@ -66,10 +73,9 @@ export function MfaChallengeForm() {
       ) : null}
 
       <button
-        type="button"
+        type="submit"
         disabled={pending || code.length < 6}
-        onClick={() => void verify()}
-        className="action-btn mt-5 w-full rounded-full px-5 py-3 text-sm font-semibold"
+        className="action-btn mt-5 w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
         style={{
           background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
           color: "#031016",
@@ -77,6 +83,6 @@ export function MfaChallengeForm() {
       >
         {pending ? "Prüfe…" : "Bestätigen"}
       </button>
-    </div>
+    </form>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export function MfaEnrollForm({
@@ -42,7 +42,9 @@ export function MfaEnrollForm({
     };
   }, []);
 
-  const verify = async () => {
+  const verify = async (event?: FormEvent) => {
+    event?.preventDefault();
+    if (pending || code.length < 6 || !factorId) return;
     setPending(true);
     setError(null);
     try {
@@ -93,38 +95,41 @@ export function MfaEnrollForm({
             </p>
           ) : null}
 
-          <label className="mt-6 block">
-            <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-              6-stelliger Code
-            </span>
-            <input
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value.trim())}
-              className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 outline-none focus:border-[var(--accent-bright)]"
-              placeholder="123456"
-            />
-          </label>
+          <form onSubmit={(e) => void verify(e)}>
+            <label className="mt-6 block">
+              <span className="mb-1.5 block text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
+                6-stelliger Code
+              </span>
+              <input
+                name="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                value={code}
+                onChange={(e) => setCode(e.target.value.trim())}
+                className="w-full rounded-xl border border-[var(--line)] bg-black/25 px-4 py-3 outline-none focus:border-[var(--accent-bright)]"
+                placeholder="123456"
+              />
+            </label>
 
-          {error ? (
-            <p role="alert" className="mt-3 text-sm text-[var(--danger)]">
-              {error}
-            </p>
-          ) : null}
+            {error ? (
+              <p role="alert" className="mt-3 text-sm text-[var(--danger)]">
+                {error}
+              </p>
+            ) : null}
 
-          <button
-            type="button"
-            disabled={pending || code.length < 6}
-            onClick={() => void verify()}
-            className="action-btn mt-5 w-full rounded-full px-5 py-3 text-sm font-semibold"
-            style={{
-              background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-              color: "#031016",
-            }}
-          >
-            {pending ? "Prüfe…" : "MFA aktivieren"}
-          </button>
+            <button
+              type="submit"
+              disabled={pending || code.length < 6}
+              className="action-btn mt-5 w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
+              style={{
+                background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
+                color: "#031016",
+              }}
+            >
+              {pending ? "Prüfe…" : "MFA aktivieren"}
+            </button>
+          </form>
         </>
       )}
     </div>
