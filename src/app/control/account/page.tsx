@@ -78,60 +78,66 @@ export default async function AccountPage() {
           </form>
         </header>
 
-        <section className="animate-rise-delay-1 mt-6 ui-surface p-4 sm:p-5">
-          <p className="eyebrow">Profil</p>
-          <h2 className="mt-1 font-[family-name:var(--font-display)] text-lg font-semibold">
-            E-Mail
-          </h2>
-          <p className="mt-2 break-all text-sm text-[var(--fg)]">
-            {session.email ?? "—"}
-          </p>
-          <p className="mt-2 text-[11px] text-[var(--fg-muted)]">
-            Die Login-Adresse kann hier nicht geändert werden. Bei Bedarf neuen
-            Account anlegen oder Support kontaktieren.
-          </p>
-        </section>
+        <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+          <section className="animate-rise-delay-1 ui-surface p-4 sm:p-5">
+            <p className="eyebrow">Profil</p>
+            <h2 className="mt-1 font-[family-name:var(--font-display)] text-lg font-semibold">
+              E-Mail
+            </h2>
+            <p className="mt-2 break-all text-sm text-[var(--fg)]">
+              {session.email ?? "—"}
+            </p>
+            <p className="mt-2 text-[11px] text-[var(--fg-muted)]">
+              Die Login-Adresse kann hier nicht geändert werden. Bei Bedarf neuen
+              Account anlegen oder Support kontaktieren.
+            </p>
+          </section>
 
-        <section
-          className="animate-rise-delay-1 mt-4 ui-surface divide-y divide-[var(--line)] overflow-hidden"
-          aria-label="Konto-Status"
-        >
-          <div className="flex items-start gap-3 px-4 py-3.5">
-            <StatusDot tone={mfaTone} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Zwei-Faktor</p>
-              <p className="text-xs text-[var(--fg-muted)]">{mfaLabel}</p>
-              {mfa.status === "enroll_optional" ? (
-                <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
-                  Pflicht nach {MFA_GRACE_DAYS} Tagen.
-                </p>
-              ) : null}
+          <section
+            className="animate-rise-delay-1 ui-surface divide-y divide-[var(--line)] overflow-hidden"
+            aria-label="Konto-Status"
+          >
+            <div className="flex items-start gap-3 px-4 py-3.5">
+              <StatusDot tone={mfaTone} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Zwei-Faktor</p>
+                <p className="text-xs text-[var(--fg-muted)]">{mfaLabel}</p>
+                {mfa.status === "enroll_optional" ? (
+                  <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
+                    Pflicht nach {MFA_GRACE_DAYS} Tagen.
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </div>
-          <Link
-            href="/control/settings#pro"
-            className="flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold"
-          >
-            <span>Abo & Zahlung</span>
-            <span className="text-[var(--fg-muted)]" aria-hidden>
-              →
-            </span>
-          </Link>
-          <Link
-            href="/control/settings"
-            className="flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold"
-          >
-            <span>Fahrzeug-Einstellungen</span>
-            <span className="text-[var(--fg-muted)]" aria-hidden>
-              →
-            </span>
-          </Link>
-        </section>
+            <Link
+              href="/control/settings#pro"
+              className="flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold"
+            >
+              <span>Abo & Zahlung</span>
+              <span className="text-[var(--fg-muted)]" aria-hidden>
+                →
+              </span>
+            </Link>
+            <Link
+              href="/control/settings"
+              className="flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold"
+            >
+              <span>Fahrzeug-Einstellungen</span>
+              <span className="text-[var(--fg-muted)]" aria-hidden>
+                →
+              </span>
+            </Link>
+          </section>
+        </div>
 
-        <div className="mt-6 space-y-4">
-          <PasswordChangeForm />
-          <MfaManageCard mfa={mfa} />
-          <AccountDeleteCard />
+        <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
+          <div className="space-y-4">
+            <PasswordChangeForm />
+          </div>
+          <div className="space-y-4">
+            <MfaManageCard mfa={mfa} />
+            <AccountDeleteCard />
+          </div>
         </div>
 
         <p className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2 text-center text-xs text-[var(--fg-muted)] lg:justify-start">

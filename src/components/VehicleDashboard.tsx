@@ -20,6 +20,7 @@ import {
 } from "@/components/ControlBottomNav";
 import { ControlSideNav } from "@/components/ControlSideNav";
 import { ControlsPanel } from "@/components/ControlsPanel";
+import { DesktopPanel } from "@/components/DesktopPanel";
 import { LocationLink } from "@/components/LocationLink";
 import { QuickActions } from "@/components/QuickActions";
 import { VehicleHero } from "@/components/VehicleHero";
@@ -603,6 +604,14 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     ? { action: climateJob.action, ...climatePhase(climateJob, nowMs) }
     : null;
   const climateBusy = busy || Boolean(climateJob);
+  const pageTitle =
+    tab === "home"
+      ? "Übersicht"
+      : tab === "climate"
+        ? "Klima"
+        : tab === "charge"
+          ? "Laden"
+          : "Steuern";
 
   return (
     <div className="relative lg:min-h-dvh">
@@ -614,14 +623,15 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       />
       <ControlBottomNav tab={tab} onChange={selectTab} />
 
-      <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6 lg:ml-[15.5rem] lg:max-w-none lg:px-10 lg:pb-12 lg:pt-8 xl:px-14">
-      <header className="animate-rise flex items-start justify-between gap-3 py-3 lg:items-end lg:pb-6">
+      <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6 lg:ml-[15.5rem] lg:max-w-none lg:px-10 lg:pb-12 lg:pt-8 xl:px-12">
+      <header className="animate-rise flex items-start justify-between gap-3 py-3 lg:items-end lg:pb-5">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[var(--accent-bright)] lg:hidden">
             Peugeot
           </p>
-          <h1 className="mt-1 truncate font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight lg:mt-0 lg:text-4xl">
-            {vehicle.nickname}
+          <h1 className="mt-1 truncate font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight lg:mt-0 lg:text-3xl">
+            <span className="lg:hidden">{vehicle.nickname}</span>
+            <span className="hidden lg:inline">{pageTitle}</span>
           </h1>
           <div className="mt-1.5 flex items-center gap-2 lg:mt-2">
             <p className="min-w-0 text-xs text-[var(--fg-muted)] lg:text-sm">
@@ -736,19 +746,21 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
       {vehicle.mode === "demo" ? (
         <div
-          className="mb-3 rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3"
+          className="mb-3 rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 lg:mb-5 lg:flex lg:max-w-4xl lg:items-center lg:justify-between lg:gap-6 lg:px-5 lg:py-4"
           role="status"
         >
-          <p className="text-sm font-semibold text-[var(--accent-bright)]">
-            Demo-Modus
-          </p>
-          <p className="mt-1 text-sm text-[var(--fg-muted)]">
-            Beispieldaten — kein echtes Fahrzeug verbunden. Verbinde MyPeugeot,
-            um dein Fahrzeug live zu sehen und zu steuern.
-          </p>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[var(--accent-bright)]">
+              Demo-Modus
+            </p>
+            <p className="mt-1 text-sm text-[var(--fg-muted)]">
+              Beispieldaten — kein echtes Fahrzeug verbunden. Verbinde MyPeugeot,
+              um dein Fahrzeug live zu sehen und zu steuern.
+            </p>
+          </div>
           <Link
             href="/control/settings"
-            className="action-btn mt-3 inline-flex rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--fg)]"
+            className="action-btn mt-3 inline-flex shrink-0 rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--fg)] lg:mt-0"
           >
             MyPeugeot verbinden
           </Link>
@@ -756,8 +768,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "home" ? (
-        <div className="animate-rise-delay-1 space-y-6 pt-2 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.8fr)] lg:items-stretch lg:gap-8 lg:space-y-0 lg:pt-0 xl:gap-10">
-          <section className="space-y-5 lg:flex lg:flex-col lg:justify-center lg:rounded-[1.75rem] lg:border lg:border-[var(--line)] lg:bg-[radial-gradient(ellipse_at_50%_20%,rgba(95,227,192,0.12),transparent_55%),rgba(14,28,40,0.35)] lg:px-8 lg:py-10 xl:px-12">
+        <div className="animate-rise-delay-1 space-y-6 pt-2 lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(17.5rem,0.75fr)] lg:items-start lg:gap-6 lg:space-y-0 lg:pt-0 xl:gap-8">
+          <section className="space-y-5 lg:rounded-[1.5rem] lg:border lg:border-[var(--line)] lg:bg-[radial-gradient(ellipse_at_50%_20%,rgba(95,227,192,0.12),transparent_55%),rgba(14,28,40,0.4)] lg:px-8 lg:py-8 xl:px-10">
             <VehicleHero vehicle={vehicle} />
             <ChargeCompleteBanner
               vehicle={vehicle}
@@ -765,13 +777,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             />
             <ChargeLiveStrip vehicle={vehicle} />
           </section>
-          <aside className="space-y-4 lg:flex lg:flex-col">
-            <div className="lg:flex-1 lg:rounded-2xl lg:border lg:border-[var(--line)] lg:bg-[rgba(14,28,40,0.45)] lg:p-6">
+          <aside className="space-y-4">
+            <DesktopPanel className="lg:p-5">
               <p className="eyebrow hidden lg:block">Schnellaktionen</p>
-              <h2 className="mt-1 hidden font-[family-name:var(--font-display)] text-xl font-semibold lg:block">
-                Steuern
-              </h2>
-              <div className="lg:mt-5">
+              <div className="lg:mt-3">
                 <QuickActions
                   locked={vehicle.locked}
                   climateOn={climateOn || climateJob?.action === "start"}
@@ -793,17 +802,17 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
                   />
                 </div>
               ) : null}
-            </div>
-            <div className="space-y-4 lg:rounded-2xl lg:border lg:border-[var(--line)] lg:bg-[rgba(14,28,40,0.45)] lg:p-5">
+            </DesktopPanel>
+            <DesktopPanel className="space-y-4 lg:p-5">
               <LocationLink location={vehicle.location} />
               <ActivityLog items={bundle.activity.slice(0, 3)} />
-            </div>
+            </DesktopPanel>
           </aside>
         </div>
       ) : null}
 
       {tab === "climate" ? (
-        <div className="lg:max-w-3xl">
+        <DesktopPanel className="lg:max-w-4xl">
           <ClimatePanel
             vehicle={vehicle}
             busy={climateBusy}
@@ -812,11 +821,11 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             isPro={bundle.isPro}
             onCommand={(command) => void runCommand(command)}
           />
-        </div>
+        </DesktopPanel>
       ) : null}
 
       {tab === "charge" ? (
-        <div className="lg:max-w-4xl">
+        <DesktopPanel className="lg:max-w-4xl">
           <ChargePanel
             vehicle={vehicle}
             busy={busy}
@@ -824,11 +833,11 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             isPro={bundle.isPro}
             onCommand={(command, opts) => void runCommand(command, opts)}
           />
-        </div>
+        </DesktopPanel>
       ) : null}
 
       {tab === "controls" ? (
-        <div className="lg:max-w-3xl">
+        <DesktopPanel className="lg:max-w-4xl">
           <ControlsPanel
             vehicle={vehicle}
             busy={busy}
@@ -837,7 +846,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             isPro={bundle.isPro}
             onCommand={(command) => void runCommand(command)}
           />
-        </div>
+        </DesktopPanel>
       ) : null}
 
       {toast ? (

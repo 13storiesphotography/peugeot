@@ -48,8 +48,8 @@ export function ClimatePanel({
       : "Fernstart für Vorklima";
 
   return (
-    <section className="animate-rise space-y-6 pt-2">
-      <SectionHeader title="Klima" hint={statusHint} />
+    <section className="animate-rise space-y-6 pt-2 lg:mx-auto lg:max-w-md lg:pt-0">
+      <SectionHeader title="Klima" hint={statusHint} hideTitleOnDesktop />
 
       {climateJob ? (
         <ClimateProgressBanner
@@ -67,21 +67,21 @@ export function ClimatePanel({
       ) : null}
 
       {isPro ? (
-      <button
-        type="button"
-        disabled={busy || pending || !climateRemoteOk}
-        onClick={() => onCommand(active ? "climate_stop" : "climate_start")}
-        className={`action-btn w-full rounded-full px-5 py-4 text-sm font-semibold ${
-          active ? "btn-danger-soft" : "btn-primary"
-        }`}
-        style={{ opacity: climateRemoteOk ? 1 : 0.55 }}
-      >
-        {pending
-          ? "Bitte warten…"
-          : active
-            ? "Vorklima stoppen"
-            : "Vorklima starten"}
-      </button>
+        <button
+          type="button"
+          disabled={busy || pending || !climateRemoteOk}
+          onClick={() => onCommand(active ? "climate_stop" : "climate_start")}
+          className={`action-btn w-full rounded-full px-5 py-4 text-sm font-semibold ${
+            active ? "btn-danger-soft" : "btn-primary"
+          }`}
+          style={{ opacity: climateRemoteOk ? 1 : 0.55 }}
+        >
+          {pending
+            ? "Bitte warten…"
+            : active
+              ? "Vorklima stoppen"
+              : "Vorklima starten"}
+        </button>
       ) : (
         <a
           href="/control/settings#pro"
