@@ -22,6 +22,7 @@ import { ControlSideNav } from "@/components/ControlSideNav";
 import { ControlsPanel } from "@/components/ControlsPanel";
 import { DesktopPanel } from "@/components/DesktopPanel";
 import { LocationLink } from "@/components/LocationLink";
+import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { QuickActions } from "@/components/QuickActions";
 import { VehicleHero } from "@/components/VehicleHero";
 import type { VehicleCommand } from "@/lib/types";
@@ -746,28 +747,15 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
       {tab === "home" ? (
         <div className="animate-rise-delay-1 w-full min-w-0 space-y-3 pt-2 lg:max-w-4xl lg:space-y-5 lg:pt-0">
-          {vehicle.mode === "demo" ? (
-            <div
-              className="rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 lg:flex lg:items-center lg:justify-between lg:gap-6 lg:px-5 lg:py-4"
-              role="status"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--accent-bright)]">
-                  Demo-Modus
-                </p>
-                <p className="mt-1 text-sm text-[var(--fg-muted)]">
-                  Beispieldaten — kein echtes Fahrzeug verbunden. Verbinde
-                  MyPeugeot, um dein Fahrzeug live zu sehen und zu steuern.
-                </p>
-              </div>
-              <Link
-                href="/control/settings"
-                className="action-btn mt-3 inline-flex shrink-0 rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--fg)] lg:mt-0"
-              >
-                MyPeugeot verbinden
-              </Link>
-            </div>
-          ) : null}
+          <OnboardingGuide
+            state={{
+              connected: bundle.connection.connected,
+              needsReconnect: bundle.connection.needsReconnect,
+              remoteReady: bundle.connection.remoteReady,
+              isPro: bundle.isPro,
+              demoMode: vehicle.mode === "demo",
+            }}
+          />
 
           <DesktopPanel className="space-y-6 lg:space-y-7">
             <VehicleHero vehicle={vehicle} />
@@ -811,26 +799,20 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         </div>
       ) : null}
 
-      {tab !== "home" && vehicle.mode === "demo" ? (
-        <div
-          className="mb-3 rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 lg:mb-5 lg:flex lg:max-w-4xl lg:items-center lg:justify-between lg:gap-6 lg:px-5 lg:py-4"
-          role="status"
-        >
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-[var(--accent-bright)]">
-              Demo-Modus
-            </p>
-            <p className="mt-1 text-sm text-[var(--fg-muted)]">
-              Beispieldaten — kein echtes Fahrzeug verbunden. Verbinde MyPeugeot,
-              um dein Fahrzeug live zu sehen und zu steuern.
-            </p>
-          </div>
-          <Link
-            href="/control/settings"
-            className="action-btn mt-3 inline-flex shrink-0 rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--fg)] lg:mt-0"
-          >
-            MyPeugeot verbinden
-          </Link>
+      {tab !== "home" &&
+      (vehicle.mode === "demo" ||
+        !bundle.connection.connected ||
+        bundle.connection.needsReconnect) ? (
+        <div className="mb-3 lg:mb-5 lg:max-w-4xl">
+          <OnboardingGuide
+            state={{
+              connected: bundle.connection.connected,
+              needsReconnect: bundle.connection.needsReconnect,
+              remoteReady: bundle.connection.remoteReady,
+              isPro: bundle.isPro,
+              demoMode: vehicle.mode === "demo",
+            }}
+          />
         </div>
       ) : null}
 

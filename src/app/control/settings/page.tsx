@@ -251,7 +251,10 @@ export default async function SettingsPage({
             />
           </div>
 
-          <section className="animate-rise-delay-2 ui-surface p-4 sm:p-5">
+          <section
+            id="peugeot"
+            className="animate-rise-delay-2 ui-surface scroll-mt-24 p-4 sm:p-5"
+          >
             <PeugeotConnectForm
               connection={connection}
               compact
@@ -261,7 +264,10 @@ export default async function SettingsPage({
             />
           </section>
 
-          <section className="animate-rise-delay-2 ui-surface p-4 sm:p-5">
+          <section
+            id="remote"
+            className="animate-rise-delay-2 ui-surface scroll-mt-24 p-4 sm:p-5"
+          >
             <RemotePinForm ready={connection.remoteReady} />
           </section>
 

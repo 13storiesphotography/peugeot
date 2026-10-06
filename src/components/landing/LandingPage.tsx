@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { AuthForm } from "@/components/AuthForm";
 import { LandingScreens } from "@/components/landing/LandingScreens";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SETUP_STEPS, SITE_FAQS } from "@/lib/seo";
 
 const features = [
   {
@@ -32,39 +34,28 @@ const features = [
 
 const benefits = [
   {
-    title: "Schneller als die Serien-App",
-    body: "Weniger Klicks bis zu Laden, Klima und Fernbedienung — optimiert für den Browser und als PWA.",
+    title: "Kein ständiges Neuanmelden",
+    body: "Einmal angemeldet bleibst du drin — Session bleibt, auch wenn du die Seite später wieder öffnest.",
   },
   {
-    title: "Klare Oberfläche",
-    body: "Große Aktionen, verständliche Status-Texte und ein ruhiges Dark-Design — auch nachts am Ladekabel.",
+    title: "Handy und Browser",
+    body: "Gleicher Zugang am Smartphone, Tablet oder Desktop. Optional als PWA auf dem Homescreen.",
   },
   {
-    title: "Offen für alle Peugeot-Fahrer",
-    body: "Registrieren, MyPeugeot verbinden, Fernbedienung freischalten — kein Einladungscode nötig.",
-  },
-];
-
-const steps = [
-  {
-    n: "1",
-    title: "Konto anlegen",
-    body: "E-Mail und Passwort — kostenlos und in unter einer Minute.",
+    title: "Weniger Tippen",
+    body: "Übersicht, Laden, Klima und Fernbedienung ohne Umwege — große Aktionen, klare Status-Texte.",
   },
   {
-    n: "2",
-    title: "MyPeugeot verbinden",
-    body: "In den Einstellungen mit E-Mail/Passwort oder OAuth — wie in der offiziellen App.",
+    title: "Auch am Desktop",
+    body: "Status und Steuerung auf dem großen Bildschirm — praktisch am Schreibtisch oder vor der Abfahrt.",
   },
   {
-    n: "3",
-    title: "Fernbedienung freischalten",
-    body: "SMS-Code und 4-stellige PIN einmalig hinterlegen (e-Remote / Connect).",
+    title: "Schneller zur Aktion",
+    body: "Vorklima, Entriegeln und Finden sind mit Pro direkt erreichbar — ohne App-Store und ohne Menü-Tiefgang.",
   },
   {
-    n: "4",
-    title: "Loslegen",
-    body: "Übersicht, Laden, Klima und Steuern — auf dem Handy oder Desktop.",
+    title: "Dein Konto, dein Auto",
+    body: "Registrieren, MyPeugeot verbinden, Fernbedienung freischalten — jedes Konto nur das eigene Fahrzeug.",
   },
 ];
 
@@ -103,6 +94,9 @@ export function LandingPage({
           <a href="#preise" className="hover:text-[var(--fg)]">
             Preise
           </a>
+          <Link href="/faq" className="hover:text-[var(--fg)]">
+            FAQ
+          </Link>
           <a href="#start" className="hover:text-[var(--fg)]">
             Anmelden
           </a>
@@ -131,8 +125,8 @@ export function LandingPage({
               <span className="text-[var(--accent-bright)]">Klar gesteuert.</span>
             </h1>
             <p className="mt-5 max-w-lg text-base text-[var(--fg-muted)] sm:text-lg">
-              Laden, Vorklima und Fernbedienung im Browser — übersichtlicher und
-              schneller als die Serien-App. Registriere dich, verbinde dein
+              Laden, Vorklima und Fernbedienung im Browser oder auf dem Handy —
+              ohne ständiges Neuanmelden. Registriere dich, verbinde dein
               MyPeugeot-Konto und steuere dein Auto.
             </p>
             <p className="mt-4 text-sm text-[var(--fg-muted)]">
@@ -207,7 +201,7 @@ export function LandingPage({
             <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
               Warum Peugeot Control?
             </h2>
-            <ul className="mt-10 grid gap-6 lg:grid-cols-3">
+            <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {benefits.map((b) => (
                 <li key={b.title} className="panel rounded-2xl p-6">
                   <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold">
@@ -222,6 +216,39 @@ export function LandingPage({
 
         <PricingSection />
 
+        <section
+          id="faq"
+          className="scroll-mt-20 border-t border-[var(--line)] py-16 sm:py-20"
+        >
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
+              FAQ
+            </p>
+            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
+              Häufige Fragen
+            </h2>
+            <p className="mt-3 max-w-2xl text-[var(--fg-muted)]">
+              Kurz beantwortet — ausführlicher auf der FAQ-Seite.
+            </p>
+            <ul className="mt-10 grid gap-6 lg:grid-cols-2">
+              {SITE_FAQS.slice(0, 4).map((faq) => (
+                <li key={faq.question}>
+                  <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+                    {faq.question}
+                  </h3>
+                  <p className="mt-2 text-sm text-[var(--fg-muted)]">{faq.answer}</p>
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/faq"
+              className="action-btn mt-8 inline-flex rounded-full border border-[var(--line)] px-5 py-2.5 text-sm font-semibold text-[var(--fg)]"
+            >
+              Alle Fragen ansehen
+            </Link>
+          </div>
+        </section>
+
         <section className="border-t border-[var(--line)] bg-black/15 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
@@ -231,13 +258,13 @@ export function LandingPage({
               In vier Schritten startklar
             </h2>
             <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {steps.map((s) => (
-                <li key={s.n} className="ui-surface rounded-2xl p-5">
+              {SETUP_STEPS.map((s, index) => (
+                <li key={s.name} className="ui-surface rounded-2xl p-5">
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent-bright)]/15 text-sm font-bold text-[var(--accent-bright)]">
-                    {s.n}
+                    {index + 1}
                   </span>
-                  <h3 className="mt-3 font-semibold">{s.title}</h3>
-                  <p className="mt-2 text-sm text-[var(--fg-muted)]">{s.body}</p>
+                  <h3 className="mt-3 font-semibold">{s.name}</h3>
+                  <p className="mt-2 text-sm text-[var(--fg-muted)]">{s.text}</p>
                 </li>
               ))}
             </ol>

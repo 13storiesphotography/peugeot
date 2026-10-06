@@ -10,6 +10,12 @@ export function SiteFooter() {
       </p>
       <p className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
         <Link
+          href="/faq"
+          className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--fg)]"
+        >
+          FAQ
+        </Link>
+        <Link
           href="/impressum"
           className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--fg)]"
         >

@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Peugeot Control",
   "short_name": "Peugeot",
-  "description": "Peugeot steuern: Batterie, Laden, Klima, Schloss. Aktuell getestet am E-3008.",
+  "description": "Peugeot steuern im Browser und auf dem Handy: Batterie, Laden, Klima, Schloss — ohne ständiges Neuanmelden. Getestet am E-3008.",
   "start_url": "/control",
   "scope": "/",
   "display": "standalone",
