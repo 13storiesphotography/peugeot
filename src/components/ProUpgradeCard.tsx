@@ -121,8 +121,7 @@ export function ProUpgradeCard({
         </p>
       ) : (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
-          Vorklima, Schloss, Finden und 80%-Limit. Jahr spart{" "}
-          {formatEuroFromCents(yearlySavingsCents())} gegenüber Monat für Monat.
+          Vorklima, Schloss, Finden und 80%-Limit.
         </p>
       )}
 
