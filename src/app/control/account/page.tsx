@@ -45,7 +45,7 @@ export default async function AccountPage() {
 
   return (
     <main className="min-h-dvh pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto w-full max-w-lg px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6">
+      <div className="mx-auto w-full max-w-lg px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 lg:max-w-3xl">
         <header className="animate-rise flex items-center justify-between gap-3">
           <Link
             href="/control/settings"
@@ -128,10 +128,12 @@ export default async function AccountPage() {
           </Link>
         </section>
 
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           <PasswordChangeForm />
           <MfaManageCard mfa={mfa} />
-          <AccountDeleteCard />
+          <div className="lg:col-span-2">
+            <AccountDeleteCard />
+          </div>
         </div>
 
         <p className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2 text-center text-xs text-[var(--fg-muted)]">
