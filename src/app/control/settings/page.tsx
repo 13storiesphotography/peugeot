@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions/auth";
 import { confirmCheckoutSession } from "@/app/actions/billing";
+import { ControlPageShell } from "@/components/ControlPageShell";
 import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
 import { ProUpgradeCard } from "@/components/ProUpgradeCard";
 import { RemotePinForm } from "@/components/RemotePinForm";
@@ -121,12 +122,11 @@ export default async function SettingsPage({
       : "Aktiv";
 
   return (
-    <main className="min-h-dvh pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto w-full max-w-lg px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 lg:max-w-5xl">
+    <ControlPageShell section="settings">
         <header className="animate-rise flex items-center justify-between gap-3">
           <Link
             href="/control"
-            className="grid h-10 w-10 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)]"
+            className="grid h-10 w-10 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] lg:hidden"
             aria-label="Zurück zur Steuerung"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -139,9 +139,9 @@ export default async function SettingsPage({
               />
             </svg>
           </Link>
-          <div className="min-w-0 flex-1 text-center">
+          <div className="min-w-0 flex-1 text-center lg:text-left">
             <p className="eyebrow">Peugeot Control</p>
-            <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
+            <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight lg:text-3xl">
               Einstellungen
             </h1>
           </div>
@@ -155,7 +155,7 @@ export default async function SettingsPage({
           </form>
         </header>
 
-        <p className="animate-rise-delay-1 mt-3 truncate text-center text-sm text-[var(--fg-muted)]">
+        <p className="animate-rise-delay-1 mt-3 truncate text-center text-sm text-[var(--fg-muted)] lg:text-left">
           {session.email}
         </p>
 
@@ -239,17 +239,15 @@ export default async function SettingsPage({
           </div>
         </section>
 
-        <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
-          <div className="lg:col-span-2">
-            <ProUpgradeCard
-              entitlement={entitlement}
-              subscription={subscription}
-              stripeReady={isStripeConfigured()}
-              stripeTestMode={isStripeTestMode()}
-              stripeSetupError={stripeConfigError() ?? undefined}
-              notice={checkoutNotice}
-            />
-          </div>
+        <div className="mt-6 space-y-4">
+          <ProUpgradeCard
+            entitlement={entitlement}
+            subscription={subscription}
+            stripeReady={isStripeConfigured()}
+            stripeTestMode={isStripeTestMode()}
+            stripeSetupError={stripeConfigError() ?? undefined}
+            notice={checkoutNotice}
+          />
 
           <section className="animate-rise-delay-2 ui-surface p-4 sm:p-5">
             <PeugeotConnectForm
@@ -274,7 +272,7 @@ export default async function SettingsPage({
           </section>
         </div>
 
-        <p className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2 text-center text-xs text-[var(--fg-muted)]">
+        <p className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2 text-center text-xs text-[var(--fg-muted)] lg:justify-start">
           <Link href="/impressum" className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--fg)]">
             Impressum
           </Link>
@@ -288,7 +286,6 @@ export default async function SettingsPage({
             Widerruf
           </Link>
         </p>
-      </div>
-    </main>
+    </ControlPageShell>
   );
 }

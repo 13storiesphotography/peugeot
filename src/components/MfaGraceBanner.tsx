@@ -6,7 +6,7 @@ export function MfaGraceBanner({ daysLeft }: { daysLeft: number }) {
   if (daysLeft <= 0) return null;
   return (
     <div
-      className="mx-auto w-full max-w-5xl px-4 pt-4 sm:px-6 lg:max-w-6xl"
+      className="mx-auto w-full max-w-lg px-4 pt-4 sm:max-w-xl sm:px-6 lg:ml-[15.5rem] lg:max-w-none lg:px-10"
       role="status"
     >
       <div

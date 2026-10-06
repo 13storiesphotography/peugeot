@@ -91,7 +91,7 @@ export function QuickActions({
     <div
       className={`mx-auto grid w-full max-w-sm gap-3 lg:max-w-none ${
         actions.length === 2 ? "grid-cols-2" : "grid-cols-3"
-      }`}
+      } lg:grid-cols-1`}
     >
       {actions.map((action) => (
         <button
@@ -99,7 +99,7 @@ export function QuickActions({
           type="button"
           disabled={busy || (action.id === "wakeup" && !remoteReady)}
           onClick={action.onClick}
-          className={`action-btn ui-surface ui-tile ${
+          className={`action-btn ui-surface ui-tile lg:flex-row lg:justify-start lg:gap-4 lg:px-4 lg:py-3.5 lg:text-left ${
             action.active ? "ui-surface-active" : ""
           }`}
           style={{
@@ -108,7 +108,7 @@ export function QuickActions({
           }}
         >
           <span
-            className="ui-tile-icon"
+            className="ui-tile-icon lg:h-11 lg:w-11"
             style={{
               background: action.active
                 ? "rgba(95,227,192,0.2)"
@@ -118,7 +118,9 @@ export function QuickActions({
           >
             {action.icon}
           </span>
-          <span className="ui-tile-label">{action.label}</span>
+          <span className="ui-tile-label lg:text-sm lg:font-semibold">
+            {action.label}
+          </span>
         </button>
       ))}
     </div>
