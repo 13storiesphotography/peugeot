@@ -812,7 +812,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "climate" ? (
-        <DesktopPanel className="lg:max-w-3xl">
+        <DesktopPanel className="lg:max-w-4xl">
           <ClimatePanel
             vehicle={vehicle}
             busy={climateBusy}
@@ -837,7 +837,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "controls" ? (
-        <DesktopPanel className="lg:max-w-3xl">
+        <DesktopPanel className="lg:max-w-4xl">
           <ControlsPanel
             vehicle={vehicle}
             busy={busy}
