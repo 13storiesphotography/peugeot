@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   cancelSubscriptionAtPeriodEnd,
@@ -83,6 +84,9 @@ export function ProUpgradeCard({
     Boolean(subscription?.cancelAtPeriodEnd),
   );
   const [chooseInterval, setChooseInterval] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptWiderruf, setAcceptWiderruf] = useState(false);
+  const legalOk = acceptTerms && acceptWiderruf;
 
   useEffect(() => {
     setCancelScheduled(Boolean(subscription?.cancelAtPeriodEnd));
@@ -213,35 +217,111 @@ export function ProUpgradeCard({
             </>
           ) : (
             <>
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <label className="flex items-start gap-2 text-left text-[12px] leading-snug text-[var(--fg-muted)]">
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Ich akzeptiere die{" "}
+                    <Link
+                      href="/agb"
+                      target="_blank"
+                      className="underline decoration-[var(--line)] underline-offset-2 hover:text-[var(--fg)]"
+                    >
+                      AGB
+                    </Link>
+                    .
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-left text-[12px] leading-snug text-[var(--fg-muted)]">
+                  <input
+                    type="checkbox"
+                    checked={acceptWiderruf}
+                    onChange={(e) => setAcceptWiderruf(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Ich habe die{" "}
+                    <Link
+                      href="/widerruf"
+                      target="_blank"
+                      className="underline decoration-[var(--line)] underline-offset-2 hover:text-[var(--fg)]"
+                    >
+                      Widerrufsbelehrung
+                    </Link>{" "}
+                    zur Kenntnis genommen.
+                  </span>
+                </label>
+
                 <form action={checkoutAction}>
                   <input type="hidden" name="interval" value="year" />
+                  <input
+                    type="hidden"
+                    name="accept_terms"
+                    value={acceptTerms ? "1" : "0"}
+                  />
+                  <input
+                    type="hidden"
+                    name="accept_widerruf"
+                    value={acceptWiderruf ? "1" : "0"}
+                  />
                   <button
                     type="submit"
-                    disabled={pending || !stripeReady || Boolean(stripeSetupError)}
+                    disabled={
+                      pending ||
+                      !stripeReady ||
+                      Boolean(stripeSetupError) ||
+                      !legalOk
+                    }
                     className="action-btn btn-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
                   >
                     {checkoutPending || checkoutState.redirectUrl
                       ? "Weiter zur Zahlung…"
-                      : `Jahr · ${formatEuroFromCents(PRO_YEAR_CENTS)}`}
+                      : `Jahr · ${formatEuroFromCents(PRO_YEAR_CENTS)} inkl. MwSt.`}
                   </button>
                 </form>
                 <form action={checkoutAction}>
                   <input type="hidden" name="interval" value="month" />
+                  <input
+                    type="hidden"
+                    name="accept_terms"
+                    value={acceptTerms ? "1" : "0"}
+                  />
+                  <input
+                    type="hidden"
+                    name="accept_widerruf"
+                    value={acceptWiderruf ? "1" : "0"}
+                  />
                   <button
                     type="submit"
-                    disabled={pending || !stripeReady || Boolean(stripeSetupError)}
+                    disabled={
+                      pending ||
+                      !stripeReady ||
+                      Boolean(stripeSetupError) ||
+                      !legalOk
+                    }
                     className="action-btn w-full rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold disabled:opacity-50"
                   >
                     {checkoutPending || checkoutState.redirectUrl
                       ? "Weiter zur Zahlung…"
-                      : `Monat · ${formatEuroFromCents(PRO_MONTH_CENTS)}`}
+                      : `Monat · ${formatEuroFromCents(PRO_MONTH_CENTS)} inkl. MwSt.`}
                   </button>
                 </form>
+                {!legalOk ? (
+                  <p className="text-center text-[11px] text-[var(--fg-muted)]">
+                    Bitte AGB und Widerrufsbelehrung bestätigen, um zur Zahlung
+                    zu gehen.
+                  </p>
+                ) : null}
                 <p className="text-center text-[11px] text-[var(--fg-muted)]">
-                  12x monatlich = {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)}{" "}
-                  pro Jahr · jährlich {formatEuroFromCents(PRO_YEAR_CENTS)} · du
-                  sparst {formatEuroFromCents(yearlySavingsCents())}
+                  Preise inkl. MwSt. · 12× monatlich ={" "}
+                  {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)} pro Jahr ·
+                  jährlich {formatEuroFromCents(PRO_YEAR_CENTS)} · du sparst{" "}
+                  {formatEuroFromCents(yearlySavingsCents())}
                 </p>
                 <p className="text-center text-[11px] text-[var(--fg-muted)]">
                   Nach der Zahlung schickt Stripe die Rechnung als PDF per
@@ -252,7 +332,11 @@ export function ProUpgradeCard({
 
               <button
                 type="button"
-                onClick={() => setChooseInterval(false)}
+                onClick={() => {
+                  setChooseInterval(false);
+                  setAcceptTerms(false);
+                  setAcceptWiderruf(false);
+                }}
                 disabled={pending}
                 className="mx-auto block text-sm font-semibold text-[var(--fg-muted)] underline-offset-4 hover:underline"
               >

@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Syne } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
 import { AuthRecoveryRedirect } from "@/components/AuthRecoveryRedirect";
+import { CookieConsent } from "@/components/CookieConsent";
+import { OptionalAnalytics } from "@/components/OptionalAnalytics";
 import { PwaRegister } from "@/components/PwaRegister";
 import { AuthUrlSession } from "@/components/AuthUrlSession";
 import { TrafficBeacon } from "@/components/TrafficBeacon";
@@ -69,8 +70,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AuthRecoveryRedirect />
         <AuthUrlSession />
         <PwaRegister />
+        <CookieConsent />
         <TrafficBeacon />
-        <Analytics />
+        <OptionalAnalytics />
       </body>
     </html>
   );

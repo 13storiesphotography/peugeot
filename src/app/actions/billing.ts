@@ -126,6 +126,11 @@ async function createCheckoutSession(input: {
       individual: { enabled: true, optional: false },
       business: { enabled: true, optional: true },
     },
+    // Requires Terms of Service URL in the Stripe Dashboard Customer Portal /
+    // Branding settings. Retried without this if Stripe rejects.
+    consent_collection: {
+      terms_of_service: "required",
+    },
     success_url: `${origin}/control/settings?pro_session={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/control/settings?pro=cancel`,
     metadata: {
@@ -185,6 +190,16 @@ async function createCheckoutSession(input: {
       await stripe.products.update(productId, { tax_code: PRO_TAX_CODE });
       return await stripe.checkout.sessions.create(params);
     }
+    // Dashboard missing public ToS URL — proceed without Stripe checkbox;
+    // in-app AGB/Widerruf checkboxes remain required.
+    if (
+      /terms of service|tos.*url|consent_collection|business.?profile/i.test(
+        message,
+      )
+    ) {
+      delete params.consent_collection;
+      return await stripe.checkout.sessions.create(params);
+    }
     throw error;
   }
 }
@@ -240,6 +255,14 @@ export async function startCheckout(
   }
 
   const interval = parseBillingInterval(formData.get("interval"));
+  const acceptedTerms = formData.get("accept_terms") === "1";
+  const acceptedWiderruf = formData.get("accept_widerruf") === "1";
+  if (!acceptedTerms || !acceptedWiderruf) {
+    return {
+      error:
+        "Bitte AGB und Widerrufsbelehrung bestätigen, bevor du zur Zahlung gehst.",
+    };
+  }
   const origin = siteOrigin(await headers());
 
   try {

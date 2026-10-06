@@ -258,9 +258,18 @@ export default async function SettingsPage({
           <AccountDeleteCard />
         </div>
 
-        <p className="mt-10 pb-2 text-center text-xs text-[var(--fg-muted)]">
+        <p className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2 text-center text-xs text-[var(--fg-muted)]">
           <Link href="/impressum" className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--fg)]">
             Impressum
+          </Link>
+          <Link href="/datenschutz" className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--fg)]">
+            Datenschutz
+          </Link>
+          <Link href="/agb" className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--fg)]">
+            AGB
+          </Link>
+          <Link href="/widerruf" className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--fg)]">
+            Widerruf
           </Link>
         </p>
       </div>
