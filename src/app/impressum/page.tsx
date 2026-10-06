@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/SiteFooter";
+import { CONTACT, mailto } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Impressum · Peugeot Control",
@@ -71,9 +72,9 @@ export default function ImpressumPage() {
             E-Mail:{" "}
             <a
               className="underline decoration-[var(--line)] underline-offset-4"
-              href="mailto:mail@florianknoll.de"
+              href={mailto(CONTACT.general)}
             >
-              mail@florianknoll.de
+              {CONTACT.general}
             </a>
           </p>
         </section>

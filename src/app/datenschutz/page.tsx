@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalSection, LegalShell } from "@/components/LegalShell";
+import { CONTACT, mailto } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Datenschutz · Peugeot Control",
@@ -23,7 +24,7 @@ export default function DatenschutzPage() {
           Kellerwiese 10, 82327 Tutzing, Deutschland
           <br />
           E-Mail:{" "}
-          <a href="mailto:mail@florianknoll.de">mail@florianknoll.de</a>
+          <a href={mailto(CONTACT.privacy)}>{CONTACT.privacy}</a>
           <br />
           Telefon:{" "}
           <a href="tel:+4917631256822">+49 176 31256822</a>
