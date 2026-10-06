@@ -12,8 +12,8 @@ const tabs: { id: ScreenId; label: string }[] = [
 
 function PhoneFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative mx-auto w-full max-w-[280px]">
-      <div className="absolute -inset-4 rounded-[2.5rem] bg-[var(--accent-bright)]/10 blur-2xl" />
+      <div className="relative mx-auto w-full max-w-[280px]">
+      <div className="absolute -inset-4 battery-glow rounded-[2.5rem] bg-[var(--accent-bright)]/10 blur-2xl" />
       <div className="relative overflow-hidden rounded-[2rem] border border-[var(--line)] bg-[#0a1622] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
         <div className="flex items-center justify-between px-4 py-2 text-[10px] text-[var(--fg-muted)]">
           <span>9:41</span>

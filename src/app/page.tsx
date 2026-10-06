@@ -5,13 +5,13 @@ import { isPublicSignupEnabled } from "@/lib/auth/allowlist";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Peugeot Control — Peugeot im Browser steuern",
+  title: "Peugeot Control — Schneller als die Serien-App",
   description:
-    "Laden, Vorklima und Fernbedienung für Peugeot — klar, schnell und im Browser. Aktuell getestet am E-3008. Registrieren, MyPeugeot verbinden, loslegen.",
+    "Die MyPeugeot-App ist zu langsam. Peugeot Control: Laden, Vorklima und Fernbedienung im Browser — klar und schnell. Getestet am E-3008. Free ansehen, Pro steuern.",
   openGraph: {
-    title: "Peugeot Control",
+    title: "Peugeot Control — Steuer dein Auto ohne App-Frust",
     description:
-      "Dein Peugeot im Browser: Laden, Klima, Fernbedienung — übersichtlicher als die Serien-App. Aktuell getestet am E-3008.",
+      "Laden, Klima, Schloss: schneller als die Serien-App. Im Browser & als PWA. Free zum Zuschauen, Pro zum Steuern.",
     type: "website",
   },
 };

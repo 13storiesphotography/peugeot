@@ -21,9 +21,9 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Peugeot Control · MyPeugeot im Browser",
+  title: "Peugeot Control · Schneller als die Serien-App",
   description:
-    "Klare Fahrzeugsteuerung für Peugeot: Batterie, Laden, Klima und Fernbedienung. Aktuell getestet am E-3008.",
+    "Peugeot steuern ohne App-Frust: Batterie, Laden, Klima und Fernbedienung im Browser. Getestet am E-3008. Free ansehen, Pro steuern.",
   applicationName: "Peugeot Control",
   manifest: "/manifest.webmanifest",
   icons: {
