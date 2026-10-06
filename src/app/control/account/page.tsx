@@ -6,25 +6,8 @@ import { ControlPageShell } from "@/components/ControlPageShell";
 import { MfaManageCard } from "@/components/MfaManageCard";
 import { PasswordChangeForm } from "@/components/PasswordChangeForm";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
-import { MFA_GRACE_DAYS } from "@/lib/auth/mfa-policy";
 
 export const dynamic = "force-dynamic";
-
-function StatusDot({ tone }: { tone: "ok" | "warn" | "off" }) {
-  const color =
-    tone === "ok"
-      ? "var(--accent-bright)"
-      : tone === "warn"
-        ? "var(--warn)"
-        : "var(--fg-muted)";
-  return (
-    <span
-      className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full"
-      style={{ background: color, boxShadow: `0 0 10px ${color}` }}
-      aria-hidden
-    />
-  );
-}
 
 export default async function AccountPage() {
   const session = await assertOwnerSession();
@@ -33,16 +16,6 @@ export default async function AccountPage() {
   }
 
   const mfa = session.mfa;
-  const mfaTone =
-    mfa.status === "ok" ? "ok" : mfa.status === "enroll_optional" ? "warn" : "off";
-  const mfaLabel =
-    mfa.status === "ok"
-      ? "Aktiv"
-      : mfa.status === "enroll_optional"
-        ? `Optional · noch ${mfa.daysLeft} Tag${mfa.daysLeft === 1 ? "" : "e"}`
-        : mfa.status === "challenge"
-          ? "Code bestätigen"
-          : "Einrichten";
 
   return (
     <ControlPageShell section="account">
@@ -71,57 +44,19 @@ export default async function AccountPage() {
           <SignOutButton className="rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--fg-muted)]" />
         </header>
 
-        <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
-          <section className="animate-rise-delay-1 ui-surface p-4 sm:p-5">
-            <p className="eyebrow">Profil</p>
-            <h2 className="mt-1 font-[family-name:var(--font-display)] text-lg font-semibold">
-              E-Mail
-            </h2>
-            <p className="mt-2 break-all text-sm text-[var(--fg)]">
-              {session.email ?? "—"}
-            </p>
-            <p className="mt-2 text-[11px] text-[var(--fg-muted)]">
-              Die Login-Adresse kann hier nicht geändert werden. Bei Bedarf neuen
-              Account anlegen oder Support kontaktieren.
-            </p>
-          </section>
-
-          <section
-            className="animate-rise-delay-1 ui-surface divide-y divide-[var(--line)] overflow-hidden"
-            aria-label="Konto-Status"
-          >
-            <div className="flex items-start gap-3 px-4 py-3.5">
-              <StatusDot tone={mfaTone} />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">Zwei-Faktor</p>
-                <p className="text-xs text-[var(--fg-muted)]">{mfaLabel}</p>
-                {mfa.status === "enroll_optional" ? (
-                  <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
-                    Pflicht nach {MFA_GRACE_DAYS} Tagen.
-                  </p>
-                ) : null}
-              </div>
-            </div>
-            <Link
-              href="/control/settings#pro"
-              className="flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold"
-            >
-              <span>Abo & Zahlung</span>
-              <span className="text-[var(--fg-muted)]" aria-hidden>
-                →
-              </span>
-            </Link>
-            <Link
-              href="/control/settings"
-              className="flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold"
-            >
-              <span>Fahrzeug-Einstellungen</span>
-              <span className="text-[var(--fg-muted)]" aria-hidden>
-                →
-              </span>
-            </Link>
-          </section>
-        </div>
+        <section className="animate-rise-delay-1 mt-6 ui-surface p-4 sm:p-5 lg:max-w-xl">
+          <p className="eyebrow">Profil</p>
+          <h2 className="mt-1 font-[family-name:var(--font-display)] text-lg font-semibold">
+            E-Mail
+          </h2>
+          <p className="mt-2 break-all text-sm text-[var(--fg)]">
+            {session.email ?? "—"}
+          </p>
+          <p className="mt-2 text-[11px] text-[var(--fg-muted)]">
+            Die Login-Adresse kann hier nicht geändert werden. Bei Bedarf neuen
+            Account anlegen oder Support kontaktieren.
+          </p>
+        </section>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
           <div className="space-y-4">
