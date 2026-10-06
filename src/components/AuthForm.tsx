@@ -179,7 +179,9 @@ export function AuthForm({
           role="alert"
           className="mt-4 rounded-xl border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-3 py-2 text-sm text-[var(--danger)]"
         >
-          Bestätigungslink ungültig oder abgelaufen. Bitte anmelden.
+          Bestätigungslink ungültig oder schon benutzt. Bei Outlook / Microsoft
+          365 wird der Link oft vorab geprüft — dann einfach anmelden. Sonst
+          unten Bestätigungsmail erneut senden.
         </p>
       ) : null}
 

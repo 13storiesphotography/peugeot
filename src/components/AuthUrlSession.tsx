@@ -34,6 +34,9 @@ export function AuthUrlSession() {
 
   useEffect(() => {
     if (window.location.pathname.startsWith("/auth/reset")) return;
+    // Signup confirm is click-through — do not auto-verify token_hash on load
+    // (mail scanners / Safe Links would burn the OTP).
+    if (window.location.pathname.startsWith("/auth/confirm")) return;
     const url = new URL(window.location.href);
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     if (

@@ -88,8 +88,8 @@ export async function proxy(request: NextRequest) {
     !isAuthCallback
   ) {
     const type = request.nextUrl.searchParams.get("type");
-    // Password recovery: keep token_hash on /auth/reset and only consume
-    // it when the user submits a new password (email prefetch-safe).
+    // Password recovery + signup confirm: keep token_hash on a page that
+    // only consumes it on explicit user submit (email prefetch-safe).
     if (isResetPage || type === "recovery") {
       if (!isResetPage) {
         const url = request.nextUrl.clone();

@@ -43,8 +43,8 @@ function confirmationUrl(email: AuthEmailData): string {
     token_hash: email.token_hash ?? "",
     type,
   });
-  // Recovery must not hit /auth/confirm on GET — mail scanners would
-  // consume the one-time token before the user opens the form.
+  // Recovery and signup confirm must not verify OTP on GET — mail scanners
+  // (esp. Microsoft 365 Safe Links) would consume the one-time token.
   if (type === "recovery") {
     return `${site}/auth/reset?${params.toString()}`;
   }
