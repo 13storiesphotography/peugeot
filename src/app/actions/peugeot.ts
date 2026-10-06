@@ -105,52 +105,66 @@ async function persistPeugeotConnection(
     .eq("id", bundle.vehicleId)
     .eq("user_id", userId);
 
-  await supabase.from("vehicle_state").upsert({
+  const { error: stateError } = await supabase.from("vehicle_state").upsert({
     vehicle_id: bundle.vehicleId,
     user_id: userId,
     state: liveState,
     updated_at: new Date().toISOString(),
   });
+  if (stateError) {
+    throw new Error(`Fahrzeugstatus speichern fehlgeschlagen: ${stateError.message}`);
+  }
 
   const passwordEnc = input.mypeugeotPassword?.trim()
     ? encryptPeugeotPassword(input.mypeugeotPassword.trim())
     : undefined;
 
-  await supabase.from("peugeot_connections").upsert(
-    {
-      user_id: userId,
-      vehicle_id: bundle.vehicleId,
-      country_code: input.countryCode,
-      mypeugeot_email: input.mypeugeotEmail || null,
-      ...(passwordEnc ? { mypeugeot_password_enc: passwordEnc } : {}),
-      access_token: tokens.accessToken,
-      refresh_token: tokens.refreshToken || null,
-      token_expires_at: tokens.expiresAt,
-      vehicle_api_id: remote.vehicleId,
-      connected: true,
-      last_sync_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      oauth_meta: {
-        vin: details.vin,
-        motorization: details.motorization ?? null,
-        brand: details.brand ?? null,
-        color: details.color ?? null,
-        colorCode: details.pictures?.[0] ? details.pictures[0] : null,
-        pictureUrl: details.pictureUrl ?? null,
-        needsReconnect: false,
-        authError: null,
+  const { error: connectionError } = await supabase
+    .from("peugeot_connections")
+    .upsert(
+      {
+        user_id: userId,
+        vehicle_id: bundle.vehicleId,
+        country_code: input.countryCode,
+        mypeugeot_email: input.mypeugeotEmail || null,
+        ...(passwordEnc ? { mypeugeot_password_enc: passwordEnc } : {}),
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken || null,
+        token_expires_at: tokens.expiresAt,
+        vehicle_api_id: remote.vehicleId,
+        connected: true,
+        last_sync_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        oauth_meta: {
+          vin: details.vin,
+          motorization: details.motorization ?? null,
+          brand: details.brand ?? null,
+          color: details.color ?? null,
+          colorCode: details.pictures?.[0] ? details.pictures[0] : null,
+          pictureUrl: details.pictureUrl ?? null,
+          needsReconnect: false,
+          authError: null,
+        },
       },
-    },
-    { onConflict: "user_id" },
-  );
+      { onConflict: "user_id" },
+    );
+  if (connectionError) {
+    throw new Error(
+      `MyPeugeot-Verbindung speichern fehlgeschlagen: ${connectionError.message}`,
+    );
+  }
 
-  await supabase.from("activity_log").insert({
+  const { error: activityError } = await supabase.from("activity_log").insert({
     user_id: userId,
     vehicle_id: bundle.vehicleId,
     command: "connect",
     message: `MyPeugeot verbunden (${details.vin}${details.color ? ` · ${details.color}` : ""}).`,
     ok: true,
   });
+  if (activityError) {
+    // Connection is already saved — don't fail the whole connect for the log.
+    console.error("activity_log insert failed", activityError.message);
+  }
 
   revalidatePath("/control");
   revalidatePath("/control/settings");
@@ -216,9 +230,28 @@ export async function connectPeugeotWithPassword(
 
   const countryCode = String(formData.get("countryCode") ?? "DE").trim() || "DE";
   const email = String(formData.get("mypeugeotEmail") ?? "").trim();
-  const password = String(formData.get("mypeugeotPassword") ?? "");
+  let password = String(formData.get("mypeugeotPassword") ?? "");
 
-  if (!email || !password) {
+  if (!email) {
+    return { error: "MyPeugeot E-Mail eingeben." };
+  }
+
+  if (!password) {
+    const { data: existing } = await supabase
+      .from("peugeot_connections")
+      .select("mypeugeot_password_enc")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const { decryptPeugeotPassword } = await import(
+      "@/lib/stellantis/credential-vault"
+    );
+    password =
+      decryptPeugeotPassword(
+        String(existing?.mypeugeot_password_enc ?? ""),
+      ) ?? "";
+  }
+
+  if (!password) {
     return { error: "MyPeugeot E-Mail und Passwort eingeben." };
   }
 

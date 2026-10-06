@@ -34,6 +34,8 @@ export type PeugeotConnection = {
   connected: boolean;
   countryCode: string;
   mypeugeotEmail: string | null;
+  /** True when an encrypted MyPeugeot password is stored for silent re-login. */
+  hasPasswordStored: boolean;
   vehicleApiId: string | null;
   hasAccessToken: boolean;
   lastSyncAt: string | null;
@@ -394,7 +396,7 @@ export async function getSettingsBundle(
   const { data: connection } = await supabase
     .from("peugeot_connections")
     .select(
-      "connected, country_code, mypeugeot_email, vehicle_api_id, access_token, last_sync_at, remote_ready, customer_id, sync_interval_sec, oauth_meta",
+      "connected, country_code, mypeugeot_email, mypeugeot_password_enc, vehicle_api_id, access_token, last_sync_at, remote_ready, customer_id, sync_interval_sec, oauth_meta",
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -423,6 +425,7 @@ export async function getSettingsBundle(
       mypeugeotEmail: connection?.mypeugeot_email
         ? String(connection.mypeugeot_email)
         : null,
+      hasPasswordStored: Boolean(connection?.mypeugeot_password_enc),
       vehicleApiId: connection?.vehicle_api_id
         ? String(connection.vehicle_api_id)
         : null,
@@ -634,6 +637,7 @@ async function loadVehicleBundle(
               mypeugeotEmail: connection.mypeugeot_email
                 ? String(connection.mypeugeot_email)
                 : null,
+              hasPasswordStored: Boolean(connection.mypeugeot_password_enc),
               vehicleApiId: connection.vehicle_api_id
                 ? String(connection.vehicle_api_id)
                 : null,
@@ -729,6 +733,7 @@ async function loadVehicleBundle(
       connected: Boolean(connection?.connected),
       countryCode: connection?.country_code ?? "DE",
       mypeugeotEmail: connection?.mypeugeot_email ?? null,
+      hasPasswordStored: Boolean(connection?.mypeugeot_password_enc),
       vehicleApiId: connection?.vehicle_api_id ?? null,
       hasAccessToken: Boolean(connection?.access_token),
       lastSyncAt: connection?.last_sync_at ?? null,
