@@ -2,14 +2,20 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 
 /**
  * Encrypt MyPeugeot password at rest so we can silently re-login when
- * Peugeot invalidates the OAuth refresh token. Key material comes from
- * CRON_SECRET (already required for background jobs).
+ * Peugeot invalidates the OAuth refresh token.
+ *
+ * Prefer PEUGEOT_VAULT_KEY (stable across CRON_SECRET rotations).
+ * Falls back to CRON_SECRET. Never uses a hardcoded default.
  */
 function vaultKey(): Buffer {
   const secret =
     process.env.PEUGEOT_VAULT_KEY?.trim() ||
-    process.env.CRON_SECRET?.trim() ||
-    "4c25a4532d09a09981ba0d466a041fccb1a3e87603adb7f9";
+    process.env.CRON_SECRET?.trim();
+  if (!secret) {
+    throw new Error(
+      "PEUGEOT_VAULT_KEY oder CRON_SECRET fehlt — Passwort-Vault nicht möglich.",
+    );
+  }
   return createHash("sha256").update(`peugeot-vault:${secret}`).digest();
 }
 

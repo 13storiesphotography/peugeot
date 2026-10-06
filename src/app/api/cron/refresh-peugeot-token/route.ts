@@ -1,17 +1,17 @@
-import { createClient } from "@supabase/supabase-js";
 import {
   humanizePeugeotOAuthError,
   isPeugeotAuthFailure,
   refreshAccessToken,
 } from "@/lib/stellantis/api";
 import { healPeugeotSessionWithVault } from "@/lib/stellantis/session-heal";
+import {
+  assertCronRequestAuth,
+  requireCronSecret,
+} from "@/lib/auth/cron-secret";
+import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-
-const CRON_SECRET =
-  process.env.CRON_SECRET ??
-  "4c25a4532d09a09981ba0d466a041fccb1a3e87603adb7f9";
 
 type ConnRow = {
   user_id: string;
@@ -24,13 +24,6 @@ type ConnRow = {
   oauth_meta: Record<string, unknown> | null;
 };
 
-function assertCronAuth(request: Request) {
-  const header = request.headers.get("authorization") ?? "";
-  const bearer = header.startsWith("Bearer ") ? header.slice(7) : "";
-  const custom = request.headers.get("x-cron-secret") ?? "";
-  return bearer === CRON_SECRET || custom === CRON_SECRET;
-}
-
 function asMeta(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -38,20 +31,23 @@ function asMeta(value: unknown): Record<string, unknown> {
 }
 
 async function run(request: Request) {
-  if (!assertCronAuth(request)) {
+  if (!assertCronRequestAuth(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) {
-    return Response.json({ error: "Supabase nicht konfiguriert" }, { status: 500 });
+  const cronSecret = requireCronSecret();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!url || !getServiceRoleKey()) {
+    return Response.json(
+      { error: "Supabase service role nicht konfiguriert" },
+      { status: 500 },
+    );
   }
 
-  const supabase = createClient(url, key);
+  const supabase = createAdminClient();
   const { data, error } = await supabase.rpc(
     "cron_peugeot_connections_for_refresh",
-    { p_secret: CRON_SECRET },
+    { p_secret: cronSecret },
   );
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
@@ -109,7 +105,7 @@ async function run(request: Request) {
       const { data: saved, error: saveError } = await supabase.rpc(
         "cron_save_peugeot_tokens",
         {
-          p_secret: CRON_SECRET,
+          p_secret: cronSecret,
           p_user_id: row.user_id,
           p_access_token: refreshed.accessToken,
           p_refresh_token: refreshed.refreshToken,
@@ -137,7 +133,7 @@ async function run(request: Request) {
           continue;
         }
         await supabase.rpc("cron_mark_peugeot_reconnect", {
-          p_secret: CRON_SECRET,
+          p_secret: cronSecret,
           p_user_id: row.user_id,
           p_auth_error: humanizePeugeotOAuthError(raw),
         });

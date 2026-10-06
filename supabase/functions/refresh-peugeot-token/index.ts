@@ -5,12 +5,19 @@
  * "error reading a body from connection", which can burn rotated refresh
  * tokens. We proxy to the Vercel Node cron that performs the real refresh.
  */
-const CRON_SECRET = "4c25a4532d09a09981ba0d466a041fccb1a3e87603adb7f9";
+const CRON_SECRET = Deno.env.get("CRON_SECRET")?.trim() ?? "";
 const VERCEL_REFRESH_URL =
   Deno.env.get("PEUGEOT_REFRESH_CRON_URL")?.trim() ||
-  "https://e3008-control.vercel.app/api/cron/refresh-peugeot-token";
+  "https://www.peugeotcontrol.app/api/cron/refresh-peugeot-token";
 
 Deno.serve(async (req) => {
+  if (!CRON_SECRET || CRON_SECRET.length < 24) {
+    return new Response(
+      JSON.stringify({ error: "CRON_SECRET not configured" }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   const secret = req.headers.get("x-cron-secret") ?? "";
   if (secret !== CRON_SECRET) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -32,16 +39,13 @@ Deno.serve(async (req) => {
     const text = await upstream.text();
     return new Response(text, {
       status: upstream.status,
-      headers: {
-        "Content-Type":
-          upstream.headers.get("Content-Type") ?? "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return new Response(
-      JSON.stringify({ ok: false, error: message, proxied: true }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 });
