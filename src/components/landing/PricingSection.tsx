@@ -50,7 +50,9 @@ export function PricingSection() {
             <p className="mt-2 font-[family-name:var(--font-display)] text-4xl font-bold">
               {formatEuroFromCents(PRO_MONTH_CENTS)}
             </p>
-            <p className="mt-1 text-sm text-[var(--fg-muted)]">/ Monat</p>
+            <p className="mt-1 text-sm text-[var(--fg-muted)]">
+              / Monat · inkl. MwSt.
+            </p>
             <ul className="mt-6 space-y-2 text-sm text-[var(--fg)]">
               {proItems.map((item) => (
                 <li key={item}>· {item}</li>

@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
+import {
+  COOKIE_CONSENT_EVENT,
+  hasAnalyticsConsent,
+} from "@/lib/cookie-consent";
 
 const VISITOR_KEY = "pc_vid";
 const LAST_PATH_KEY = "pc_last_path";
@@ -30,12 +34,38 @@ function shouldSkip(path: string): boolean {
   return false;
 }
 
-/** Anonymous page-view beacon for the owner traffic dashboard. */
+function subscribe(onStoreChange: () => void) {
+  window.addEventListener(COOKIE_CONSENT_EVENT, onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    window.removeEventListener(COOKIE_CONSENT_EVENT, onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function getSnapshot() {
+  return hasAnalyticsConsent();
+}
+
+function getServerSnapshot() {
+  return false;
+}
+
+/** Anonymous page-view beacon for the owner traffic dashboard — only with consent. */
 export function TrafficBeacon() {
   const pathname = usePathname();
   const lastSent = useRef<string | null>(null);
+  const allowed = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
 
   useEffect(() => {
+    if (!allowed) {
+      lastSent.current = null;
+      return;
+    }
     if (!pathname || shouldSkip(pathname)) return;
     if (lastSent.current === pathname) return;
 
@@ -65,7 +95,7 @@ export function TrafficBeacon() {
     }).catch(() => {
       // best-effort
     });
-  }, [pathname]);
+  }, [pathname, allowed]);
 
   return null;
 }
