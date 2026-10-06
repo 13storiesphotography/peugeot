@@ -229,8 +229,14 @@ export async function connectPeugeotWithPassword(
   const { supabase, userId } = session;
 
   const countryCode = String(formData.get("countryCode") ?? "DE").trim() || "DE";
-  const email = String(formData.get("mypeugeotEmail") ?? "").trim();
-  let password = String(formData.get("mypeugeotPassword") ?? "");
+  // Prefer MyPeugeot field names (username/password) so password managers
+  // match idpcvs.peugeot.com credentials; keep legacy names as fallback.
+  const email = String(
+    formData.get("username") ?? formData.get("mypeugeotEmail") ?? "",
+  ).trim();
+  let password = String(
+    formData.get("password") ?? formData.get("mypeugeotPassword") ?? "",
+  );
 
   if (!email) {
     return { error: "MyPeugeot E-Mail eingeben." };
