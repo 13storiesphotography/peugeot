@@ -2,11 +2,31 @@
 
 import type { ActivityItem } from "@/lib/vehicle/repository";
 
-function formatWhen(iso: string): string {
-  return new Intl.DateTimeFormat("de-DE", {
+function startOfLocalDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+/** Compact de-DE stamp: heute/gestern or day.month — always with time. */
+function formatWhen(iso: string, now = new Date()): string {
+  const at = new Date(iso);
+  const time = new Intl.DateTimeFormat("de-DE", {
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(iso));
+  }).format(at);
+
+  const dayDiff = Math.round(
+    (startOfLocalDay(now) - startOfLocalDay(at)) / 86_400_000,
+  );
+  if (dayDiff === 0) return `heute ${time}`;
+  if (dayDiff === 1) return `gestern ${time}`;
+
+  const date = new Intl.DateTimeFormat("de-DE", {
+    day: "numeric",
+    month: "numeric",
+    ...(at.getFullYear() !== now.getFullYear() ? { year: "numeric" as const } : {}),
+  }).format(at);
+
+  return `${date}, ${time}`;
 }
 
 export function ActivityLog({ items }: { items: ActivityItem[] }) {
@@ -26,6 +46,7 @@ export function ActivityLog({ items }: { items: ActivityItem[] }) {
               className={`shrink-0 tabular-nums text-xs ${
                 item.ok ? "text-[var(--fg-muted)]" : "text-[var(--danger)]"
               }`}
+              title={new Date(item.createdAt).toLocaleString("de-DE")}
             >
               {formatWhen(item.createdAt)}
             </p>
