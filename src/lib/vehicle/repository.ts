@@ -393,13 +393,16 @@ export async function getSettingsBundle(
 ): Promise<SettingsBundle> {
   const { vehicleId, vehicle: base } = await ensureVehicle(supabase, userId);
 
-  const { data: connection } = await supabase
-    .from("peugeot_connections")
-    .select(
-      "connected, country_code, mypeugeot_email, mypeugeot_password_enc, vehicle_api_id, access_token, last_sync_at, remote_ready, customer_id, sync_interval_sec, oauth_meta",
-    )
-    .eq("user_id", userId)
-    .maybeSingle();
+  const [{ data: connection }, entitlement] = await Promise.all([
+    supabase
+      .from("peugeot_connections")
+      .select(
+        "connected, country_code, mypeugeot_email, mypeugeot_password_enc, vehicle_api_id, access_token, last_sync_at, remote_ready, customer_id, sync_interval_sec, oauth_meta",
+      )
+      .eq("user_id", userId)
+      .maybeSingle(),
+    getEntitlement(supabase, userId),
+  ]);
 
   const oauthMeta = asOAuthMeta(connection?.oauth_meta);
   const needsReconnect =
@@ -443,7 +446,7 @@ export async function getSettingsBundle(
       needsReconnect,
       remoteSignalsOk: readRemoteSignalsOk(oauthMeta),
     },
-    entitlement: await getEntitlement(supabase, userId),
+    entitlement,
   };
 }
 

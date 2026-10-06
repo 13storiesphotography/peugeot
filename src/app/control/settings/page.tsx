@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { confirmCheckoutSession } from "@/app/actions/billing";
+import { Suspense } from "react";
+import { confirmCheckoutSession, type CheckoutState } from "@/app/actions/billing";
 import { ControlPageShell } from "@/components/ControlPageShell";
+import { ProCardSkeleton } from "@/components/ControlSkeletons";
 import { SignOutButton } from "@/components/SignOutButton";
 import { PeugeotConnectForm } from "@/components/PeugeotConnectForm";
 import { ProUpgradeCard } from "@/components/ProUpgradeCard";
@@ -10,6 +12,7 @@ import { SettingsForm } from "@/components/SettingsForm";
 import { SyncIntervalForm } from "@/components/SyncIntervalForm";
 import { isAdminEmail } from "@/lib/auth/admin";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
+import type { Entitlement } from "@/lib/billing/entitlement";
 import { isStripeConfigured, isStripeTestMode, stripeConfigError } from "@/lib/billing/stripe";
 import { getSubscriptionSnapshot } from "@/lib/billing/subscription";
 import { getSettingsBundle } from "@/lib/vehicle/repository";
@@ -17,6 +20,40 @@ import { getSettingsBundle } from "@/lib/vehicle/repository";
 export const dynamic = "force-dynamic";
 /** Password auto-login runs headless Chromium — needs a long function window. */
 export const maxDuration = 60;
+
+async function ProBillingSection({
+  entitlement,
+  userId,
+  email,
+  checkoutId,
+  checkoutCanceled,
+}: {
+  entitlement: Entitlement;
+  userId: string;
+  email: string | null;
+  checkoutId?: string;
+  checkoutCanceled: boolean;
+}) {
+  const [checkoutNotice, subscription] = await Promise.all([
+    checkoutId
+      ? confirmCheckoutSession(checkoutId)
+      : Promise.resolve(
+          checkoutCanceled ? ({ error: "Zahlung abgebrochen." } as CheckoutState) : undefined,
+        ),
+    getSubscriptionSnapshot(userId, email),
+  ]);
+
+  return (
+    <ProUpgradeCard
+      entitlement={entitlement}
+      subscription={subscription}
+      stripeReady={isStripeConfigured()}
+      stripeTestMode={isStripeTestMode()}
+      stripeSetupError={stripeConfigError() ?? undefined}
+      notice={checkoutNotice}
+    />
+  );
+}
 
 export default async function SettingsPage({
   searchParams,
@@ -45,19 +82,12 @@ export default async function SettingsPage({
   const checkoutId = Array.isArray(params.pro_session)
     ? params.pro_session[0]
     : params.pro_session;
+  const checkoutCanceled =
+    params.pro === "cancel" ||
+    (Array.isArray(params.pro) && params.pro[0] === "cancel");
 
-  const [checkoutNotice, bundle, subscription] = await Promise.all([
-    checkoutId
-      ? confirmCheckoutSession(checkoutId)
-      : Promise.resolve(
-          params.pro === "cancel" ||
-            (Array.isArray(params.pro) && params.pro[0] === "cancel")
-            ? { error: "Zahlung abgebrochen." as string }
-            : undefined,
-        ),
-    getSettingsBundle(session.supabase, session.userId),
-    getSubscriptionSnapshot(session.userId, session.email),
-  ]);
+  // Fast path: Supabase only — page paints before Stripe billing details.
+  const bundle = await getSettingsBundle(session.supabase, session.userId);
   const mfa = session.mfa;
   const { connection, vehicle, entitlement } = bundle;
 
@@ -125,14 +155,15 @@ export default async function SettingsPage({
 
         <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0">
           <div className="lg:col-span-2">
-            <ProUpgradeCard
-              entitlement={entitlement}
-              subscription={subscription}
-              stripeReady={isStripeConfigured()}
-              stripeTestMode={isStripeTestMode()}
-              stripeSetupError={stripeConfigError() ?? undefined}
-              notice={checkoutNotice}
-            />
+            <Suspense fallback={<ProCardSkeleton />}>
+              <ProBillingSection
+                entitlement={entitlement}
+                userId={session.userId}
+                email={session.email}
+                checkoutId={checkoutId}
+                checkoutCanceled={checkoutCanceled}
+              />
+            </Suspense>
           </div>
 
           <section

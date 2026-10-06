@@ -30,6 +30,7 @@ export function subscriptionInterval(
 export async function resolveStripeCustomerId(
   userId: string,
   email: string | null,
+  options?: { allowEmailLookup?: boolean },
 ): Promise<string | null> {
   if (!isStripeConfigured()) return null;
   try {
@@ -45,7 +46,7 @@ export async function resolveStripeCustomerId(
   } catch (error) {
     console.warn("resolveStripeCustomerId entitlements:", error);
   }
-  if (!email) return null;
+  if (options?.allowEmailLookup === false || !email) return null;
   try {
     const customers = await getStripe().customers.list({ email, limit: 3 });
     return customers.data[0]?.id ?? null;
@@ -74,10 +75,14 @@ export async function getActiveSubscription(
 export async function getSubscriptionSnapshot(
   userId: string,
   email: string | null,
+  options?: { allowEmailLookup?: boolean },
 ): Promise<SubscriptionSnapshot | null> {
   if (!isStripeConfigured()) return null;
   try {
-    const customerId = await resolveStripeCustomerId(userId, email);
+    // Settings page: DB only — skip slow customers.list by email.
+    const customerId = await resolveStripeCustomerId(userId, email, {
+      allowEmailLookup: options?.allowEmailLookup ?? false,
+    });
     if (!customerId) return null;
     const sub = await getActiveSubscription(customerId);
     if (!sub) return null;
