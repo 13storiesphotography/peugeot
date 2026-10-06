@@ -47,17 +47,6 @@ function useIsIos(): boolean {
   return ios;
 }
 
-function useIsMacSafari(): boolean {
-  const [macSafari, setMacSafari] = useState(false);
-  useEffect(() => {
-    const ua = navigator.userAgent;
-    const isMac = /Macintosh|Mac OS X/i.test(ua);
-    const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|Edg|Firefox/i.test(ua);
-    setMacSafari(isMac && isSafari);
-  }, []);
-  return macSafari;
-}
-
 export function PeugeotConnectForm({
   connection,
   compact = false,
@@ -72,7 +61,6 @@ export function PeugeotConnectForm({
   initialOAuthError?: string | null;
 }) {
   const isIos = useIsIos();
-  const isMacSafari = useIsMacSafari();
   const [countryCode, setCountryCode] = useState(
     initialOAuthCountry || connection.countryCode || "DE",
   );
@@ -213,7 +201,7 @@ export function PeugeotConnectForm({
               : connection.connected
                 ? syncLabel
                   ? `Verbunden · letzter Sync ${syncLabel}`
-                  : "Verbunden — Sitzung erneuert sich automatisch."
+                  : "Verbunden."
                 : "Konto verbinden für Status und Fernbedienung."}
           </p>
         </div>
@@ -234,74 +222,11 @@ export function PeugeotConnectForm({
           <p className="font-semibold text-[var(--danger)]">
             Neu anmelden erforderlich
           </p>
-          <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            Mit E-Mail/Passwort verbinden — Sitzung hält sich danach automatisch.
-          </p>
         </div>
       ) : null}
 
       {showForm ? (
         <>
-          <div className="mt-4 rounded-2xl border border-[var(--line)]/80 bg-black/[0.03] p-3 text-xs leading-relaxed text-[var(--fg-muted)]">
-            <p className="font-semibold text-[var(--fg)]">
-              {isIos
-                ? "Am iPhone: mit E-Mail und Passwort verbinden"
-                : isMacSafari
-                  ? "Am Mac mit Safari verbinden"
-                  : "MyPeugeot verbinden"}
-            </p>
-            {isIos ? (
-              <>
-                <p className="mt-1.5">
-                  Safari kann den Peugeot-Code (
-                  <code className="text-[var(--accent-bright)]">mymap://</code>
-                  ) nicht zuverlässig zurückgeben. Deshalb: MyPeugeot E-Mail und
-                  Passwort eingeben — Login läuft serverseitig.
-                </p>
-                <p className="mt-2">
-                  Passwort wird verschlüsselt gespeichert, damit die Sitzung
-                  automatisch erneuert wird (kein erneutes Einloggen alle paar
-                  Stunden). Einmalig an{" "}
-                  <span className="text-[var(--fg)]">stelloauth.tollet.me</span>{" "}
-                  zum Holen des Codes.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="mt-1.5">
-                  Am einfachsten: unten E-Mail und Passwort. Passwort wird
-                  verschlüsselt gespeichert, damit die Anmeldung im Hintergrund
-                  frisch bleibt. Alternativ manuell den{" "}
-                  <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>
-                  -Link einlösen.
-                </p>
-                {isMacSafari ? (
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-[var(--accent-bright)]">
-                      Manuell in Safari (Adresszeile / Web-Inspektor)
-                    </summary>
-                    <ol className="mt-2 list-decimal space-y-1.5 pl-4">
-                      <li>
-                        <strong className="text-[var(--fg)]">Peugeot-Login öffnen</strong>,
-                        einloggen, WEITER.
-                      </li>
-                      <li>
-                        Adresszeile:{" "}
-                        <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
-                        kopieren → unten einlösen.
-                      </li>
-                      <li>
-                        Falls unsichtbar: Entwickler → Web-Inspektor (⌥⌘I) →
-                        Netzwerk → Location-Header mit{" "}
-                        <code className="text-[var(--accent-bright)]">mymap</code>.
-                      </li>
-                    </ol>
-                  </details>
-                ) : null}
-              </>
-            )}
-          </div>
-
           <div className="mt-4 grid gap-3">
             <label className="block text-sm">
               <span className="text-[var(--fg-muted)]">Land</span>
@@ -317,83 +242,75 @@ export function PeugeotConnectForm({
               </select>
             </label>
 
-            <div className="rounded-2xl border border-[var(--line)]/80 bg-black/[0.03] p-3">
-              <p className="text-sm font-semibold text-[var(--fg)]">
-                Mit E-Mail / Passwort
-              </p>
-              <p className="mt-1 text-xs text-[var(--fg-muted)]">
-                Empfohlen. Sitzung erneuert sich danach automatisch.
-              </p>
-              <form action={passwordAction} className="mt-3 grid gap-3">
-                <input type="hidden" name="countryCode" value={countryCode} />
-                <label className="block text-sm">
-                  <span className="text-[var(--fg-muted)]">MyPeugeot E-Mail</span>
-                  <input
-                    name="mypeugeotEmail"
-                    type="email"
-                    required
-                    defaultValue={connection.mypeugeotEmail ?? ""}
-                    className="mt-1 ui-field"
-                    autoComplete="username"
-                    disabled={passwordPending}
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="text-[var(--fg-muted)]">Passwort</span>
-                  <input
-                    name="mypeugeotPassword"
-                    type="password"
-                    required
-                    className="mt-1 ui-field"
-                    autoComplete="current-password"
-                    disabled={passwordPending}
-                  />
-                </label>
-                {passwordPending ? (
-                  <div
-                    className="rounded-2xl border border-[var(--line)] bg-white/[0.04] px-3 py-3"
-                    role="status"
-                    aria-live="polite"
-                    aria-busy="true"
-                  >
-                    <div className="flex items-start gap-3">
-                      <LoginSpinner className="mt-0.5 shrink-0 text-[var(--accent-bright)]" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-[var(--fg)]">
-                          {LOGIN_PHASES[loginPhase]}
-                        </p>
-                        <p className="mt-1 text-xs text-[var(--fg-muted)]">
-                          Seite nicht schließen — oft 20–60 Sekunden. Der Button
-                          hängt nicht, der Login läuft auf dem Server.
-                        </p>
-                        <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/10">
-                          <div
-                            className="h-full rounded-full bg-[var(--accent-bright)] transition-[width] duration-700 ease-out"
-                            style={{
-                              width: `${18 + loginPhase * 22}%`,
-                            }}
-                          />
-                        </div>
+            <form action={passwordAction} className="grid gap-3">
+              <input type="hidden" name="countryCode" value={countryCode} />
+              <label className="block text-sm">
+                <span className="text-[var(--fg-muted)]">MyPeugeot E-Mail</span>
+                <input
+                  name="mypeugeotEmail"
+                  type="email"
+                  required
+                  defaultValue={connection.mypeugeotEmail ?? ""}
+                  className="mt-1 ui-field"
+                  autoComplete="username"
+                  disabled={passwordPending}
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="text-[var(--fg-muted)]">Passwort</span>
+                <input
+                  name="mypeugeotPassword"
+                  type="password"
+                  required
+                  className="mt-1 ui-field"
+                  autoComplete="current-password"
+                  disabled={passwordPending}
+                />
+              </label>
+              {passwordPending ? (
+                <div
+                  className="rounded-2xl border border-[var(--line)] bg-white/[0.04] px-3 py-3"
+                  role="status"
+                  aria-live="polite"
+                  aria-busy="true"
+                >
+                  <div className="flex items-start gap-3">
+                    <LoginSpinner className="mt-0.5 shrink-0 text-[var(--accent-bright)]" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[var(--fg)]">
+                        {LOGIN_PHASES[loginPhase]}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--fg-muted)]">
+                        Seite nicht schließen — oft 20–60 Sekunden. Der Button
+                        hängt nicht, der Login läuft auf dem Server.
+                      </p>
+                      <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-[var(--accent-bright)] transition-[width] duration-700 ease-out"
+                          style={{
+                            width: `${18 + loginPhase * 22}%`,
+                          }}
+                        />
                       </div>
                     </div>
                   </div>
-                ) : null}
-                <button
-                  type="submit"
-                  disabled={pending}
-                  className="action-btn btn-primary inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold disabled:opacity-80"
-                >
-                  {passwordPending ? (
-                    <>
-                      <LoginSpinner />
-                      Melde an…
-                    </>
-                  ) : (
-                    "Verbinden"
-                  )}
-                </button>
-              </form>
-            </div>
+                </div>
+              ) : null}
+              <button
+                type="submit"
+                disabled={pending}
+                className="action-btn btn-primary inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold disabled:opacity-80"
+              >
+                {passwordPending ? (
+                  <>
+                    <LoginSpinner />
+                    Melde an…
+                  </>
+                ) : (
+                  "Verbinden"
+                )}
+              </button>
+            </form>
 
             {!isIos ? (
               <div className="flex flex-wrap gap-2">
