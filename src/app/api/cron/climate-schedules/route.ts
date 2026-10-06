@@ -1,5 +1,4 @@
 // @ts-nocheck — cron uses loosely typed Supabase RPC + service-less client.
-import { createClient } from "@supabase/supabase-js";
 import {
   climateSchedulesToPrograms,
   emptyPrecondPrograms,
@@ -9,13 +8,14 @@ import {
   type PrecondPrograms,
 } from "@/lib/stellantis/remote";
 import type { OtpPersistedState } from "@/lib/stellantis/otp/session";
+import {
+  assertCronRequestAuth,
+  requireCronSecret,
+} from "@/lib/auth/cron-secret";
+import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-
-const CRON_SECRET =
-  process.env.CRON_SECRET ??
-  "4c25a4532d09a09981ba0d466a041fccb1a3e87603adb7f9";
 
 type DueRow = {
   schedule_id: string;
@@ -35,16 +35,6 @@ type DueRow = {
   otp_state: OtpPersistedState | null;
   vehicle_api_id: string | null;
 };
-
-function assertCronAuth(request: Request) {
-  const header = request.headers.get("authorization") ?? "";
-  const bearer = header.startsWith("Bearer ") ? header.slice(7) : "";
-  const custom = request.headers.get("x-cron-secret") ?? "";
-  if (bearer !== CRON_SECRET && custom !== CRON_SECRET) {
-    return false;
-  }
-  return true;
-}
 
 function berlinStamp(d = new Date()) {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -171,7 +161,7 @@ async function fireRow(
   });
 
   await supabase.rpc("cron_mark_climate_fired", {
-    p_secret: CRON_SECRET,
+    p_secret: requireCronSecret(),
     p_schedule_id: row.schedule_id,
     p_fired_key: firedKey,
   });
@@ -195,21 +185,23 @@ export async function POST(request: Request) {
 }
 
 async function run(request: Request) {
-  if (!assertCronAuth(request)) {
+  if (!assertCronRequestAuth(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) {
-    return Response.json({ error: "Supabase nicht konfiguriert" }, { status: 500 });
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || !getServiceRoleKey()) {
+    return Response.json(
+      { error: "Supabase service role nicht konfiguriert" },
+      { status: 500 },
+    );
   }
 
-  const supabase = createClient(url, key) as any;
+  const cronSecret = requireCronSecret();
+  const supabase = createAdminClient() as any;
   const { key: firedKey } = berlinStamp();
 
   const { data, error } = await supabase.rpc("cron_due_climate_schedules", {
-    p_secret: CRON_SECRET,
+    p_secret: cronSecret,
   });
 
   if (error) {
