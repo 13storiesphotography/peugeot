@@ -6,9 +6,15 @@ import { createClient } from "@/lib/supabase/client";
 export function MfaEnrollForm({
   forced,
   onDone,
+  redirectTo = "/control",
+  embedded = false,
 }: {
   forced?: boolean;
   onDone?: () => void;
+  /** Where to go after successful verify (default /control). */
+  redirectTo?: string;
+  /** Compact layout when nested in the account page. */
+  embedded?: boolean;
 }) {
   const [factorId, setFactorId] = useState("");
   const [qr, setQr] = useState("");
@@ -58,7 +64,7 @@ export function MfaEnrollForm({
       });
       if (verified.error) throw verified.error;
       onDone?.();
-      window.location.href = "/control";
+      window.location.href = redirectTo;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Code ungültig.");
     } finally {
@@ -67,15 +73,25 @@ export function MfaEnrollForm({
   };
 
   return (
-    <div className="panel w-full max-w-md rounded-[1.75rem] p-6 sm:p-8">
-      <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
-        Zwei-Faktor-Authentifizierung
-      </h2>
-      <p className="mt-2 text-sm text-[var(--fg-muted)]">
-        {forced
-          ? "Die 7-Tage-Frist ist abgelaufen. MFA ist jetzt Pflicht."
-          : "Richte eine Authenticator-App ein (z. B. 1Password, Authy, Google Authenticator)."}
-      </p>
+    <div className={embedded ? "" : "panel w-full max-w-md rounded-[1.75rem] p-6 sm:p-8"}>
+      {!embedded ? (
+        <>
+          <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
+            Zwei-Faktor-Authentifizierung
+          </h2>
+          <p className="mt-2 text-sm text-[var(--fg-muted)]">
+            {forced
+              ? "Die 7-Tage-Frist ist abgelaufen. MFA ist jetzt Pflicht."
+              : "Richte eine Authenticator-App ein (z. B. 1Password, Authy, Google Authenticator)."}
+          </p>
+        </>
+      ) : (
+        <p className="text-sm text-[var(--fg-muted)]">
+          {forced
+            ? "Die 7-Tage-Frist ist abgelaufen. MFA ist jetzt Pflicht."
+            : "Scanne den QR-Code mit deiner Authenticator-App und bestätige mit dem Code."}
+        </p>
+      )}
 
       {loading ? (
         <p className="mt-6 text-sm text-[var(--fg-muted)]">QR-Code wird geladen…</p>
