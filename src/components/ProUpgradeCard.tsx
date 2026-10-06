@@ -159,7 +159,8 @@ export function ProUpgradeCard({
         </p>
       ) : !entitlement.isPro ? (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
-          Vorklima, Schloss, Finden und 80%-Limit.
+          Vorklima, Schloss, Finden und 80%-Limit — wenn du steuern statt nur
+          ansehen möchtest.
         </p>
       ) : null}
 

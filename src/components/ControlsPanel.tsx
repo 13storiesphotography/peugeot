@@ -43,14 +43,18 @@ export function ControlsPanel({
         id: "flash",
         label: "Finden",
         onClick: () =>
-          isPro ? onCommand("flash") : (window.location.href = "/control/settings#pro"),
+          isPro
+            ? onCommand("flash")
+            : (window.location.href = "/control/settings#pro"),
         icon: <IconFind />,
       },
       {
         id: "horn",
         label: "Hupe",
         onClick: () =>
-          isPro ? onCommand("horn") : (window.location.href = "/control/settings#pro"),
+          isPro
+            ? onCommand("horn")
+            : (window.location.href = "/control/settings#pro"),
         icon: <IconHorn />,
       },
     );
@@ -59,7 +63,9 @@ export function ControlsPanel({
     id: "wakeup",
     label: "Wecken",
     onClick: () =>
-      isPro ? onCommand("wakeup") : (window.location.href = "/control/settings#pro"),
+      isPro
+        ? onCommand("wakeup")
+        : (window.location.href = "/control/settings#pro"),
     icon: <IconWake />,
     disabled: wakeDisabled,
     title: wakeDisabled
@@ -103,10 +109,25 @@ export function ControlsPanel({
             ? "Schloss/Signal nicht im Peugeot-Abo"
             : wakeDisabled
               ? "Wecken braucht Fernbedienung"
-              : "Schloss und Signale"
+              : isPro
+                ? "Schloss und Signale"
+                : "Fernbedienung mit Pro"
         }
         hideTitleOnDesktop
       />
+
+      {!isPro ? (
+        <div className="rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 text-sm text-[var(--fg-muted)]">
+          Schloss, Finden und Hupe sind in{" "}
+          <span className="font-semibold text-[var(--fg)]">Pro</span>.{" "}
+          <a
+            href="/control/settings#pro"
+            className="font-semibold text-[var(--accent-bright)] underline-offset-2 hover:underline"
+          >
+            Pro ansehen
+          </a>
+        </div>
+      ) : null}
 
       {!showSignals ? (
         <>
@@ -119,8 +140,10 @@ export function ControlsPanel({
             </p>
             <p className="mt-2 text-xs text-[var(--fg-muted)]">
               Fern-Entriegeln geht weder in MyPeugeot noch hier — dafür fehlt{" "}
-              <span className="text-[var(--fg)]">Connect PLUS / Remote Control</span>.
-              Vorklima (e-Remote) funktioniert weiter.
+              <span className="text-[var(--fg)]">
+                Connect PLUS / Remote Control
+              </span>
+              . Vorklima (e-Remote) funktioniert weiter.
             </p>
           </div>
           {actionGrid}

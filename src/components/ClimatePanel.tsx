@@ -83,12 +83,19 @@ export function ClimatePanel({
               : "Vorklima starten"}
         </button>
       ) : (
-        <a
-          href="/control/settings#pro"
-          className="action-btn btn-primary block w-full rounded-full px-5 py-4 text-center text-sm font-semibold"
-        >
-          Mit Pro steuern
-        </a>
+        <div className="ui-surface space-y-3 px-4 py-4 text-center">
+          <p className="text-sm text-[var(--fg-muted)]">
+            Vorklima starten und stoppen ist in{" "}
+            <span className="font-semibold text-[var(--fg)]">Pro</span>{" "}
+            enthalten — freundlich und jederzeit kündbar.
+          </p>
+          <a
+            href="/control/settings#pro"
+            className="action-btn btn-primary inline-flex rounded-full px-5 py-3 text-sm font-semibold"
+          >
+            Pro ansehen
+          </a>
+        </div>
       )}
 
       {!climateRemoteOk ? (
