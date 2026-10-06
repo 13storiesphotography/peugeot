@@ -23,13 +23,6 @@ export function PricingSection() {
         <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
           Preise
         </p>
-        <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-          Kostenlos zuschauen. Mit Pro steuern.
-        </h2>
-        <p className="mt-3 max-w-2xl text-[var(--fg-muted)]">
-          Free zeigt den Stand deines Peugeots. Befehle ans Auto — Vorklima,
-          Schloss, 80%-Limit — sind Pro.
-        </p>
 
         <div className="mt-10 grid gap-4 lg:grid-cols-2">
           <article className="ui-surface rounded-2xl p-6">
