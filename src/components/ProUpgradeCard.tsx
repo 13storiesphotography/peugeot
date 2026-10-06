@@ -159,8 +159,7 @@ export function ProUpgradeCard({
         </p>
       ) : !entitlement.isPro ? (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
-          Vorklima, Schloss, Finden und 80%-Limit — wenn du steuern statt nur
-          ansehen möchtest.
+          Vorklima, Schloss, Finden und 80%-Ladelimit — Fernbedienung mit Pro.
         </p>
       ) : null}
 
