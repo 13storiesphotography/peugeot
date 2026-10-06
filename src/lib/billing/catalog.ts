@@ -1,3 +1,4 @@
+/** Catalog list prices are brutto (MwSt. inklusive) in EUR cents. */
 export const PRO_YEAR_CENTS = 3900;
 export const PRO_MONTH_CENTS = 499;
 export const PRO_YEAR_DAYS = 365;
