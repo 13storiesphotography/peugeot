@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalSection, LegalShell } from "@/components/LegalShell";
+import { CONTACT, mailto } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Widerrufsbelehrung · Peugeot Control",
@@ -30,7 +31,7 @@ export default function WiderrufPage() {
           Deutschland
           <br />
           E-Mail:{" "}
-          <a href="mailto:mail@florianknoll.de">mail@florianknoll.de</a>
+          <a href={mailto(CONTACT.legal)}>{CONTACT.legal}</a>
           <br />
           mittels einer eindeutigen Erklärung (z. B. per E-Mail) über deinen
           Entschluss, diesen Vertrag zu widerrufen, informieren. Du kannst dafür
@@ -92,7 +93,7 @@ export default function WiderrufPage() {
           <br />
           Florian Knoll, Kellerwiese 10, 82327 Tutzing, Deutschland
           <br />
-          E-Mail: mail@florianknoll.de
+          E-Mail: {CONTACT.legal}
         </p>
         <p>
           Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen

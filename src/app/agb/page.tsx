@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalSection, LegalShell } from "@/components/LegalShell";
+import { CONTACT, mailto } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "AGB · Peugeot Control",
@@ -18,7 +19,7 @@ export default function AgbPage() {
         <p>
           Anbieter: <strong>Florian Knoll</strong>, Kellerwiese 10, 82327
           Tutzing, Deutschland (
-          <a href="mailto:mail@florianknoll.de">mail@florianknoll.de</a>).
+          <a href={mailto(CONTACT.legal)}>{CONTACT.legal}</a>).
         </p>
         <p>
           Diese AGB gelten für die Nutzung der Web-App Peugeot Control und für
