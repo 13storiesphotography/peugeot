@@ -15,6 +15,7 @@ import {
 } from "@/lib/billing/subscription";
 import { getEntitlement } from "@/lib/billing/entitlement";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
+import { resolveSiteOrigin } from "@/lib/auth/site-origin";
 
 export type CheckoutState = {
   error?: string;
@@ -206,16 +207,13 @@ async function createCheckoutSession(input: {
 
 function siteOrigin(headerStore: Headers): string {
   const origin = headerStore.get("origin");
-  if (origin) return origin.replace(/\/$/, "");
+  if (origin) return resolveSiteOrigin(origin);
   const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
   if (host) {
     const proto = headerStore.get("x-forwarded-proto") ?? "https";
-    return `${proto}://${host}`.replace(/\/$/, "");
+    return resolveSiteOrigin(`${proto}://${host}`);
   }
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
-    "https://www.peugeotcontrol.app"
-  );
+  return resolveSiteOrigin(null);
 }
 
 async function periodEndFromCheckout(

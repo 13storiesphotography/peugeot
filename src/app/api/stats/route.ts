@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminEmail } from "@/lib/auth/admin";
+import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
 import { createClient } from "@/lib/supabase/server";
 import { getTrafficStats } from "@/lib/traffic/stats";
 
@@ -14,6 +15,14 @@ export async function GET() {
 
   if (!isAdminEmail(email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const mfa = await getMfaDecision(supabase);
+  if (mfaBlocksAccess(mfa)) {
+    return NextResponse.json(
+      { error: "MFA required", status: mfa.status },
+      { status: 403 },
+    );
   }
 
   try {

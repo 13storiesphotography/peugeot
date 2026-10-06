@@ -15,6 +15,7 @@ import { capturePeugeotOAuthCode } from "@/lib/stellantis/oauth-auto-login";
 import { capturePeugeotOAuthCodeRemote } from "@/lib/stellantis/oauth-remote";
 import { encryptPeugeotPassword } from "@/lib/stellantis/credential-vault";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
+import { peugeotConnections } from "@/lib/supabase/peugeot-connections";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
 
 export type ConnectState = {
@@ -119,35 +120,33 @@ async function persistPeugeotConnection(
     ? encryptPeugeotPassword(input.mypeugeotPassword.trim())
     : undefined;
 
-  const { error: connectionError } = await supabase
-    .from("peugeot_connections")
-    .upsert(
-      {
-        user_id: userId,
-        vehicle_id: bundle.vehicleId,
-        country_code: input.countryCode,
-        mypeugeot_email: input.mypeugeotEmail || null,
-        ...(passwordEnc ? { mypeugeot_password_enc: passwordEnc } : {}),
-        access_token: tokens.accessToken,
-        refresh_token: tokens.refreshToken || null,
-        token_expires_at: tokens.expiresAt,
-        vehicle_api_id: remote.vehicleId,
-        connected: true,
-        last_sync_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        oauth_meta: {
-          vin: details.vin,
-          motorization: details.motorization ?? null,
-          brand: details.brand ?? null,
-          color: details.color ?? null,
-          colorCode: details.pictures?.[0] ? details.pictures[0] : null,
-          pictureUrl: details.pictureUrl ?? null,
-          needsReconnect: false,
-          authError: null,
-        },
+  const { error: connectionError } = await peugeotConnections().upsert(
+    {
+      user_id: userId,
+      vehicle_id: bundle.vehicleId,
+      country_code: input.countryCode,
+      mypeugeot_email: input.mypeugeotEmail || null,
+      ...(passwordEnc ? { mypeugeot_password_enc: passwordEnc } : {}),
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken || null,
+      token_expires_at: tokens.expiresAt,
+      vehicle_api_id: remote.vehicleId,
+      connected: true,
+      last_sync_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      oauth_meta: {
+        vin: details.vin,
+        motorization: details.motorization ?? null,
+        brand: details.brand ?? null,
+        color: details.color ?? null,
+        colorCode: details.pictures?.[0] ? details.pictures[0] : null,
+        pictureUrl: details.pictureUrl ?? null,
+        needsReconnect: false,
+        authError: null,
       },
-      { onConflict: "user_id" },
-    );
+    },
+    { onConflict: "user_id" },
+  );
   if (connectionError) {
     throw new Error(
       `MyPeugeot-Verbindung speichern fehlgeschlagen: ${connectionError.message}`,
@@ -243,8 +242,7 @@ export async function connectPeugeotWithPassword(
   }
 
   if (!password) {
-    const { data: existing } = await supabase
-      .from("peugeot_connections")
+    const { data: existing } = await peugeotConnections()
       .select("mypeugeot_password_enc")
       .eq("user_id", userId)
       .maybeSingle();
@@ -262,35 +260,32 @@ export async function connectPeugeotWithPassword(
   }
 
   try {
-    // Prefer community OAuth helper (works without mymap:// on iPhone).
-    // Fall back to local Puppeteer when the helper is unreachable; local is
-    // often blocked by Gigya reCAPTCHA on Vercel.
-    let captured = await capturePeugeotOAuthCodeRemote({
+    // Prefer local Puppeteer (credentials stay on our server). Optional remote
+    // helper only when STELLOAUTH_URL is explicitly configured.
+    let captured = await capturePeugeotOAuthCode({
       countryCode,
       email,
       password,
     });
 
     if (!captured.ok) {
-      const remoteError = captured.error;
-      const loginRejected = /LOGIN_FAILED|E-Mail oder Passwort|Login abgelehnt/i.test(
-        remoteError,
-      );
-      if (!loginRejected) {
-        const local = await capturePeugeotOAuthCode({
-          countryCode,
-          email,
-          password,
-        });
-        if (local.ok) {
-          captured = local;
-        } else {
-          return {
-            error: `${remoteError} (lokaler Fallback: ${local.error})`,
-          };
-        }
+      const localError = captured.error;
+      const remote = await capturePeugeotOAuthCodeRemote({
+        countryCode,
+        email,
+        password,
+      });
+      if (remote.ok) {
+        captured = remote;
       } else {
-        return { error: remoteError };
+        const remoteDisabled = /STELLOAUTH_URL nicht gesetzt/i.test(
+          remote.error,
+        );
+        return {
+          error: remoteDisabled
+            ? localError
+            : `${localError} (Login-Hilfe: ${remote.error})`,
+        };
       }
     }
 
@@ -318,8 +313,7 @@ export async function syncPeugeotStatus(): Promise<ConnectState> {
   const { supabase, userId } = session;
 
   const bundle = await getVehicleBundle(supabase, userId);
-  const { data: connection } = await supabase
-    .from("peugeot_connections")
+  const { data: connection } = await peugeotConnections()
     .select(
       "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, connected",
     )
@@ -348,8 +342,7 @@ export async function syncPeugeotStatus(): Promise<ConnectState> {
         String(connection.refresh_token),
       );
       accessToken = refreshed.accessToken;
-      await supabase
-        .from("peugeot_connections")
+      await peugeotConnections()
         .update({
           access_token: refreshed.accessToken,
           refresh_token: refreshed.refreshToken,
@@ -414,8 +407,7 @@ export async function syncPeugeotStatus(): Promise<ConnectState> {
       state: liveState,
       updated_at: new Date().toISOString(),
     });
-    await supabase
-      .from("peugeot_connections")
+    await peugeotConnections()
       .update({ last_sync_at: new Date().toISOString() })
       .eq("user_id", userId);
 

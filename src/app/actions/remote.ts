@@ -6,6 +6,7 @@ import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { refreshAccessToken } from "@/lib/stellantis/api";
 import type { OtpPersistedState } from "@/lib/stellantis/otp/session";
 import { requestRemoteSms, setupRemotePin } from "@/lib/stellantis/remote";
+import { peugeotConnections } from "@/lib/supabase/peugeot-connections";
 
 export type RemotePinState = {
   error?: string;
@@ -31,8 +32,7 @@ async function loadConnection(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<ConnectionRow | null> {
-  const { data, error } = await supabase
-    .from("peugeot_connections")
+  const { data, error } = await peugeotConnections()
     .select(
       "connected, country_code, access_token, refresh_token, token_expires_at, customer_id, remote_ready, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at",
     )
@@ -62,8 +62,7 @@ async function ensureOauthToken(
       String(connection.refresh_token),
     );
     accessToken = refreshed.accessToken;
-    await supabase
-      .from("peugeot_connections")
+    await peugeotConnections()
       .update({
         access_token: refreshed.accessToken,
         refresh_token: refreshed.refreshToken,
@@ -150,8 +149,7 @@ export async function activateRemotePinAction(
       previousOtp: null,
     });
 
-    await session.supabase
-      .from("peugeot_connections")
+    await peugeotConnections()
       .update({
         customer_id: result.customerId,
         otp_state: result.otpState,
@@ -177,8 +175,7 @@ export async function activateRemotePinAction(
     try {
       const session = await assertOwnerSession();
       if (session && isOtpAccessFailure(raw)) {
-        await session.supabase
-          .from("peugeot_connections")
+        await peugeotConnections()
           .update({
             remote_ready: false,
             otp_state: null,

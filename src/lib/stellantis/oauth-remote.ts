@@ -1,7 +1,13 @@
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
 
-const DEFAULT_STELLOAUTH_URL =
-  process.env.STELLOAUTH_URL?.trim() || "https://stelloauth.tollet.me/oauth";
+/**
+ * Optional third-party OAuth helper. Credentials are POSTed to this URL —
+ * only enable by setting STELLOAUTH_URL explicitly (no hardcoded default).
+ */
+function stelloAuthUrl(): string | null {
+  const url = process.env.STELLOAUTH_URL?.trim();
+  return url || null;
+}
 
 export type RemoteOAuthResult =
   | { ok: true; code: string }
@@ -85,8 +91,8 @@ function pickError(payload: unknown): string | null {
 }
 
 /**
- * Community Stellantis OAuth helper (browser automation off-device).
- * Credentials are only used for this request and not stored by us.
+ * Optional community Stellantis OAuth helper (browser automation off-device).
+ * Sends MyPeugeot email/password to STELLOAUTH_URL — disabled unless configured.
  */
 export async function capturePeugeotOAuthCodeRemote(input: {
   countryCode: string;
@@ -94,6 +100,15 @@ export async function capturePeugeotOAuthCodeRemote(input: {
   password: string;
   timeoutMs?: number;
 }): Promise<RemoteOAuthResult> {
+  const endpoint = stelloAuthUrl();
+  if (!endpoint) {
+    return {
+      ok: false,
+      error:
+        "Externe Login-Hilfe deaktiviert (STELLOAUTH_URL nicht gesetzt).",
+    };
+  }
+
   const email = input.email.trim();
   const password = input.password;
   const country = (input.countryCode || "DE").toUpperCase();
@@ -107,7 +122,7 @@ export async function capturePeugeotOAuthCodeRemote(input: {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(DEFAULT_STELLOAUTH_URL, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "content-type": "application/json",
