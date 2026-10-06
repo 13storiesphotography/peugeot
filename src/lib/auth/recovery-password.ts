@@ -1,7 +1,7 @@
 import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
-export type AuthUserRef = { id: string; email?: string; totpFactorId?: string };
+export type AuthUserRef = { id: string; email?: string };
 
 type VerifyOk = {
   user: AuthUserRef;
@@ -39,35 +39,11 @@ function messageFromBody(body: unknown, fallback: string): string {
   return fallback;
 }
 
-export function isInsufficientAal(error: PasswordSetError): boolean {
-  const msg = error.message.toLowerCase();
-  const code = (error.code ?? "").toLowerCase();
-  return (
-    code === "insufficient_aal" ||
-    msg.includes("insufficient_aal") ||
-    msg.includes("aal2 session") ||
-    (error.status === 401 && msg.includes("aal"))
-  );
-}
-
-function totpFactorIdFromUser(record: Record<string, unknown>): string | undefined {
-  const factors = record.factors;
-  if (!Array.isArray(factors)) return undefined;
-  for (const factor of factors) {
-    if (!factor || typeof factor !== "object") continue;
-    const row = factor as Record<string, unknown>;
-    if (row.status === "verified" && row.factor_type === "totp" && typeof row.id === "string") {
-      return row.id;
-    }
-  }
-  return undefined;
-}
-
 function userFromRecord(record: Record<string, unknown>): AuthUserRef | null {
   const id = typeof record.id === "string" ? record.id : "";
   if (!id) return null;
   const email = typeof record.email === "string" ? record.email : undefined;
-  return { id, email, totpFactorId: totpFactorIdFromUser(record) };
+  return { id, email };
 }
 
 /**
@@ -125,61 +101,7 @@ export async function getUserWithAccessToken(
   return userFromRecord(record);
 }
 
-/** Raise a recovery session from AAL1 to AAL2 with the authenticator code. */
-export async function elevateMfaSession(
-  accessToken: string,
-  totpCode: string,
-): Promise<{ accessToken: string } | { error: string }> {
-  const config = authConfig();
-  if (!config) return { error: "Auth is not configured." };
-
-  const code = totpCode.replace(/\s+/g, "");
-  if (!/^\d{6}$/.test(code)) {
-    return { error: "Bitte einen 6-stelligen Code aus der Authenticator-App eingeben." };
-  }
-
-  const user = await getUserWithAccessToken(accessToken);
-  const factorId = user?.totpFactorId;
-  if (!factorId) {
-    return { error: "Kein aktiver Authenticator gefunden." };
-  }
-
-  const challengeRes = await fetch(
-    `${config.url}/auth/v1/factors/${factorId}/challenge`,
-    { method: "POST", headers: authHeaders(config, accessToken), body: "{}" },
-  );
-  const challengeBody: unknown = await challengeRes.json().catch(() => null);
-  const challengeRecord =
-    challengeBody && typeof challengeBody === "object"
-      ? (challengeBody as Record<string, unknown>)
-      : {};
-  const challengeId =
-    typeof challengeRecord.id === "string" ? challengeRecord.id : "";
-  if (!challengeRes.ok || !challengeId) {
-    return { error: messageFromBody(challengeBody, "MFA-Challenge fehlgeschlagen.") };
-  }
-
-  const verifyRes = await fetch(
-    `${config.url}/auth/v1/factors/${factorId}/verify`,
-    {
-      method: "POST",
-      headers: authHeaders(config, accessToken),
-      body: JSON.stringify({ challenge_id: challengeId, code }),
-    },
-  );
-  const verifyBody: unknown = await verifyRes.json().catch(() => null);
-  const verifyRecord =
-    verifyBody && typeof verifyBody === "object"
-      ? (verifyBody as Record<string, unknown>)
-      : {};
-  const nextToken =
-    typeof verifyRecord.access_token === "string" ? verifyRecord.access_token : "";
-  if (!verifyRes.ok || !nextToken) {
-    return { error: "Authenticator-Code ungültig. Bitte erneut versuchen." };
-  }
-  return { accessToken: nextToken };
-}
-
+/** Set password via service role when available (no AAL2 / MFA needed). */
 export async function setPasswordCookieFree(options: {
   userId: string;
   password: string;
