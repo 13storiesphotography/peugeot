@@ -1,7 +1,15 @@
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import {
+  SETUP_STEPS,
+  SITE_DESCRIPTION,
+  SITE_FAQS,
+  SITE_NAME,
+  SITE_URL,
+  absoluteUrl,
+} from "@/lib/seo";
 import { PRO_MONTH_CENTS, formatEuroFromCents } from "@/lib/billing/catalog";
 
-/** JSON-LD for the public homepage (SoftwareApplication + WebSite). */
+/** JSON-LD for the public homepage. */
 export function LandingJsonLd() {
   const proPrice = formatEuroFromCents(PRO_MONTH_CENTS);
   const data = {
@@ -25,6 +33,18 @@ export function LandingJsonLd() {
           "@type": "ImageObject",
           url: `${SITE_URL}/icon-512.png`,
         },
+        description:
+          "Inoffizielle Steuerungs-Oberfläche für Peugeot-Fahrzeuge über MyPeugeot.",
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${SITE_URL}/#webpage`,
+        url: SITE_URL,
+        name: `${SITE_NAME} — Peugeot im Browser steuern`,
+        description: SITE_DESCRIPTION,
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        about: { "@id": `${SITE_URL}/#app` },
+        inLanguage: "de-DE",
       },
       {
         "@type": "SoftwareApplication",
@@ -40,23 +60,80 @@ export function LandingJsonLd() {
             "@type": "Offer",
             price: "0",
             priceCurrency: "EUR",
-            description: "Free — Live-Status, Standort und Ladekurve",
+            name: "Free",
+            description: "Live-Status, Standort und Ladekurve",
           },
           {
             "@type": "Offer",
             price: (PRO_MONTH_CENTS / 100).toFixed(2),
             priceCurrency: "EUR",
-            description: `Pro — Vorklima und Fernbedienung, ${proPrice}/Monat`,
+            name: "Pro",
+            description: `Vorklima und Fernbedienung, ${proPrice}/Monat`,
           },
         ],
+      },
+      {
+        "@type": "HowTo",
+        "@id": `${SITE_URL}/#howto`,
+        name: "Peugeot Control einrichten",
+        description:
+          "In wenigen Schritten MyPeugeot verbinden und dein Peugeot steuern.",
+        totalTime: "PT10M",
+        step: SETUP_STEPS.map((step, index) => ({
+          "@type": "HowToStep",
+          position: index + 1,
+          name: step.name,
+          text: step.text,
+          url: `${SITE_URL}/#start`,
+        })),
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Start",
+            item: SITE_URL,
+          },
+        ],
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${SITE_URL}/#faq`,
+        mainEntity: SITE_FAQS.slice(0, 4).map((faq) => ({
+          "@type": "Question",
+          name: faq.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: faq.answer,
+          },
+        })),
       },
     ],
   };
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
-  );
+  return <JsonLd data={data} />;
+}
+
+export function FaqJsonLd() {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "@id": `${absoluteUrl("/faq")}/#faq`,
+    url: absoluteUrl("/faq"),
+    name: `FAQ · ${SITE_NAME}`,
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    inLanguage: "de-DE",
+    mainEntity: SITE_FAQS.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
+
+  return <JsonLd data={data} />;
 }

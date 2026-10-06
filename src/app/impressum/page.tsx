@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/SiteFooter";
 import { CONTACT, mailto } from "@/lib/contact";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Impressum · Peugeot Control",
   description: "Angaben gemäß § 5 DDG zum Anbieter von Peugeot Control.",
-};
+  path: "/impressum",
+});
 
 export default function ImpressumPage() {
   return (

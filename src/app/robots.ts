@@ -6,7 +6,15 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/impressum", "/datenschutz", "/agb", "/widerruf"],
+        allow: [
+          "/",
+          "/faq",
+          "/impressum",
+          "/datenschutz",
+          "/agb",
+          "/widerruf",
+          "/llms.txt",
+        ],
         disallow: [
           "/control",
           "/control/",

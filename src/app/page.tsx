@@ -2,25 +2,24 @@ import type { Metadata } from "next";
 import { LandingJsonLd } from "@/components/landing/LandingJsonLd";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { isPublicSignupEnabled } from "@/lib/auth/allowlist";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import {
+  SITE_DESCRIPTION,
+  SITE_KEYWORDS,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Peugeot steuern im Browser — Laden, Klima, Fernbedienung",
+  title: {
+    absolute: "Peugeot steuern im Browser — Laden, Klima, Fernbedienung",
+  },
   description: SITE_DESCRIPTION,
   alternates: {
     canonical: SITE_URL,
   },
-  keywords: [
-    "Peugeot steuern",
-    "MyPeugeot Browser",
-    "E-3008 App",
-    "Peugeot Vorklima",
-    "Peugeot Fernbedienung",
-    "Peugeot Control",
-    "Peugeot PWA",
-  ],
+  keywords: [...SITE_KEYWORDS],
   openGraph: {
     title: `${SITE_NAME} — Peugeot im Browser und auf dem Handy`,
     description: SITE_DESCRIPTION,
@@ -28,20 +27,11 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     locale: "de_DE",
     type: "website",
-    images: [
-      {
-        url: `${SITE_URL}/icon-512.png`,
-        width: 512,
-        height: 512,
-        alt: SITE_NAME,
-      },
-    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: `${SITE_NAME} — Peugeot im Browser steuern`,
     description: SITE_DESCRIPTION,
-    images: [`${SITE_URL}/icon-512.png`],
   },
   robots: {
     index: true,

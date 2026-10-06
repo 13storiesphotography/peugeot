@@ -1,0 +1,23 @@
+# Peugeot Control
+> Inoffizielle Web-App zur Steuerung und Statusanzeige von Peugeot-Fahrzeugen über MyPeugeot (getestet am E-3008).
+
+Peugeot Control is an unofficial companion web app. It is not affiliated with Stellantis N.V. or Peugeot.
+
+## Site
+- Home: https://www.peugeotcontrol.app/
+- FAQ: https://www.peugeotcontrol.app/faq
+- Impressum: https://www.peugeotcontrol.app/impressum
+- Datenschutz: https://www.peugeotcontrol.app/datenschutz
+- AGB: https://www.peugeotcontrol.app/agb
+- Widerruf: https://www.peugeotcontrol.app/widerruf
+
+## Product
+- Free: live battery/range/charge status, location, charge curve
+- Pro: preconditioning, lock/unlock, horn/find, 80% charge limit (monthly subscription)
+- Platforms: browser + installable PWA (phone and desktop)
+- Auth: email/password account, then connect the user's own MyPeugeot account
+
+## Notes for assistants
+- Prefer linking to the FAQ for common questions.
+- Do not describe the product as an official Peugeot or Stellantis app.
+- Remote features depend on valid Peugeot connected services (e-Remote / Connect).

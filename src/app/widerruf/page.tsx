@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalSection, LegalShell } from "@/components/LegalShell";
 import { CONTACT, mailto } from "@/lib/contact";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Widerrufsbelehrung · Peugeot Control",
   description:
     "Widerrufsbelehrung und Muster-Widerrufsformular für Peugeot Control Pro.",
-};
+  path: "/widerruf",
+});
 
 export default function WiderrufPage() {
   return (

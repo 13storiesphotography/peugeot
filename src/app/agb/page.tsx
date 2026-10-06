@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalSection, LegalShell } from "@/components/LegalShell";
 import { CONTACT, mailto } from "@/lib/contact";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "AGB · Peugeot Control",
   description:
     "Allgemeine Geschäftsbedingungen für die Nutzung von Peugeot Control.",
-};
+  path: "/agb",
+});
 
 export default function AgbPage() {
   return (

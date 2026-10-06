@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { AuthForm } from "@/components/AuthForm";
 import { LandingScreens } from "@/components/landing/LandingScreens";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SETUP_STEPS, SITE_FAQS } from "@/lib/seo";
 
 const features = [
   {
@@ -57,29 +59,6 @@ const benefits = [
   },
 ];
 
-const steps = [
-  {
-    n: "1",
-    title: "Konto anlegen",
-    body: "E-Mail und Passwort — kostenlos und in unter einer Minute.",
-  },
-  {
-    n: "2",
-    title: "MyPeugeot verbinden",
-    body: "In den Einstellungen mit E-Mail/Passwort oder OAuth — wie in der offiziellen App.",
-  },
-  {
-    n: "3",
-    title: "Fernbedienung freischalten",
-    body: "SMS-Code und 4-stellige PIN einmalig hinterlegen (e-Remote / Connect).",
-  },
-  {
-    n: "4",
-    title: "Loslegen",
-    body: "Übersicht, Laden, Klima und Steuern — auf dem Handy oder Desktop.",
-  },
-];
-
 export function LandingPage({
   publicSignup,
   denied,
@@ -115,6 +94,9 @@ export function LandingPage({
           <a href="#preise" className="hover:text-[var(--fg)]">
             Preise
           </a>
+          <Link href="/faq" className="hover:text-[var(--fg)]">
+            FAQ
+          </Link>
           <a href="#start" className="hover:text-[var(--fg)]">
             Anmelden
           </a>
@@ -234,6 +216,39 @@ export function LandingPage({
 
         <PricingSection />
 
+        <section
+          id="faq"
+          className="scroll-mt-20 border-t border-[var(--line)] py-16 sm:py-20"
+        >
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
+              FAQ
+            </p>
+            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
+              Häufige Fragen
+            </h2>
+            <p className="mt-3 max-w-2xl text-[var(--fg-muted)]">
+              Kurz beantwortet — ausführlicher auf der FAQ-Seite.
+            </p>
+            <ul className="mt-10 grid gap-6 lg:grid-cols-2">
+              {SITE_FAQS.slice(0, 4).map((faq) => (
+                <li key={faq.question}>
+                  <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+                    {faq.question}
+                  </h3>
+                  <p className="mt-2 text-sm text-[var(--fg-muted)]">{faq.answer}</p>
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/faq"
+              className="action-btn mt-8 inline-flex rounded-full border border-[var(--line)] px-5 py-2.5 text-sm font-semibold text-[var(--fg)]"
+            >
+              Alle Fragen ansehen
+            </Link>
+          </div>
+        </section>
+
         <section className="border-t border-[var(--line)] bg-black/15 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
@@ -243,13 +258,13 @@ export function LandingPage({
               In vier Schritten startklar
             </h2>
             <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {steps.map((s) => (
-                <li key={s.n} className="ui-surface rounded-2xl p-5">
+              {SETUP_STEPS.map((s, index) => (
+                <li key={s.name} className="ui-surface rounded-2xl p-5">
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent-bright)]/15 text-sm font-bold text-[var(--accent-bright)]">
-                    {s.n}
+                    {index + 1}
                   </span>
-                  <h3 className="mt-3 font-semibold">{s.title}</h3>
-                  <p className="mt-2 text-sm text-[var(--fg-muted)]">{s.body}</p>
+                  <h3 className="mt-3 font-semibold">{s.name}</h3>
+                  <p className="mt-2 text-sm text-[var(--fg-muted)]">{s.text}</p>
                 </li>
               ))}
             </ol>
