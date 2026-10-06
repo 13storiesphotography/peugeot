@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   cancelSubscriptionAtPeriodEnd,
   changeSubscriptionPlan,
@@ -51,6 +52,7 @@ export function ProUpgradeCard({
   stripeSetupError?: string;
   notice?: CheckoutState;
 }) {
+  const router = useRouter();
   const [checkoutState, checkoutAction, checkoutPending] = useActionState(
     startCheckout,
     initial,
@@ -75,6 +77,40 @@ export function ProUpgradeCard({
   useHardRedirect(checkoutState.redirectUrl);
   useHardRedirect(portalState.redirectUrl);
 
+  const periodEnd = subscription?.periodEnd ?? entitlement.periodEnd;
+  const interval = subscription?.interval;
+  const [cancelScheduled, setCancelScheduled] = useState(
+    Boolean(subscription?.cancelAtPeriodEnd),
+  );
+  const [chooseInterval, setChooseInterval] = useState(false);
+
+  useEffect(() => {
+    setCancelScheduled(Boolean(subscription?.cancelAtPeriodEnd));
+  }, [subscription?.cancelAtPeriodEnd]);
+
+  useEffect(() => {
+    if (typeof cancelState.cancelAtPeriodEnd === "boolean") {
+      setCancelScheduled(cancelState.cancelAtPeriodEnd);
+    }
+  }, [cancelState.cancelAtPeriodEnd, cancelState.success]);
+
+  useEffect(() => {
+    if (typeof resumeState.cancelAtPeriodEnd === "boolean") {
+      setCancelScheduled(resumeState.cancelAtPeriodEnd);
+    }
+  }, [resumeState.cancelAtPeriodEnd, resumeState.success]);
+
+  useEffect(() => {
+    if (cancelState.success || resumeState.success || changeState.success) {
+      router.refresh();
+    }
+  }, [
+    cancelState.success,
+    resumeState.success,
+    changeState.success,
+    router,
+  ]);
+
   const pending =
     checkoutPending ||
     cancelPending ||
@@ -96,21 +132,21 @@ export function ProUpgradeCard({
     cancelState.success ??
     resumeState.success ??
     changeState.success;
-  const periodEnd = subscription?.periodEnd ?? entitlement.periodEnd;
-  const interval = subscription?.interval;
-  const cancelScheduled = Boolean(subscription?.cancelAtPeriodEnd);
-  const [chooseInterval, setChooseInterval] = useState(false);
 
   return (
     <section id="pro" className="ui-surface scroll-mt-24 p-4 sm:p-5">
       <p className="eyebrow">Abo</p>
       <h2 className="mt-1 font-[family-name:var(--font-display)] text-lg font-semibold">
-        {entitlement.isPro ? "Pro aktiv" : "Pro freischalten"}
+        {!entitlement.isPro
+          ? "Pro freischalten"
+          : cancelScheduled
+            ? "Pro gekündigt"
+            : "Pro aktiv"}
       </h2>
       {entitlement.isPro ? (
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
           {cancelScheduled
-            ? `Gekündigt. Steuern bleibt bis ${periodEnd ? formatDay(periodEnd) : "Periodenende"} an, danach Free.`
+            ? `Kündigung vorgemerkt. Steuern bleibt bis ${periodEnd ? formatDay(periodEnd) : "Periodenende"} an, danach Free.`
             : `Steuern und 80%-Limit sind an${
                 interval === "month"
                   ? " · monatlich"
@@ -124,6 +160,17 @@ export function ProUpgradeCard({
           Vorklima, Schloss, Finden und 80%-Limit.
         </p>
       )}
+
+      {entitlement.isPro && cancelScheduled ? (
+        <p
+          role="status"
+          className="mt-3 rounded-xl border border-[var(--warn)]/40 bg-[var(--warn)]/10 px-3 py-2 text-sm text-[var(--warn)]"
+        >
+          Gekündigt zum Periodenende
+          {periodEnd ? ` · aktiv bis ${formatDay(periodEnd)}` : ""}. Danach
+          Free.
+        </p>
+      ) : null}
 
       {stripeTestMode ? (
         <p role="status" className="mt-3 text-sm text-[var(--warn)]">
@@ -283,8 +330,9 @@ export function ProUpgradeCard({
             </button>
           </form>
           <p className="text-[11px] text-[var(--fg-muted)]">
-            Planwechsel gilt sofort, Stripe verrechnet die Differenz. Kündigung
-            erst zum Ende der bezahlten Laufzeit.
+            {cancelScheduled
+              ? "Die Kündigung greift erst zum Periodenende. Bis dahin bleibt Pro nutzbar."
+              : "Planwechsel gilt sofort, Stripe verrechnet die Differenz. Kündigung erst zum Ende der bezahlten Laufzeit."}
           </p>
         </div>
       ) : (
