@@ -5,6 +5,21 @@ import { getMfaDecision, mfaBlocksAccess } from "@/lib/auth/mfa";
 import { RECOVERY_COOKIE } from "@/lib/auth/recovery-cookie";
 
 export async function proxy(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  // Public legal pages — no auth cookies needed.
+  if (
+    path === "/impressum" ||
+    path.startsWith("/impressum/") ||
+    path === "/datenschutz" ||
+    path.startsWith("/datenschutz/") ||
+    path === "/agb" ||
+    path.startsWith("/agb/") ||
+    path === "/widerruf" ||
+    path.startsWith("/widerruf/")
+  ) {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -38,7 +53,6 @@ export async function proxy(request: NextRequest) {
   const email = typeof user?.email === "string" ? user.email : null;
   const allowed = Boolean(user && isEmailAllowed(email));
 
-  const path = request.nextUrl.pathname;
   const hasAuthCode =
     request.nextUrl.searchParams.has("code") ||
     request.nextUrl.searchParams.has("token_hash");
