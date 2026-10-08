@@ -8,7 +8,6 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
-import { ActivityLog } from "@/components/ActivityLog";
 import { ChargeCompleteBanner } from "@/components/ChargeCompleteBanner";
 import { ChargeLiveStrip } from "@/components/ChargeLiveStrip";
 import { ChargePanel } from "@/components/ChargePanel";
@@ -971,9 +970,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               ) : null}
             </div>
 
-            <div className="space-y-4 border-t border-[var(--line)] pt-5">
+            <div className="border-t border-[var(--line)] pt-5">
               <LocationLink location={vehicle.location} />
-              <ActivityLog items={bundle.activity.slice(0, 3)} />
             </div>
           </DesktopPanel>
         </div>
