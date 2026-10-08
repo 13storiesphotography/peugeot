@@ -87,6 +87,10 @@ export function ChargePanel({
   onCommand,
 }: ChargePanelProps) {
   const charging = vehicle.chargeStatus === "charging";
+  const pluggedIn =
+    vehicle.chargeStatus === "plugged" ||
+    vehicle.chargeStatus === "charging" ||
+    vehicle.chargeStatus === "complete";
   const live = vehicle.mode === "live";
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
   const typeLabel = chargeTypeLabel(vehicle.chargingType);
@@ -115,13 +119,15 @@ export function ChargePanel({
     <section className="animate-rise space-y-6 pt-2 lg:pt-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <SectionHeader title="Laden" hint={statusLine} hideTitleOnDesktop />
+        {/* Colored badge only when on cable — idle stays quiet text. */}
         <DataFreshnessBadge
           lastUpdatedAt={vehicle.lastUpdatedAt}
           nowMs={nowMs}
           mode={vehicle.mode}
           offline={offline}
           refreshing={refreshing}
-          showDetail
+          showDetail={pluggedIn}
+          variant={pluggedIn ? "badge" : "plain"}
           className="lg:pt-1"
         />
       </div>
