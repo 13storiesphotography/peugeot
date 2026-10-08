@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Syne } from "next/font/google";
+import { AppBootSplash } from "@/components/AppBootSplash";
 import { AuthRecoveryRedirect } from "@/components/AuthRecoveryRedirect";
 import { CookieConsent } from "@/components/CookieConsent";
 import { OptionalAnalytics } from "@/components/OptionalAnalytics";
@@ -137,6 +138,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         className="antialiased"
         style={{ backgroundColor: SHELL_BG, color: "#eef6f8", margin: 0 }}
       >
+        {/* Covers FOUC on cold PWA launch before Tailwind applies. */}
+        <AppBootSplash />
         {children}
         <AuthRecoveryRedirect />
         <AuthUrlSession />

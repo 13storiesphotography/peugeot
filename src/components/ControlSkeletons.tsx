@@ -161,7 +161,7 @@ export function ControlHomeSkeleton() {
       </div>
 
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[rgba(7,16,24,0.92)] pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl lg:hidden"
+        className="control-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[rgba(7,16,24,0.92)] pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl lg:hidden"
         aria-hidden
       >
         <div className="mx-auto flex max-w-lg justify-between gap-1 px-2 py-2 sm:max-w-xl sm:px-4">

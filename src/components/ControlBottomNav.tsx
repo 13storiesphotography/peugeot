@@ -14,7 +14,7 @@ export function ControlBottomNav({
 }) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[rgba(7,16,24,0.88)] pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-[18px] lg:hidden"
+      className="control-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[rgba(7,16,24,0.88)] pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-[18px] lg:hidden"
       aria-label="Hauptnavigation"
     >
       <div className="mx-auto flex max-w-lg items-stretch justify-between px-2 pt-1 sm:max-w-xl">
