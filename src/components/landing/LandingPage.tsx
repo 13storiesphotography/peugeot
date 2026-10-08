@@ -1,61 +1,28 @@
-import Link from "next/link";
 import { AuthForm } from "@/components/AuthForm";
 import { LandingScreens } from "@/components/landing/LandingScreens";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { SiteFooter } from "@/components/SiteFooter";
-import { SETUP_STEPS, SITE_FAQS } from "@/lib/seo";
 
-const features = [
+const steps = [
   {
-    title: "Übersicht auf einen Blick",
-    body: "Ladezustand, Reichweite, Verriegelung und Standort — live und ohne Menü-Wirrwarr.",
+    n: "01",
+    title: "Konto anlegen",
+    body: "E-Mail und Passwort, kostenlos, in unter einer Minute.",
   },
   {
-    title: "Laden im Blick",
-    body: "SoC, Wallbox vs. Schnellladen, Ladekurve und ETA ansehen. 80%-Limit mit Pro.",
+    n: "02",
+    title: "MyPeugeot verbinden",
+    body: "In den Einstellungen mit E-Mail/Passwort oder OAuth.",
   },
   {
-    title: "Vorklima per Tipp",
-    body: "Vor Abfahrt heizen oder kühlen — mit Pro, inkl. Fortschrittsanzeige.",
+    n: "03",
+    title: "Fernbedienung freischalten",
+    body: "SMS-Code und 4-stellige PIN einmalig hinterlegen.",
   },
   {
-    title: "Fernbedienung",
-    body: "Entriegeln, Verriegeln, Finden, Hupe und Wecken — mit Pro, wenn e-Remote freigeschaltet ist.",
-  },
-  {
-    title: "Standort & Navigation",
-    body: "Sieh, wo dein Peugeot zuletzt gemeldet wurde, und spring direkt in die Karten-App.",
-  },
-  {
-    title: "Dein MyPeugeot-Konto",
-    body: "Jeder Nutzer verbindet sein eigenes Peugeot-Konto in den Einstellungen — getrennt und sicher.",
-  },
-];
-
-const benefits = [
-  {
-    title: "Kein ständiges Neuanmelden",
-    body: "Einmal angemeldet bleibst du drin — Session bleibt, auch wenn du die Seite später wieder öffnest.",
-  },
-  {
-    title: "Handy und Browser",
-    body: "Gleicher Zugang am Smartphone, Tablet oder Desktop. Optional als PWA auf dem Homescreen.",
-  },
-  {
-    title: "Weniger Tippen",
-    body: "Übersicht, Laden, Klima und Fernbedienung ohne Umwege — große Aktionen, klare Status-Texte.",
-  },
-  {
-    title: "Auch am Desktop",
-    body: "Status und Steuerung auf dem großen Bildschirm — praktisch am Schreibtisch oder vor der Abfahrt.",
-  },
-  {
-    title: "Schneller zur Aktion",
-    body: "Vorklima, Entriegeln und Finden sind mit Pro direkt erreichbar — ohne App-Store und ohne Menü-Tiefgang.",
-  },
-  {
-    title: "Dein Konto, dein Auto",
-    body: "Registrieren, MyPeugeot verbinden, Fernbedienung freischalten — jedes Konto nur das eigene Fahrzeug.",
+    n: "04",
+    title: "Loslegen",
+    body: "Übersicht, Laden, Klima und Steuern auf Handy oder Desktop.",
   },
 ];
 
@@ -71,238 +38,182 @@ export function LandingPage({
   deleted?: boolean;
 }) {
   return (
-    <div className="relative">
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(900px 500px at 70% 10%, rgba(95,227,192,0.14), transparent 55%), radial-gradient(700px 400px at 15% 80%, rgba(63,140,170,0.18), transparent 50%)",
-        }}
-      />
+    <div className="relative overflow-x-hidden">
+      <div className="landing-atmosphere pointer-events-none absolute inset-0" aria-hidden />
 
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-6 pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-6">
-        <a href="#" className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight">
+      <header className="relative z-20 mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6">
+        <a
+          href="#"
+          className="font-[family-name:var(--font-display)] text-base font-bold tracking-tight sm:text-lg"
+        >
           Peugeot Control
         </a>
         <nav className="hidden items-center gap-6 text-sm text-[var(--fg-muted)] sm:flex">
-          <a href="#features" className="hover:text-[var(--fg)]">
-            Funktionen
-          </a>
-          <a href="#vorteile" className="hover:text-[var(--fg)]">
-            Vorteile
+          <a href="#app" className="hover:text-[var(--fg)]">
+            App
           </a>
           <a href="#preise" className="hover:text-[var(--fg)]">
             Preise
           </a>
-          <Link href="/faq" className="hover:text-[var(--fg)]">
-            FAQ
-          </Link>
           <a href="#start" className="hover:text-[var(--fg)]">
             Anmelden
           </a>
         </nav>
         <a
           href="#start"
-          className="action-btn rounded-full px-4 py-2 text-sm font-semibold"
-          style={{
-            background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-            color: "#031016",
-          }}
+          className="action-btn rounded-xl bg-[var(--accent-bright)] px-4 py-2 text-sm font-semibold text-[#031016]"
         >
           Anmelden
         </a>
       </header>
 
       <main className="relative z-10">
-        <section className="mx-auto grid max-w-6xl gap-10 px-4 py-8 sm:px-6 lg:grid-cols-2 lg:items-start lg:py-14">
-          <div className="order-2 animate-rise max-w-xl lg:order-1 lg:pt-4">
-            <p className="text-xs uppercase tracking-[0.4em] text-[var(--accent-bright)]">
-              Peugeot Control
-            </p>
-            <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Dein Peugeot.
+        {/* Hero: one composition — brand, headline, line, CTAs, product */}
+        <section className="relative mx-auto grid min-h-[calc(100dvh-5rem)] max-w-6xl items-center gap-10 px-4 pb-12 pt-4 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:pb-16 lg:pt-2">
+          <div className="order-2 max-w-xl lg:order-1">
+            <h1 className="landing-hero-brand font-[family-name:var(--font-display)] text-[clamp(2.75rem,8vw,5.25rem)] font-extrabold leading-[0.92] tracking-tight">
+              Peugeot
               <br />
-              <span className="text-[var(--accent-bright)]">Klar gesteuert.</span>
+              Control
             </h1>
-            <p className="mt-5 max-w-lg text-base text-[var(--fg-muted)] sm:text-lg">
-              Laden, Vorklima und Fernbedienung im Browser oder auf dem Handy —
-              ohne ständiges Neuanmelden. Registriere dich, verbinde dein
-              MyPeugeot-Konto und steuere dein Auto.
+            <p className="landing-hero-line mt-5 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-[var(--accent-bright)] sm:text-3xl">
+              Klar gesteuert.
             </p>
-            <p className="mt-4 text-sm text-[var(--fg-muted)]">
-              Aktuell getestet: <span className="text-[var(--fg)]">E-3008</span>.
-              Andere Modelle mit MyPeugeot können funktionieren.
+            <p className="landing-hero-copy mt-4 max-w-md text-base text-[var(--fg-muted)] sm:text-lg">
+              Laden, Vorklima und Fernbedienung im Browser. Schneller als die
+              Serien-App, getestet am E-3008.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="landing-hero-cta mt-8 flex flex-wrap gap-3">
               <a
-                href="#features"
-                className="action-btn rounded-full border border-[var(--line)] px-6 py-3 text-sm font-semibold text-[var(--fg)]"
+                href="#start"
+                className="action-btn rounded-xl bg-[var(--accent-bright)] px-6 py-3 text-sm font-semibold text-[#031016]"
               >
-                Was die App kann
+                {publicSignup ? "Kostenlos starten" : "Anmelden"}
+              </a>
+              <a
+                href="#app"
+                className="action-btn rounded-xl border border-[var(--line)] px-6 py-3 text-sm font-semibold text-[var(--fg)]"
+              >
+                App ansehen
               </a>
             </div>
           </div>
-          <div className="order-1 animate-rise-delay-1 lg:order-2">
-            {deleted ? (
-              <p
-                role="status"
-                className="mb-4 rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
-              >
-                Konto gelöscht. Du kannst dich jederzeit neu registrieren.
-              </p>
-            ) : null}
-            <AuthForm
-              publicSignup={publicSignup}
-              denied={denied}
-              confirmError={confirmError}
-            />
+
+          <div className="landing-hero-visual order-1 lg:order-2">
+            <LandingScreens compact autoCycle />
           </div>
         </section>
 
-        <section className="border-t border-[var(--line)] bg-black/10 py-12 sm:py-16">
+        <section
+          id="app"
+          className="scroll-mt-20 border-t border-[var(--line)] bg-black/15 py-16 sm:py-20"
+        >
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <LandingScreens />
+            <LandingScreens autoCycle={false} />
           </div>
         </section>
 
-        <section id="features" className="scroll-mt-20 border-t border-[var(--line)] bg-black/15 py-16 sm:py-20">
+        <section className="border-t border-[var(--line)] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-              Funktionen
-            </p>
-            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-              Alles Wichtige in vier Tabs
+            <h2 className="max-w-2xl font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight sm:text-4xl">
+              Weniger Tippen bis zur Aktion
             </h2>
-            <p className="mt-3 max-w-2xl text-[var(--fg-muted)]">
-              Übersicht, Klima, Laden und Steuern — so wie in der App, die du nach
-              dem Login siehst.
+            <p className="mt-4 max-w-xl text-[var(--fg-muted)]">
+              Große Steuerelemente, klare Status-Texte und ein ruhiges Layout für
+              die Ladesäule nachts.
             </p>
-            <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {features.map((f) => (
-                <li
-                  key={f.title}
-                  className="ui-surface rounded-2xl p-5 transition hover:border-[var(--accent-bright)]/25"
-                >
-                  <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-                    {f.title}
-                  </h3>
-                  <p className="mt-2 text-sm text-[var(--fg-muted)]">{f.body}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        <section id="vorteile" className="scroll-mt-20 py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-              Vorteile
-            </p>
-            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-              Warum Peugeot Control?
-            </h2>
-            <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {benefits.map((b) => (
-                <li key={b.title} className="panel rounded-2xl p-6">
-                  <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-                    {b.title}
-                  </h3>
-                  <p className="mt-2 text-sm text-[var(--fg-muted)]">{b.body}</p>
-                </li>
-              ))}
-            </ul>
+            <dl className="mt-12 grid gap-10 sm:grid-cols-3">
+              <div>
+                <dt className="font-[family-name:var(--font-display)] text-lg font-semibold">
+                  Schneller als die Serien-App
+                </dt>
+                <dd className="mt-2 text-sm text-[var(--fg-muted)]">
+                  Direkte Wege zu Laden, Klima und Fernbedienung, als PWA auf dem
+                  Homescreen.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-[family-name:var(--font-display)] text-lg font-semibold">
+                  Eigenes MyPeugeot-Konto
+                </dt>
+                <dd className="mt-2 text-sm text-[var(--fg-muted)]">
+                  Jeder Nutzer verbindet nur sein Fahrzeug. Getrennt und
+                  serverseitig abgesichert.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-[family-name:var(--font-display)] text-lg font-semibold">
+                  Live am Fahrzeug
+                </dt>
+                <dd className="mt-2 text-sm text-[var(--fg-muted)]">
+                  Batterie, Standort und Ladekurve aktualisieren sich, während die
+                  Übersicht offen ist.
+                </dd>
+              </div>
+            </dl>
           </div>
         </section>
 
         <PricingSection />
 
-        <section
-          id="faq"
-          className="scroll-mt-20 border-t border-[var(--line)] py-16 sm:py-20"
-        >
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-              FAQ
-            </p>
-            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-              Häufige Fragen
-            </h2>
-            <p className="mt-3 max-w-2xl text-[var(--fg-muted)]">
-              Kurz beantwortet — ausführlicher auf der FAQ-Seite.
-            </p>
-            <ul className="mt-10 grid gap-6 lg:grid-cols-2">
-              {SITE_FAQS.slice(0, 4).map((faq) => (
-                <li key={faq.question}>
-                  <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-                    {faq.question}
-                  </h3>
-                  <p className="mt-2 text-sm text-[var(--fg-muted)]">{faq.answer}</p>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/faq"
-              className="action-btn mt-8 inline-flex rounded-full border border-[var(--line)] px-5 py-2.5 text-sm font-semibold text-[var(--fg)]"
-            >
-              Alle Fragen ansehen
-            </Link>
-          </div>
-        </section>
-
         <section className="border-t border-[var(--line)] bg-black/15 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-              Einrichtung
-            </p>
-            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
+            <h2 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight sm:text-4xl">
               In vier Schritten startklar
             </h2>
-            <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {SETUP_STEPS.map((s, index) => (
-                <li key={s.name} className="ui-surface rounded-2xl p-5">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent-bright)]/15 text-sm font-bold text-[var(--accent-bright)]">
-                    {index + 1}
+            <ol className="mt-10 space-y-6">
+              {steps.map((s) => (
+                <li
+                  key={s.n}
+                  className="grid gap-2 border-t border-[var(--line)] pt-6 sm:grid-cols-[4rem_1fr] sm:gap-6"
+                >
+                  <span className="font-[family-name:var(--font-display)] text-sm font-bold tabular-nums text-[var(--accent-bright)]">
+                    {s.n}
                   </span>
-                  <h3 className="mt-3 font-semibold">{s.name}</h3>
-                  <p className="mt-2 text-sm text-[var(--fg-muted)]">{s.text}</p>
+                  <div>
+                    <h3 className="font-semibold text-[var(--fg)]">{s.title}</h3>
+                    <p className="mt-1 text-sm text-[var(--fg-muted)]">{s.body}</p>
+                  </div>
                 </li>
               ))}
             </ol>
-            <div className="mt-10 rounded-2xl border border-[var(--line)] bg-black/20 p-5 text-sm text-[var(--fg-muted)]">
-              <p className="font-semibold text-[var(--fg)]">Voraussetzungen</p>
-              <ul className="mt-2 list-inside list-disc space-y-1">
-                <li>Peugeot mit MyPeugeot-Konto</li>
-                <li>Aktuell getestet: E-3008</li>
-                <li>e-Remote / Connect für Vorklima und Fernbedienung</li>
-                <li>Connect PLUS optional für Schloss-Status und Hupe</li>
-              </ul>
-            </div>
+            <p className="mt-10 text-sm text-[var(--fg-muted)]">
+              Voraussetzung: Peugeot mit MyPeugeot. Aktuell getestet am E-3008.
+              e-Remote / Connect für Vorklima und Fernbedienung.
+            </p>
           </div>
         </section>
 
-        <section className="py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--accent-bright)]">
-              Start
-            </p>
-            <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold sm:text-4xl">
-              {publicSignup ? "Konto anlegen oder anmelden" : "Anmelden"}
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-[var(--fg-muted)]">
-              {publicSignup
-                ? "Kostenlos starten, MyPeugeot verbinden — jedes Konto nur das eigene Fahrzeug."
-                : "Privater Zugang — nur freigeschaltete E-Mail-Adressen."}
-            </p>
-            <a
-              href="#start"
-              className="action-btn mt-8 inline-flex rounded-full px-6 py-3 text-sm font-semibold"
-              style={{
-                background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-                color: "#031016",
-              }}
-            >
-              Zur Anmeldung
-            </a>
+        <section
+          id="start"
+          className="scroll-mt-20 border-t border-[var(--line)] py-16 sm:py-20"
+        >
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_26rem] lg:items-start">
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight sm:text-4xl">
+                {publicSignup ? "Konto anlegen oder anmelden" : "Anmelden"}
+              </h2>
+              <p className="mt-3 max-w-md text-[var(--fg-muted)]">
+                {publicSignup
+                  ? "Kostenlos starten, MyPeugeot verbinden. Jedes Konto steuert nur das eigene Fahrzeug."
+                  : "Privater Zugang für freigeschaltete E-Mail-Adressen."}
+              </p>
+            </div>
+            <div>
+              {deleted ? (
+                <p
+                  role="status"
+                  className="mb-4 rounded-xl border border-[var(--line)] bg-black/20 px-3 py-2 text-sm text-[var(--accent-bright)]"
+                >
+                  Konto gelöscht. Du kannst dich jederzeit neu registrieren.
+                </p>
+              ) : null}
+              <AuthForm
+                publicSignup={publicSignup}
+                denied={denied}
+                confirmError={confirmError}
+              />
+            </div>
           </div>
         </section>
       </main>

@@ -336,3 +336,137 @@ body {
     transform: scale(1.15);
   }
 }
+
+/* Landing: intentional motion + atmosphere */
+.landing-atmosphere {
+  background:
+    radial-gradient(920px 520px at 78% 8%, rgba(95, 227, 192, 0.13), transparent 58%),
+    radial-gradient(720px 480px at 8% 72%, rgba(63, 140, 170, 0.16), transparent 52%),
+    radial-gradient(500px 320px at 55% 55%, rgba(31, 111, 95, 0.1), transparent 60%);
+}
+
+@keyframes landing-hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-hero-brand {
+  animation: landing-hero-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.landing-hero-line {
+  animation: landing-hero-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+
+.landing-hero-copy {
+  animation: landing-hero-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
+}
+
+.landing-hero-cta {
+  animation: landing-hero-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.26s both;
+}
+
+.landing-hero-visual {
+  animation: landing-hero-in 1s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both;
+}
+
+@keyframes landing-phone-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes landing-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.04);
+  }
+}
+
+.landing-phone {
+  animation: landing-phone-float 5.5s ease-in-out infinite;
+}
+
+.landing-phone-glow {
+  background: radial-gradient(
+    circle at center,
+    rgba(95, 227, 192, 0.22),
+    transparent 68%
+  );
+  animation: landing-glow-breathe 4.8s ease-in-out infinite;
+}
+
+@keyframes landing-screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-screen-swap {
+  animation: landing-screen-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.landing-charge-bar {
+  transition: width 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes landing-curve-draw {
+  from {
+    stroke-dashoffset: 240;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.landing-curve-draw {
+  stroke-dasharray: 240;
+  animation: landing-curve-draw 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.landing-climate-orb {
+  animation: soft-breathe 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-brand,
+  .landing-hero-line,
+  .landing-hero-copy,
+  .landing-hero-cta,
+  .landing-hero-visual,
+  .landing-phone,
+  .landing-phone-glow,
+  .landing-screen-swap,
+  .landing-curve-draw,
+  .landing-climate-orb,
+  .animate-rise,
+  .animate-rise-delay-1,
+  .animate-rise-delay-2,
+  .animate-rise-delay-3 {
+    animation: none !important;
+  }
+
+  .landing-charge-bar {
+    transition: none;
+  }
+}

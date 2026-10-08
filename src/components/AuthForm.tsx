@@ -122,10 +122,7 @@ export function AuthForm({
         : forgotAction;
 
   return (
-    <div
-      id="start"
-      className="panel mx-auto w-full max-w-md scroll-mt-24 rounded-[1.75rem] p-6 sm:p-8 lg:mx-0"
-    >
+    <div className="panel mx-auto w-full max-w-md rounded-[1.75rem] p-6 sm:p-8 lg:mx-0">
       {mode !== "forgot" ? (
         <div className="flex gap-1 rounded-full border border-[var(--line)] bg-black/20 p-1">
           <button
