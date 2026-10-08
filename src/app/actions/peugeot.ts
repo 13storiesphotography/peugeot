@@ -6,8 +6,10 @@ import {
   exchangeAuthorizationCode,
   fetchVehicleDetails,
   fetchVehicleStatus,
+  isPeugeotAuthFailure,
   listVehicles,
   mapStatusToVehicleStateWithAddress,
+  refreshAccessToken,
 } from "@/lib/stellantis/api";
 import { getAuthorizeUrl } from "@/lib/stellantis/peugeot-config";
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
@@ -22,6 +24,8 @@ export type ConnectState = {
   error?: string;
   success?: string;
   authorizeUrl?: string;
+  /** True when headless login hit Peugeot Captcha — use computer code path. */
+  manualCode?: boolean;
 };
 
 export async function getPeugeotAuthorizeUrl(
@@ -247,11 +251,86 @@ export async function connectPeugeotWithPassword(
     return { error: "MyPeugeot E-Mail eingeben." };
   }
 
+  const { data: existing } = await peugeotConnections()
+    .select(
+      "mypeugeot_password_enc, refresh_token, access_token, token_expires_at, oauth_meta",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const oauthMeta =
+    existing?.oauth_meta &&
+    typeof existing.oauth_meta === "object" &&
+    !Array.isArray(existing.oauth_meta)
+      ? (existing.oauth_meta as Record<string, unknown>)
+      : {};
+
+  // Prefer silent token refresh over headless login — Peugeot Captcha
+  // often blocks Puppeteer even when the refresh_token is still valid.
+  const accessToken = existing?.access_token
+    ? String(existing.access_token)
+    : "";
+  const expiresAt = existing?.token_expires_at
+    ? new Date(String(existing.token_expires_at)).getTime()
+    : 0;
+  if (accessToken && expiresAt > Date.now() + 60_000) {
+    await peugeotConnections()
+      .update({
+        mypeugeot_email: email,
+        oauth_meta: {
+          ...oauthMeta,
+          needsReconnect: false,
+          authError: null,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+    revalidatePath("/control");
+    revalidatePath("/control/settings");
+    return { success: "Sitzung wieder aktiv — verbunden." };
+  }
+
+  const refreshToken = existing?.refresh_token
+    ? String(existing.refresh_token)
+    : "";
+  if (refreshToken) {
+    try {
+      const refreshed = await refreshAccessToken(countryCode, refreshToken);
+      const { error: saveError } = await peugeotConnections()
+        .update({
+          mypeugeot_email: email,
+          access_token: refreshed.accessToken,
+          refresh_token: refreshed.refreshToken,
+          token_expires_at: refreshed.expiresAt,
+          connected: true,
+          oauth_meta: {
+            ...oauthMeta,
+            needsReconnect: false,
+            authError: null,
+            lastRefreshedAt: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId)
+        .eq("refresh_token", refreshToken);
+      if (saveError) throw new Error(saveError.message);
+      revalidatePath("/control");
+      revalidatePath("/control/settings");
+      return { success: "Sitzung erneuert — verbunden." };
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      // Transient network blip — don't burn Captcha budget yet.
+      if (!isPeugeotAuthFailure(raw)) {
+        return {
+          error:
+            "Peugeot kurz nicht erreichbar. Bitte in einer Minute erneut „Verbinden“ tippen.",
+        };
+      }
+      // Dead refresh token → fall through to password / Captcha path.
+    }
+  }
+
   if (!password) {
-    const { data: existing } = await peugeotConnections()
-      .select("mypeugeot_password_enc")
-      .eq("user_id", userId)
-      .maybeSingle();
     const { decryptPeugeotPassword } = await import(
       "@/lib/stellantis/credential-vault"
     );
@@ -287,10 +366,12 @@ export async function connectPeugeotWithPassword(
         const remoteDisabled = /STELLOAUTH_URL nicht gesetzt/i.test(
           remote.error,
         );
+        const error = remoteDisabled
+          ? localError
+          : `${localError} (Login-Hilfe: ${remote.error})`;
         return {
-          error: remoteDisabled
-            ? localError
-            : `${localError} (Login-Hilfe: ${remote.error})`,
+          error,
+          manualCode: /captcha/i.test(error),
         };
       }
     }
@@ -302,11 +383,13 @@ export async function connectPeugeotWithPassword(
       mypeugeotPassword: password,
     });
   } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Automatische Anmeldung fehlgeschlagen.";
     return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Automatische Anmeldung fehlgeschlagen.",
+      error: message,
+      manualCode: /captcha/i.test(message),
     };
   }
 }

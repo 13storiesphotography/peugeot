@@ -101,6 +101,7 @@ export function PeugeotConnectForm({
   );
   const [linkCopied, setLinkCopied] = useState(false);
   const [autoStarted, setAutoStarted] = useState(false);
+  const [manualOpen, setManualOpen] = useState(Boolean(initialOAuthCode));
   const codeFormRef = useRef<HTMLFormElement>(null);
   const codeRef = useRef<HTMLTextAreaElement>(null);
 
@@ -187,8 +188,15 @@ export function PeugeotConnectForm({
       ? passwordState
       : codeState;
   const pending = passwordPending || codePending;
+  const captchaBlocked = Boolean(
+    state.manualCode || (state.error && /captcha/i.test(state.error)),
+  );
   const [loginPhase, setLoginPhase] = useState(0);
   const [loginSlow, setLoginSlow] = useState(false);
+
+  useEffect(() => {
+    if (captchaBlocked) setManualOpen(true);
+  }, [captchaBlocked]);
 
   useEffect(() => {
     if (!passwordPending) {
@@ -444,23 +452,44 @@ export function PeugeotConnectForm({
             </div>
           ) : null}
 
-          <details className="mt-4 text-sm" open={Boolean(initialOAuthCode)}>
+          <details
+            className="mt-4 text-sm"
+            open={manualOpen}
+            onToggle={(e) => setManualOpen(e.currentTarget.open)}
+          >
             <summary className="cursor-pointer text-[var(--accent-bright)]">
-              Alternativ: Code vom Computer einfügen
+              {captchaBlocked
+                ? "Code vom Computer einlösen"
+                : "Alternativ: Code vom Computer einfügen"}
             </summary>
 
-            <p className="mt-2 text-xs text-[var(--fg-muted)]">
-              Am Mac/PC Peugeot-Login öffnen → WEITER →{" "}
-              <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
-              kopieren und hier einlösen.
-            </p>
+            {captchaBlocked ? (
+              <p className="mt-2 text-sm text-[var(--danger)]" role="alert">
+                Peugeot Captcha blockiert die Automatik. Login-Link am Computer
+                öffnen, nach „Weiter“ die{" "}
+                <code className="text-[var(--accent-bright)]">mymap://…</code>
+                -Adresse hier einlösen.
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-[var(--fg-muted)]">
+                Am Mac/PC Peugeot-Login öffnen → WEITER →{" "}
+                <code className="text-[var(--accent-bright)]">
+                  mymap://…?code=…
+                </code>{" "}
+                kopieren und hier einlösen.
+              </p>
+            )}
 
             {isIos ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => void copyLoginLink()}
-                  className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+                  className={
+                    captchaBlocked
+                      ? "action-btn btn-primary rounded-full px-4 py-2.5 text-sm font-semibold"
+                      : "action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+                  }
                 >
                   {linkCopied ? "Login-Link kopiert" : "Login-Link für PC kopieren"}
                 </button>
@@ -539,7 +568,8 @@ export function PeugeotConnectForm({
             {pasteHint}
           </p>
         ) : null}
-        {state.error ? (
+        {/* Captcha text lives in the open computer-code panel — don't repeat it. */}
+        {state.error && !captchaBlocked ? (
           <p role="alert" className="text-[var(--danger)]">
             {state.error}
           </p>
