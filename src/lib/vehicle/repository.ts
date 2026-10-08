@@ -267,7 +267,9 @@ async function recordChargeSample(
 
   const { data: last } = await supabase
     .from("charge_samples")
-    .select("id, session_id, recorded_at, battery_percent, charge_status")
+    .select(
+      "id, session_id, recorded_at, battery_percent, charge_status, charge_power_kw, charge_rate_kmh",
+    )
     .eq("vehicle_id", vehicleId)
     .order("recorded_at", { ascending: false })
     .limit(1)
@@ -279,6 +281,12 @@ async function recordChargeSample(
   const ageMs = lastAt ? Date.now() - lastAt : Number.POSITIVE_INFINITY;
   const lastStatus = String(last?.charge_status ?? "");
   const lastPercent = Number(last?.battery_percent ?? NaN);
+  const lastPower = Number(last?.charge_power_kw ?? NaN);
+  const nextPower = Number(vehicle.chargePowerKw ?? NaN);
+  const powerJumped =
+    Number.isFinite(lastPower) &&
+    Number.isFinite(nextPower) &&
+    Math.abs(nextPower - lastPower) >= 2;
 
   // New session when starting to charge after a gap / different phase.
   let sessionId = String(last?.session_id ?? crypto.randomUUID());
@@ -297,13 +305,15 @@ async function recordChargeSample(
     sessionId = String(last.session_id);
   }
 
-  // Dedupe near-identical points (keep ~1–2 min resolution).
+  // Dedupe near-identical points (keep ~1–2 min resolution),
+  // but always keep a point when Leistung jumps (≥2 kW) for the speed curve.
   if (
     last &&
     ageMs < 50_000 &&
     lastStatus === vehicle.chargeStatus &&
     Number.isFinite(lastPercent) &&
-    Math.abs(lastPercent - vehicle.batteryPercent) < 0.3
+    Math.abs(lastPercent - vehicle.batteryPercent) < 0.3 &&
+    !powerJumped
   ) {
     return;
   }

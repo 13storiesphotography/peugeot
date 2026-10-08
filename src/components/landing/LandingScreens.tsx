@@ -13,7 +13,7 @@ const tabs: { id: ScreenId; label: string; blurb: string }[] = [
   {
     id: "charge",
     label: "Laden",
-    blurb: "Ladekurve, Wallbox und 80%-Limit, ohne App-Wirrwarr.",
+    blurb: "Ladegeschwindigkeit, Wallbox und 80%-Limit, ohne App-Wirrwarr.",
   },
   {
     id: "climate",
@@ -134,7 +134,7 @@ function ChargeScreen({ percent }: { percent: number }) {
         </div>
       </div>
       <div className="mx-4 mb-2 h-20 rounded-xl border border-[var(--line)] bg-black/25 p-2">
-        <p className="text-[9px] text-[var(--fg-muted)]">Ladekurve</p>
+        <p className="text-[9px] text-[var(--fg-muted)]">Ladegeschwindigkeit</p>
         <svg viewBox="0 0 200 40" className="mt-1 h-10 w-full" aria-hidden>
           <polyline
             className="landing-curve-draw"
@@ -143,7 +143,7 @@ function ChargeScreen({ percent }: { percent: number }) {
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            points="0,35 40,28 80,18 120,14 160,12 200,10"
+            points="0,12 30,8 60,8 90,14 120,22 150,30 180,35 200,36"
           />
         </svg>
       </div>
