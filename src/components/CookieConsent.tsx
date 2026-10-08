@@ -67,14 +67,14 @@ export function CookieConsent() {
           <button
             type="button"
             onClick={() => choose("rejected")}
-            className="action-btn rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold"
+            className="action-btn rounded-xl border border-[var(--line)] px-4 py-2 text-sm font-semibold"
           >
             Ablehnen
           </button>
           <button
             type="button"
             onClick={() => choose("accepted")}
-            className="action-btn btn-primary rounded-full px-4 py-2 text-sm font-semibold"
+            className="action-btn btn-primary rounded-xl px-4 py-2 text-sm font-semibold"
           >
             Akzeptieren
           </button>
