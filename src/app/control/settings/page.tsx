@@ -98,7 +98,7 @@ function SettingsHeader({
         {email}
       </p>
 
-      <Link
+      <InstantNavLink
         href={mfa.status !== "ok" ? "/control/account#mfa" : "/control/account"}
         className="animate-rise-delay-1 mt-4 flex items-center justify-between rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 text-sm font-semibold"
       >
@@ -115,7 +115,7 @@ function SettingsHeader({
         <span className="text-[var(--fg-muted)]" aria-hidden>
           →
         </span>
-      </Link>
+      </InstantNavLink>
 
       {isAdminEmail(email) ? (
         <Link

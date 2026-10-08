@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { ControlSideNav } from "@/components/ControlSideNav";
 
 /** Desktop rail + mobile-friendly content column for settings/account pages. */
@@ -11,6 +12,17 @@ export function ControlPageShell({
   section: "settings" | "account";
   children: ReactNode;
 }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.prefetch("/control");
+    if (section === "settings") {
+      router.prefetch("/control/account");
+    } else {
+      router.prefetch("/control/settings");
+    }
+  }, [router, section]);
+
   return (
     <div className="relative min-h-dvh pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <ControlSideNav section={section} />
