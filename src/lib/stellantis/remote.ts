@@ -652,11 +652,34 @@ export async function sendChargeControl(input: {
 }
 
 /**
- * @deprecated Peugeot `/VehCharge` only accepts type=immediate|delayed.
- * Sending partial/full returns Remote-Fehler 110. The app stores the preferred
- * limit and enforces it by stopping charge (delayed) at the target SOC.
+ * Native MyPeugeot „Laden auf 80% begrenzen“ via MQTT `/VehCharge/limit`.
+ * Same contract as the Home Assistant Stellantis integration:
+ * - action `daily` → limit on (vehicle charging.type → Partial)
+ * - action `trip`  → limit off (Full / 100%)
+ *
+ * Do NOT send type=partial|full on `/VehCharge` — that topic only accepts
+ * immediate|delayed and returns Remote-Fehler 110.
  */
-export async function sendChargeTargetType(_input: {
+export async function sendChargeLimitNative(input: {
+  customerId: string;
+  vin: string;
+  remoteAccessToken: string;
+  limit80: boolean;
+}): Promise<void> {
+  await publishRemoteCommand({
+    customerId: input.customerId,
+    vin: input.vin,
+    remoteAccessToken: input.remoteAccessToken,
+    topicSuffix: "/VehCharge/limit",
+    reqParameters: {
+      action: input.limit80 ? "daily" : "trip",
+    },
+    ackTimeoutMs: 18_000,
+  });
+}
+
+/** @deprecated Use {@link sendChargeLimitNative}. */
+export async function sendChargeTargetType(input: {
   customerId: string;
   vin: string;
   remoteAccessToken: string;
@@ -664,9 +687,7 @@ export async function sendChargeTargetType(_input: {
   hour: number;
   minute: number;
 }): Promise<void> {
-  throw new Error(
-    'Remote-Fehler 110: type must match "^(immediate|delayed)$" — use app charge-limit enforcement instead.',
-  );
+  await sendChargeLimitNative(input);
 }
 
 /** Lock or unlock doors via MQTT `/Doors`. */

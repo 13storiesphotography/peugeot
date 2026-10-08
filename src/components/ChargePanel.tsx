@@ -176,7 +176,7 @@ export function ChargePanel({
                   ? "Ansehen frei — Umschalten mit Pro"
                   : live
                     ? eightyOn
-                      ? "Aktiv — stoppt im Hintergrund bei ca. 80%"
+                      ? "Aktiv — wie in MyPeugeot (nativ + Absicherung)"
                       : "Aus — lädt bis 100%"
                     : "Schont die Batterie im Alltag"}
               </p>
@@ -189,7 +189,7 @@ export function ChargePanel({
                 disabled={busy}
                 title={
                   live
-                    ? "App-Limit: stoppt Laden im Hintergrund bei ca. 80%"
+                    ? "Setzt das 80%-Limit am Fahrzeug (MyPeugeot)"
                     : undefined
                 }
                 onClick={() =>

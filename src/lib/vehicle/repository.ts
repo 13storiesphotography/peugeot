@@ -1554,6 +1554,10 @@ async function maybeEnforceChargeLimit(
   if (!entitlement.isPro) return vehicle;
   const limit = vehicle.preferredChargeLimitPercent ?? 80;
   if (limit >= 100) return vehicle;
+  // Native MyPeugeot Partial limit is already on the car — no software stop.
+  if (/(partial|limited|eighty|care)/i.test(vehicle.chargingType ?? "")) {
+    return vehicle;
+  }
   if (vehicle.chargeStatus !== "charging") {
     if (vehicle.chargeLimitEnforcedAt) {
       return { ...vehicle, chargeLimitEnforcedAt: null };
@@ -1595,14 +1599,40 @@ async function runLiveChargeLimitCommand(
   const limit = Math.min(100, Math.max(50, Math.round(limitPercent)));
   const limit80 = limit <= 80;
 
-  // Peugeot MQTT /VehCharge only accepts type=immediate|delayed.
-  // There is no remote "partial/full" charge-limit command — sending those
-  // values returns Remote-Fehler 110 after a long wait. Store the preferred
-  // limit in-app; while charging, maybeEnforceChargeLimit stops at the target.
+  // Always remember the preference for software fallback / UI.
   let nextVehicle = applyCommandToState(bundle.vehicle, {
     command: "set_charge_limit",
     chargeLimitPercent: limit,
   }).vehicle;
+
+  // Native MyPeugeot toggle: MQTT `/VehCharge/limit` action daily|trip
+  // (not type=partial on `/VehCharge` — that returns Remote-Fehler 110).
+  let nativeOk = false;
+  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+  if (remote.ok) {
+    try {
+      const { sendChargeLimitNative } = await import("@/lib/stellantis/remote");
+      await sendChargeLimitNative({
+        customerId: remote.customerId,
+        vin: remote.vin,
+        remoteAccessToken: remote.remoteAccessToken,
+        limit80,
+      });
+      nativeOk = true;
+      nextVehicle = {
+        ...nextVehicle,
+        chargeLimitPercent: limit80 ? 80 : 100,
+        chargeLimitKnown: true,
+        chargingType: limit80 ? "Partial" : "Full",
+      };
+    } catch (error) {
+      console.warn(
+        "native charge limit:",
+        error instanceof Error ? error.message : error,
+      );
+      // Fall through — preferred limit stays stored; cron can still stop charge.
+    }
+  }
 
   const shouldStopNow =
     nextVehicle.chargeStatus === "charging" &&
@@ -1660,6 +1690,7 @@ async function runLiveChargeLimitCommand(
     } catch (error) {
       const raw =
         error instanceof Error ? error.message : "Laden stoppen fehlgeschlagen.";
+      // Native limit may already be set — still report stop failure.
       return {
         ok: false,
         message: humanizeChargeLimitError(raw),
@@ -1668,13 +1699,29 @@ async function runLiveChargeLimitCommand(
     }
   }
 
+  if (!nativeOk && !remote.ok) {
+    return {
+      ok: true,
+      message: limit80
+        ? "Limit gespeichert — stoppt im Hintergrund bei ca. 80% (Fernbedienung prüfen für natives Limit)."
+        : "Ladeziel 100% gespeichert.",
+      vehicle: nextVehicle,
+    };
+  }
+
   return {
     ok: true,
     message: limit80
       ? shouldStopNow
-        ? "Laden auf 80% begrenzt — Ladevorgang gestoppt."
-        : "Laden auf 80% begrenzt."
-      : "Ladeziel auf 100% gesetzt.",
+        ? nativeOk
+          ? "Laden auf 80% begrenzt — Ladevorgang gestoppt."
+          : "Limit gespeichert — Ladevorgang gestoppt."
+        : nativeOk
+          ? "Laden auf 80% begrenzt (wie in MyPeugeot)."
+          : "Limit gespeichert — stoppt im Hintergrund bei ca. 80%."
+      : nativeOk
+        ? "Ladeziel auf 100% gesetzt."
+        : "Ladeziel 100% gespeichert.",
     vehicle: nextVehicle,
   };
 }
