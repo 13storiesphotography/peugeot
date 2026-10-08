@@ -45,7 +45,7 @@ function buildSteps(state: OnboardingState): Step[] {
     {
       id: "remote",
       title: "Fernbedienung freischalten",
-      body: "Einmal SMS-Code und PIN hinterlegen (e-Remote / Connect). Danach gehen Vorklima und Schloss.",
+      body: "SMS an dein MyPeugeot-Handy + 4-stellige App-Sicherheits-PIN. PIN vergessen? In MyPeugeot zurücksetzen, dann hier neu freischalten.",
       href: "/control/settings#remote",
       cta: "PIN einrichten",
       done: !needsConnect && state.remoteReady,

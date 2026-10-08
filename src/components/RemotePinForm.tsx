@@ -16,13 +16,67 @@ import {
 
 type Props = {
   ready: boolean;
+  /** MyPeugeot account email — SMS goes to the phone on that account. */
+  mypeugeotEmail?: string | null;
   /** Compact layout for the Klima tab (default settings-style). */
   compact?: boolean;
   /** Called after PIN setup succeeds so the parent can unlock climate. */
   onReady?: () => void;
 };
 
-export function RemotePinForm({ ready, compact = false, onReady }: Props) {
+function RemoteHelp({ email }: { email?: string | null }) {
+  return (
+    <div className="space-y-2 text-xs leading-relaxed text-[var(--fg-muted)]">
+      <details className="rounded-xl border border-[var(--line)] bg-white/[0.03] px-3 py-2">
+        <summary className="cursor-pointer font-semibold text-[var(--fg)]">
+          An welche Nummer geht die SMS?
+        </summary>
+        <p className="mt-2">
+          An die Handynummer, die in der{" "}
+          <span className="text-[var(--fg)]">MyPeugeot-App</span> bei
+          Fernbedienung / e-Remote hinterlegt ist — nicht an peugeotcontrol.app.
+          {email ? (
+            <>
+              {" "}
+              Verbundenes Konto:{" "}
+              <span className="break-all text-[var(--fg)]">{email}</span>.
+            </>
+          ) : null}{" "}
+          Nummer prüfen oder ändern: MyPeugeot → Fernbedienung / Remote Control.
+          Keine SMS? Dort die Nummer prüfen, ggf. neu hinterlegen, dann hier
+          erneut „SMS anfordern“.
+        </p>
+      </details>
+      <details className="rounded-xl border border-[var(--line)] bg-white/[0.03] px-3 py-2">
+        <summary className="cursor-pointer font-semibold text-[var(--fg)]">
+          PIN vergessen?
+        </summary>
+        <p className="mt-2">
+          Das ist die{" "}
+          <span className="text-[var(--fg)]">4-stellige Sicherheits-PIN</span> aus
+          der MyPeugeot-App (nicht der SMS-Code, nicht dein Login-Passwort). Wir
+          können sie hier nicht zurücksetzen — nur Peugeot.
+        </p>
+        <ol className="mt-2 list-decimal space-y-1 pl-4">
+          <li>MyPeugeot-App öffnen (ggf. deinstallieren und neu installieren).</li>
+          <li>
+            Fernbedienung / Remote Control starten — die App fordert oft einen
+            Reset der Sicherheits-PIN.
+          </li>
+          <li>Neue 4-stellige PIN wählen und merken.</li>
+          <li>Hier neue SMS anfordern und mit der neuen PIN freischalten.</li>
+        </ol>
+      </details>
+    </div>
+  );
+}
+
+export function RemotePinForm({
+  ready,
+  mypeugeotEmail = null,
+  compact = false,
+  onReady,
+}: Props) {
   const [state, action, pending] = useActionState(
     activateRemotePinAction,
     {} as RemotePinState,
@@ -54,7 +108,7 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
             <p className="mt-1 text-sm text-[var(--fg-muted)]">
               {ready
                 ? "Klima/Aufwecken aktiv. Schloss/Hupe/Licht brauchen zusätzlich Connect PLUS in MyPeugeot."
-                : "Einmalig: SMS-Code + 4-stellige MyPeugeot-PIN (für Klima/e-Remote). Bei Sperre kurz warten und neue SMS holen."}
+                : "Einmalig freischalten: SMS-Code vom MyPeugeot-Handy + 4-stellige App-Sicherheits-PIN."}
             </p>
           </div>
           {ready ? (
@@ -72,14 +126,18 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
         <div>
           <p className="font-semibold">Klima freischalten</p>
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            1) SMS anfordern · 2) Code aus der SMS · 3) MyPeugeot-PIN
+            1) SMS anfordern · 2) Code aus der SMS · 3) MyPeugeot-Sicherheits-PIN
           </p>
         </div>
       )}
 
       {showSetup ? (
         <>
-          <div className={`${compact ? "" : "mt-4 "}flex flex-wrap gap-2`}>
+          <div className={`${compact ? "mt-3" : "mt-4"}`}>
+            <RemoteHelp email={mypeugeotEmail} />
+          </div>
+
+          <div className={`${compact ? "mt-3" : "mt-4"} flex flex-wrap gap-2`}>
             <button
               type="button"
               disabled={smsPending}
@@ -130,7 +188,9 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
               />
             </div>
             <label className="block text-sm">
-              <span className="text-[var(--fg-muted)]">SMS-Code</span>
+              <span className="text-[var(--fg-muted)]">
+                SMS-Code (vom MyPeugeot-Handy)
+              </span>
               <input
                 name="smsCode"
                 value={smsCode}
@@ -154,7 +214,9 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
               />
             </label>
             <label className="block text-sm">
-              <span className="text-[var(--fg-muted)]">PIN (4 Ziffern)</span>
+              <span className="text-[var(--fg-muted)]">
+                MyPeugeot-Sicherheits-PIN (4 Ziffern)
+              </span>
               <input
                 name="pin"
                 value={pin}
@@ -199,7 +261,11 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
             </button>
           </form>
         </>
-      ) : null}
+      ) : (
+        <div className="mt-4">
+          <RemoteHelp email={mypeugeotEmail} />
+        </div>
+      )}
 
       {state.error ? (
         <p role="alert" className="mt-3 text-sm text-[var(--danger)]">
