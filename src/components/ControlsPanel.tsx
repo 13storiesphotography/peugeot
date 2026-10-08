@@ -34,84 +34,52 @@ export function ControlsPanel({
   const locked = vehicle.locked;
   const live = vehicle.mode === "live";
   const wakeDisabled = live && !remoteReady;
-  const showSignals = !live || remoteSignalsOk !== false;
+  const signalsLikelyMissing = live && remoteSignalsOk === false;
 
-  const actions: ControlTile[] = [];
-  if (showSignals) {
-    actions.push(
-      {
-        id: "flash",
-        label: "Finden",
-        onClick: () =>
-          isPro
-            ? onCommand("flash")
-            : (window.location.href = "/control/settings#pro"),
-        icon: <IconFind />,
-      },
-      {
-        id: "horn",
-        label: "Hupe",
-        onClick: () =>
-          isPro
-            ? onCommand("horn")
-            : (window.location.href = "/control/settings#pro"),
-        icon: <IconHorn />,
-      },
-    );
-  }
-  actions.push({
-    id: "wakeup",
-    label: "Wecken",
-    onClick: () =>
-      isPro
-        ? onCommand("wakeup")
-        : (window.location.href = "/control/settings#pro"),
-    icon: <IconWake />,
-    disabled: wakeDisabled,
-    title: wakeDisabled
-      ? "Fernbedienung unter Einstellungen einrichten"
-      : undefined,
-  });
+  const goPro = () => {
+    window.location.href = "/control/settings#pro";
+  };
+
+  const actions: ControlTile[] = [
+    {
+      id: "flash",
+      label: "Finden",
+      onClick: () => (isPro ? onCommand("flash") : goPro()),
+      icon: <IconFind />,
+    },
+    {
+      id: "horn",
+      label: "Hupe",
+      onClick: () => (isPro ? onCommand("horn") : goPro()),
+      icon: <IconHorn />,
+    },
+    {
+      id: "wakeup",
+      label: "Wecken",
+      onClick: () => (isPro ? onCommand("wakeup") : goPro()),
+      icon: <IconWake />,
+      disabled: wakeDisabled,
+      title: wakeDisabled
+        ? "Fernbedienung unter Einstellungen einrichten"
+        : undefined,
+    },
+  ];
 
   const lockAction = () =>
     isPro
       ? onCommand(locked ? "unlock" : "lock")
-      : (window.location.href = "/control/settings#pro");
-
-  const actionGrid = (
-    <div
-      className={`grid gap-3 ${
-        actions.length === 1 ? "grid-cols-1" : "grid-cols-3"
-      } ${showSignals ? "lg:contents" : ""}`}
-    >
-      {actions.map((tile) => (
-        <button
-          key={tile.id}
-          type="button"
-          disabled={busy || tile.disabled}
-          title={tile.title}
-          onClick={tile.onClick}
-          className="action-btn ui-surface ui-tile disabled:opacity-55 lg:py-5"
-        >
-          <span className="ui-tile-icon">{tile.icon}</span>
-          <span className="ui-tile-label lg:text-sm">{tile.label}</span>
-        </button>
-      ))}
-    </div>
-  );
+      : goPro();
 
   return (
     <section className="animate-rise space-y-6 pt-2 lg:pt-0">
       <SectionHeader
         title="Steuern"
         hint={
-          !showSignals
-            ? "Schloss/Signal nicht im Peugeot-Abo"
-            : wakeDisabled
-              ? "Wecken braucht Fernbedienung"
-              : isPro
-                ? "Schloss und Signale"
-                : "Fernbedienung mit Pro"
+          wakeDisabled
+            ? "Wecken braucht Fernbedienung"
+            : isPro
+              ? "Schloss und Signale"
+              : "Fernbedienung mit Pro"
         }
         hideTitleOnDesktop
       />
@@ -129,62 +97,64 @@ export function ControlsPanel({
         </div>
       ) : null}
 
-      {!showSignals ? (
-        <>
-          <div className="rounded-2xl border border-[var(--line)] px-4 py-4 text-sm">
-            <p className="font-semibold">
-              {locked ? "Verriegelt" : "Entriegelt"}
-              <span className="ml-2 text-xs font-normal text-[var(--fg-muted)]">
-                (nur Anzeige)
-              </span>
-            </p>
-            <p className="mt-2 text-xs text-[var(--fg-muted)]">
-              Fern-Entriegeln geht weder in MyPeugeot noch hier — dafür fehlt{" "}
-              <span className="text-[var(--fg)]">
-                Connect PLUS / Remote Control
-              </span>
-              . Vorklima (e-Remote) funktioniert weiter.
-            </p>
-          </div>
-          {actionGrid}
-        </>
-      ) : (
-        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-4">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={lockAction}
-            className="action-btn ui-surface flex w-full flex-col items-center gap-3 px-5 py-7 lg:gap-2.5 lg:px-3 lg:py-5"
+      {signalsLikelyMissing ? (
+        <div className="rounded-2xl border border-[var(--line)] px-4 py-3 text-sm text-[var(--fg-muted)]">
+          Peugeot hat Schloss/Signale zuletzt abgelehnt — oft fehlt{" "}
+          <span className="text-[var(--fg)]">Connect PLUS / Remote Control</span>{" "}
+          in MyPeugeot. Buttons bleiben; erneut tippen prüft nochmal. Vorklima
+          (e-Remote) funktioniert weiter.
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-4">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={lockAction}
+          className="action-btn ui-surface flex w-full flex-col items-center gap-3 px-5 py-7 lg:gap-2.5 lg:px-3 lg:py-5"
+          style={{
+            borderColor: locked
+              ? "rgba(95,227,192,0.45)"
+              : "rgba(232,184,109,0.4)",
+            background: locked
+              ? "rgba(95,227,192,0.1)"
+              : "rgba(232,184,109,0.1)",
+          }}
+        >
+          <span
+            className="grid h-14 w-14 place-items-center rounded-full lg:h-11 lg:w-11"
             style={{
-              borderColor: locked
-                ? "rgba(95,227,192,0.45)"
-                : "rgba(232,184,109,0.4)",
               background: locked
-                ? "rgba(95,227,192,0.1)"
-                : "rgba(232,184,109,0.1)",
+                ? "rgba(95,227,192,0.18)"
+                : "rgba(232,184,109,0.18)",
+              color: locked ? "var(--accent-bright)" : "var(--warn)",
             }}
           >
-            <span
-              className="grid h-14 w-14 place-items-center rounded-full lg:h-11 lg:w-11"
-              style={{
-                background: locked
-                  ? "rgba(95,227,192,0.18)"
-                  : "rgba(232,184,109,0.18)",
-                color: locked ? "var(--accent-bright)" : "var(--warn)",
-              }}
+            <IconLock locked={locked} />
+          </span>
+          <span className="font-[family-name:var(--font-display)] text-xl font-semibold lg:text-sm">
+            {locked ? "Entriegeln" : "Verriegeln"}
+          </span>
+          <span className="text-xs text-[var(--fg-muted)] lg:text-[11px]">
+            {locked ? "Aktuell verriegelt" : "Aktuell entriegelt"}
+          </span>
+        </button>
+        <div className="grid grid-cols-3 gap-3 lg:contents">
+          {actions.map((tile) => (
+            <button
+              key={tile.id}
+              type="button"
+              disabled={busy || tile.disabled}
+              title={tile.title}
+              onClick={tile.onClick}
+              className="action-btn ui-surface ui-tile disabled:opacity-55 lg:py-5"
             >
-              <IconLock locked={locked} />
-            </span>
-            <span className="font-[family-name:var(--font-display)] text-xl font-semibold lg:text-sm">
-              {locked ? "Entriegeln" : "Verriegeln"}
-            </span>
-            <span className="text-xs text-[var(--fg-muted)] lg:text-[11px]">
-              {locked ? "Aktuell verriegelt" : "Aktuell entriegelt"}
-            </span>
-          </button>
-          {actionGrid}
+              <span className="ui-tile-icon">{tile.icon}</span>
+              <span className="ui-tile-label lg:text-sm">{tile.label}</span>
+            </button>
+          ))}
         </div>
-      )}
+      </div>
     </section>
   );
 }
@@ -247,13 +217,13 @@ function IconHorn() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M4 14v-3a2 2 0 0 1 2-2h3l7-4v14l-7-4H6a2 2 0 0 1-2-2Z"
+        d="M4 10v4h3l5 3V7l-5 3H4z"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinejoin="round"
       />
       <path
-        d="M19 10c.8.6.8 2.4 0 3"
+        d="M16 9.5a4 4 0 0 1 0 5M18.5 7.5a7 7 0 0 1 0 9"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
