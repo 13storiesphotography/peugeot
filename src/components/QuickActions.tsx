@@ -91,7 +91,7 @@ export function QuickActions({
     <div
       className={`mx-auto grid w-full max-w-sm gap-3 ${
         actions.length === 2 ? "grid-cols-2" : "grid-cols-3"
-      }`}
+      }${busy ? " quick-actions-busy" : ""}`}
     >
       {actions.map((action) => (
         <button

@@ -70,7 +70,7 @@ export function ControlSideNav({
       <nav className="mt-8 flex flex-1 flex-col gap-1">
         {CONTROL_TABS.map((item) => {
           const active = section === "control" && tab === item.id;
-          const className = `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+          const className = `control-side-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
             active
               ? "bg-[rgba(95,227,192,0.12)] text-[var(--accent-bright)]"
               : "text-[var(--fg-muted)] hover:bg-white/[0.04] hover:text-[var(--fg)]"
@@ -108,7 +108,7 @@ export function ControlSideNav({
       <div className="mt-auto space-y-1 border-t border-[var(--line)] pt-4">
         <a
           href="/control/settings"
-          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+          className={`control-side-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
             section === "settings"
               ? "bg-[rgba(95,227,192,0.12)] text-[var(--accent-bright)]"
               : "text-[var(--fg-muted)] hover:bg-white/[0.04] hover:text-[var(--fg)]"
@@ -120,7 +120,7 @@ export function ControlSideNav({
         </a>
         <Link
           href="/control/account"
-          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+          className={`control-side-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
             section === "account"
               ? "bg-[rgba(95,227,192,0.12)] text-[var(--accent-bright)]"
               : "text-[var(--fg-muted)] hover:bg-white/[0.04] hover:text-[var(--fg)]"
