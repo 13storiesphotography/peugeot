@@ -78,11 +78,6 @@ Do **not** tint % / bars by DC Quick charging.
 - Manual update: header refresh **or** pull-to-refresh (same hard wake + sync).
 - Hard refresh also imports onboard Vorklima plans — no separate „Vom Auto“.
 
-## Bottom nav (mobile)
-
-- Floating liquid-glass shell (blur + teal sliding pill). Keep our icons/labels/colors.
-- Pill morphs between tabs (stretch mid-travel). Labels collapse on scroll-down.
-
 ## Don’t
 
 - Purple gradients, cream newspaper layouts, glow stacks, emoji as UI.
