@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cache } from "react";
 import {
   evaluateMfaPolicy,
   type MfaDecision,
@@ -10,35 +11,38 @@ export type MfaDecisionResult = MfaDecision & {
   graceDays: number;
 };
 
-export async function getMfaDecision(
-  supabase: SupabaseClient,
-): Promise<MfaDecisionResult> {
-  const [{ data: aal }, { data: factors }, { data: userData }] =
-    await Promise.all([
-      supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-      supabase.auth.mfa.listFactors(),
-      supabase.auth.getUser(),
-    ]);
+/** Deduped per request when the same Supabase client instance is reused. */
+export const getMfaDecision = cache(
+  async (supabase: SupabaseClient): Promise<MfaDecisionResult> => {
+    const [{ data: aal }, { data: factors }, { data: userData }] =
+      await Promise.all([
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+        supabase.auth.mfa.listFactors(),
+        supabase.auth.getUser(),
+      ]);
 
-  const verifiedTotp = (factors?.totp ?? []).find((f) => f.status === "verified");
-  const verifiedPhone = (factors?.phone ?? []).find(
-    (f) => f.status === "verified",
-  );
-  const hasVerifiedFactor = Boolean(verifiedTotp || verifiedPhone);
+    const verifiedTotp = (factors?.totp ?? []).find(
+      (f) => f.status === "verified",
+    );
+    const verifiedPhone = (factors?.phone ?? []).find(
+      (f) => f.status === "verified",
+    );
+    const hasVerifiedFactor = Boolean(verifiedTotp || verifiedPhone);
 
-  const decision = evaluateMfaPolicy({
-    currentLevel: aal?.currentLevel ?? null,
-    nextLevel: aal?.nextLevel ?? null,
-    hasVerifiedFactor,
-    userCreatedAt: userData.user?.created_at ?? null,
-  });
+    const decision = evaluateMfaPolicy({
+      currentLevel: aal?.currentLevel ?? null,
+      nextLevel: aal?.nextLevel ?? null,
+      hasVerifiedFactor,
+      userCreatedAt: userData.user?.created_at ?? null,
+    });
 
-  return {
-    ...decision,
-    factorId: verifiedTotp?.id ?? verifiedPhone?.id ?? null,
-    graceDays: MFA_GRACE_DAYS,
-  };
-}
+    return {
+      ...decision,
+      factorId: verifiedTotp?.id ?? verifiedPhone?.id ?? null,
+      graceDays: MFA_GRACE_DAYS,
+    };
+  },
+);
 
 export function mfaBlocksAccess(decision: MfaDecision): boolean {
   return (

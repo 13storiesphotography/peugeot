@@ -7,6 +7,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { useRouter } from "next/navigation";
 import { ActivityLog } from "@/components/ActivityLog";
 import { ChargeCompleteBanner } from "@/components/ChargeCompleteBanner";
 import { ChargeLiveStrip } from "@/components/ChargeLiveStrip";
@@ -20,6 +21,7 @@ import {
 import { ControlSideNav } from "@/components/ControlSideNav";
 import { ControlsPanel } from "@/components/ControlsPanel";
 import { DesktopPanel } from "@/components/DesktopPanel";
+import { InstantNavLink } from "@/components/InstantNavLink";
 import { LocationLink } from "@/components/LocationLink";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { QuickActions } from "@/components/QuickActions";
@@ -143,6 +145,7 @@ function readTab(): ControlTab {
 }
 
 export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
+  const router = useRouter();
   const [bundle, setBundle] = useState(initial);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [, startTransition] = useTransition();
@@ -171,6 +174,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   useEffect(() => {
     climateJobRef.current = climateJob;
   }, [climateJob]);
+
+  useEffect(() => {
+    // Warm settings/account so the gear jump paints instantly.
+    router.prefetch("/control/settings");
+    router.prefetch("/control/account");
+  }, [router]);
 
   useEffect(() => {
     lastVehicleRef.current = bundle.vehicle;
@@ -771,8 +780,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             </button>
           </div>
         </div>
-        {/* Native <a>: Next Link can fail on iOS/PWA for this settings jump. */}
-        <a
+        <InstantNavLink
           href="/control/settings"
           className="nav-icon-btn grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] lg:hidden"
           aria-label="Einstellungen"
@@ -800,7 +808,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               strokeWidth="1.75"
             />
           </svg>
-        </a>
+        </InstantNavLink>
       </header>
 
       {bundle.connection.needsReconnect ? (
@@ -810,12 +818,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </p>
           <p className="mt-1 text-[var(--fg-muted)]">
             Keine neuen Fahrzeugdaten, bis du dich erneut verbindest.{" "}
-            <a
+            <InstantNavLink
               href="/control/settings"
               className="text-[var(--accent-bright)] underline-offset-2 hover:underline"
             >
               Zu den Einstellungen
-            </a>
+            </InstantNavLink>
           </p>
         </div>
       ) : null}

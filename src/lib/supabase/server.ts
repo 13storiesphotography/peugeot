@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
-export async function createClient() {
+/** One Supabase server client per RSC request — dedupes auth fan-out. */
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -26,4 +28,4 @@ export async function createClient() {
       },
     },
   );
-}
+});

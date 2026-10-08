@@ -6,6 +6,7 @@ import {
   controlTabHref,
   type ControlTab,
 } from "@/components/control-tabs";
+import { InstantNavLink } from "@/components/InstantNavLink";
 
 function GearIcon() {
   return (
@@ -106,7 +107,7 @@ export function ControlSideNav({
       </nav>
 
       <div className="mt-auto space-y-1 border-t border-[var(--line)] pt-4">
-        <a
+        <InstantNavLink
           href="/control/settings"
           className={`control-side-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
             section === "settings"
@@ -117,8 +118,8 @@ export function ControlSideNav({
         >
           <GearIcon />
           Einstellungen
-        </a>
-        <Link
+        </InstantNavLink>
+        <InstantNavLink
           href="/control/account"
           className={`control-side-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
             section === "account"
@@ -129,7 +130,7 @@ export function ControlSideNav({
         >
           <UserIcon />
           Konto
-        </Link>
+        </InstantNavLink>
       </div>
     </aside>
   );
