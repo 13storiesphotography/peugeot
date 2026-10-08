@@ -135,15 +135,6 @@ export function ClimatePanel({
         </button>
       ) : null}
 
-      {active && !climateJob ? (
-        <div className="ui-surface ui-surface-active px-4 py-4">
-          <p className="font-semibold">Vorklima läuft</p>
-          <p className="mt-1 text-xs text-[var(--fg-muted)]">
-            Außen {formatTemp(vehicle.outdoorTempC)}
-          </p>
-        </div>
-      ) : null}
-
       {pending ? (
         <p className="text-sm text-[var(--fg-muted)]">
           Nicht erneut tippen — das Auto bestätigt oft erst nach 30–60 Sekunden.
