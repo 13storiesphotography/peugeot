@@ -211,12 +211,12 @@ export function formatOAuthErrorPayload(
 /** True for confirmed Peugeot auth/session failures (not network blips). */
 export function isPeugeotAuthFailure(message: string): boolean {
   const lower = message.toLowerCase();
+  // Keep this narrow — broad matches like bare "unauthorized" used to mark
+  // needsReconnect on flaky HTTP noise, forcing Captcha re-login.
   return (
     lower.includes("invalid_grant") ||
     lower.includes("grant invalid") ||
     lower.includes("invalid grant") ||
-    lower.includes("not authorized") ||
-    lower.includes("unauthorized") ||
     lower.includes("token has expired") ||
     (lower.includes("refresh token") && lower.includes("expired")) ||
     lower.includes("anmeldung abgelaufen") ||
