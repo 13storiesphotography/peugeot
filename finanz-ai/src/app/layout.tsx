@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Syne } from "next/font/google";
+import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
 
 const syne = Syne({
@@ -28,6 +29,13 @@ export const metadata: Metadata = {
     title: "Kontura",
     statusBarStyle: "default",
   },
+  icons: {
+    apple: "/icon-192.png",
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+  },
 };
 
 export const viewport: Viewport = {
@@ -43,7 +51,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="de"
       className={`${syne.variable} ${manrope.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col text-ink">{children}</body>
+      <body className="min-h-full flex flex-col text-ink">
+        {children}
+        <PwaRegister />
+      </body>
     </html>
   );
 }

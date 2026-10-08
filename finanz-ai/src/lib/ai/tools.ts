@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { assessAffordability, budgetUsage, buildDemoSnapshot } from "@/lib/finance/snapshot";
 import { formatEur } from "@/lib/finance/money";
+import { upsertSavingsGoal } from "@/lib/finance/goals";
 
 export function createFinanceTools() {
   const snapshot = buildDemoSnapshot();
@@ -82,6 +83,30 @@ export function createFinanceTools() {
           category: tx.category,
         })),
     }),
+
+    createSavingsGoal: tool({
+      description:
+        "Legt ein Sparziel an (z.B. nach einer Affordability-Prüfung), wenn der Nutzer sparen möchte.",
+      inputSchema: z.object({
+        label: z.string().min(1),
+        targetEuros: z.number().positive(),
+        monthlySaveEuros: z.number().nonnegative(),
+      }),
+      execute: async ({ label, targetEuros, monthlySaveEuros }) => {
+        const goal = await upsertSavingsGoal({
+          label,
+          targetCents: Math.round(targetEuros * 100),
+          monthlySaveCents: Math.round(monthlySaveEuros * 100),
+        });
+        return {
+          id: goal.id,
+          label: goal.label,
+          target: formatEur(goal.targetCents),
+          monthlySave: formatEur(goal.monthlySaveCents),
+          message: `Sparziel „${goal.label}“ angelegt. Fortschritt unter /goals.`,
+        };
+      },
+    }),
   };
 }
 
@@ -91,4 +116,5 @@ Nutze Tools für Zahlen — erfinde keine Kontostände.
 Gib keine Anlageberatung und keine Steuerberatung.
 Erwähne, wenn Daten aus dem Demo-Konto stammen.
 Niemals nach Bank-Passwörtern, PINs oder TANs fragen.
-Bei Kaufentscheidungen: Sicherheitsreserve beachten und sparsame Alternativen vorschlagen.`;
+Bei Kaufentscheidungen: Sicherheitsreserve beachten und sparsame Alternativen vorschlagen.
+Wenn Sparen nötig ist und der Nutzer zustimmt, lege mit createSavingsGoal ein Sparziel an.`;

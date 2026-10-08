@@ -3,8 +3,9 @@ import { endDemoSession } from "@/app/actions/demo-auth";
 
 const NAV = [
   { href: "/dashboard", label: "Überblick" },
+  { href: "/transactions", label: "Umsätze" },
   { href: "/chat", label: "AI" },
-  { href: "/budgets", label: "Budgets" },
+  { href: "/goals", label: "Ziele" },
   { href: "/connect", label: "Bank" },
 ];
 
@@ -37,12 +38,12 @@ export function AppShell({
       <div className="mt-8 flex-1">{children}</div>
 
       <nav className="fixed inset-x-0 bottom-0 border-t border-[#10253a]/10 bg-[#f3f7fa]/92 backdrop-blur md:static md:mt-10 md:border-0 md:bg-transparent md:backdrop-blur-none">
-        <ul className="mx-auto flex max-w-6xl items-center justify-around gap-1 px-2 py-3 md:justify-start md:gap-6 md:px-0">
+        <ul className="mx-auto flex max-w-6xl items-center justify-around gap-0.5 overflow-x-auto px-1 py-3 md:justify-start md:gap-5 md:px-0">
           {NAV.map((item) => (
             <li key={item.href}>
               <Link
                 href={item.href}
-                className="rounded-md px-3 py-2 text-sm font-semibold text-ink-soft transition hover:bg-mist hover:text-ink"
+                className="rounded-md px-2.5 py-2 text-sm font-semibold text-ink-soft transition hover:bg-mist hover:text-ink md:px-3"
               >
                 {item.label}
               </Link>

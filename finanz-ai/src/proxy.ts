@@ -1,13 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEMO_COOKIE } from "@/lib/auth/constants";
 
+const APP_PREFIXES = [
+  "/dashboard",
+  "/chat",
+  "/budgets",
+  "/connect",
+  "/transactions",
+  "/goals",
+];
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isApp =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/chat") ||
-    pathname.startsWith("/budgets") ||
-    pathname.startsWith("/connect");
+  const isApp = APP_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
   const isDemo = request.cookies.get(DEMO_COOKIE)?.value === "1";
 
   if (isApp && !isDemo) {
@@ -16,7 +23,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
-  if ((pathname === "/login" || pathname === "/") && isDemo && pathname === "/login") {
+  if (pathname === "/login" && isDemo) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -24,5 +31,13 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/chat/:path*", "/budgets/:path*", "/connect/:path*", "/login"],
+  matcher: [
+    "/dashboard/:path*",
+    "/chat/:path*",
+    "/budgets/:path*",
+    "/connect/:path*",
+    "/transactions/:path*",
+    "/goals/:path*",
+    "/login",
+  ],
 };

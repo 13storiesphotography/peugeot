@@ -64,3 +64,12 @@ export type AffordabilityResult = {
   monthlySaveNeededCents: MoneyCents;
   rationale: string;
 };
+
+export type SavingsGoal = {
+  id: string;
+  label: string;
+  targetCents: MoneyCents;
+  savedCents: MoneyCents;
+  monthlySaveCents: MoneyCents;
+  createdAt: string;
+};

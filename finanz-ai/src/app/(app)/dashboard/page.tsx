@@ -2,18 +2,23 @@ import Link from "next/link";
 import { AppShell } from "@/components/app/AppShell";
 import { budgetUsage, buildDemoSnapshot } from "@/lib/finance/snapshot";
 import { formatEur } from "@/lib/finance/money";
+import { getBankSession } from "@/lib/banking/session";
+import { getSavingsGoals } from "@/lib/finance/goals";
 
 export const metadata = { title: "Überblick" };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
   const snapshot = buildDemoSnapshot();
   const budgets = budgetUsage(snapshot).slice(0, 3);
+  const bank = await getBankSession();
+  const goals = await getSavingsGoals();
 
   return (
     <AppShell title="Überblick">
       <section className="animate-rise">
         <p className="text-sm font-medium uppercase tracking-[0.14em] text-ink-soft">
-          Sparkasse Demo · {snapshot.month}
+          {bank.connected ? `${bank.bankLabel} · verbunden` : "Sparkasse Demo"} ·{" "}
+          {snapshot.month}
         </p>
         <p className="mt-3 font-display text-5xl font-extrabold text-ink md:text-6xl">
           {formatEur(snapshot.totals.balanceCents)}
@@ -40,11 +45,47 @@ export default function DashboardPage() {
         ))}
       </section>
 
+      {goals.length > 0 && (
+        <section className="mt-12 animate-rise-delay-2">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="font-display text-2xl font-bold">Sparziele</h2>
+            <Link href="/goals" className="text-sm font-semibold text-teal">
+              Alle
+            </Link>
+          </div>
+          <ul className="mt-4 space-y-4">
+            {goals.slice(0, 2).map((goal) => {
+              const ratio =
+                goal.targetCents === 0
+                  ? 0
+                  : goal.savedCents / goal.targetCents;
+              return (
+                <li key={goal.id}>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">{goal.label}</span>
+                    <span className="text-ink-soft">
+                      {formatEur(goal.savedCents)} /{" "}
+                      {formatEur(goal.targetCents)}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-mist">
+                    <div
+                      className="h-full rounded-full bg-teal"
+                      style={{ width: `${Math.min(100, ratio * 100)}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <section className="animate-rise-delay-2 mt-12">
         <div className="flex items-baseline justify-between gap-4">
           <h2 className="font-display text-2xl font-bold">Konten</h2>
           <Link href="/connect" className="text-sm font-semibold text-teal">
-            Bank verbinden
+            {bank.connected ? "Bank verwalten" : "Bank verbinden"}
           </Link>
         </div>
         <ul className="mt-4 space-y-4">
@@ -62,6 +103,37 @@ export default function DashboardPage() {
               <p className="font-display text-xl font-bold">
                 {formatEur(account.balanceCents)}
               </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mt-12">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="font-display text-2xl font-bold">Letzte Umsätze</h2>
+          <Link
+            href="/transactions"
+            className="text-sm font-semibold text-teal"
+          >
+            Alle
+          </Link>
+        </div>
+        <ul className="mt-4 space-y-3">
+          {snapshot.transactions.slice(0, 5).map((tx) => (
+            <li
+              key={tx.id}
+              className="flex items-center justify-between gap-3 text-sm"
+            >
+              <span className="truncate text-ink-soft">
+                {tx.bookedAt} · {tx.counterparty}
+              </span>
+              <span
+                className={`shrink-0 font-semibold ${
+                  tx.amountCents >= 0 ? "text-teal" : "text-ink"
+                }`}
+              >
+                {formatEur(tx.amountCents)}
+              </span>
             </li>
           ))}
         </ul>

@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { DEMO_COOKIE } from "@/lib/auth/constants";
+import { BANK_COOKIE, DEMO_COOKIE, GOALS_COOKIE } from "@/lib/auth/constants";
 
 export async function startDemoSession() {
   const jar = await cookies();
@@ -19,5 +19,7 @@ export async function startDemoSession() {
 export async function endDemoSession() {
   const jar = await cookies();
   jar.delete(DEMO_COOKIE);
+  jar.delete(BANK_COOKIE);
+  jar.delete(GOALS_COOKIE);
   redirect("/");
 }

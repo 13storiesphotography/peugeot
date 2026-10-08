@@ -5,9 +5,12 @@ Persönlicher Finanzüberblick mit AI — sicher, PSD2-ready, iOS-tauglich (PWA)
 ## Was läuft im MVP
 
 - **Demo-Session** mit Sparkasse-ähnlichen Beispieldaten (kein Live-Bank-Login)
-- **Dashboard**: Salden, Einkommen/Ausgaben, Budgets
+- **Dashboard**: Salden, Einkommen/Ausgaben, Budgets, Sparziele, letzte Umsätze
+- **Umsätze** + **Sparziele** (auch aus der AI bei „nicht leistbar“)
 - **AI-Chat**: „Kann ich mir den Schrank leisten?“ — mit Tools auf aggregierten Daten
-- **Open-Banking-Platzhalter** für finAPI/Tink (Consent-Flow vorbereitet)
+- **Open-Banking-Demo**: simulierter SCA-Consent → connected + Sync
+- **Open-Banking-Live-Stub** für finAPI/Tink (Credentials + Callback)
+- **PWA** inkl. Service Worker + iOS-Home-Screen-Hinweis
 - **Supabase-Migration** mit RLS für den späteren Live-Betrieb
 
 ## Lokal starten

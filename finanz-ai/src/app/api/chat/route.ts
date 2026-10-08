@@ -10,6 +10,7 @@ import { createFinanceTools, SYSTEM_PROMPT } from "@/lib/ai/tools";
 import { getDemoSession } from "@/lib/auth/demo-session";
 import { assessAffordability, buildDemoSnapshot } from "@/lib/finance/snapshot";
 import { formatEur } from "@/lib/finance/money";
+import { upsertSavingsGoal } from "@/lib/finance/goals";
 
 export const maxDuration = 60;
 
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
   );
 
   if (!hasGateway) {
-    const text = offlineAssistantReply(messages);
+    const text = await offlineAssistantReply(messages);
     const textId = crypto.randomUUID();
     return createUIMessageStreamResponse({
       stream: createUIMessageStream({
@@ -51,13 +52,14 @@ export async function POST(req: Request) {
 }
 
 /** Deterministischer Fallback ohne AI-Gateway — beantwortet typische Kauf-/Sparfragen. */
-function offlineAssistantReply(messages: UIMessage[]): string {
+async function offlineAssistantReply(messages: UIMessage[]): Promise<string> {
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
-  const text = lastUser?.parts
-    ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
-    .map((p) => p.text)
-    .join(" ")
-    .toLowerCase() ?? "";
+  const text =
+    lastUser?.parts
+      ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
+      .map((p) => p.text)
+      .join(" ")
+      .toLowerCase() ?? "";
 
   const snapshot = buildDemoSnapshot();
   const priceMatch = text.match(/(\d+[.,]?\d*)\s*€?/);
@@ -72,14 +74,24 @@ function offlineAssistantReply(messages: UIMessage[]): string {
       text.includes("schrank") ||
       text.includes("sparen"))
   ) {
-    const label =
-      text.includes("schrank") ? "Schrank" : "dieser Kauf";
+    const label = text.includes("schrank") ? "Schrank" : "Kaufziel";
     const result = assessAffordability(
       snapshot,
       label,
       Math.round(priceEuros * 100),
     );
-    return `${result.rationale}\n\n_(Antwort aus lokalem Finanzmodell — AI-Gateway nicht konfiguriert. Setze AI_GATEWAY_API_KEY für den vollen Assistenten.)_`;
+
+    let goalNote = "";
+    if (!result.canAffordNow && result.monthlySaveNeededCents > 0) {
+      const goal = await upsertSavingsGoal({
+        label,
+        targetCents: result.priceCents,
+        monthlySaveCents: result.monthlySaveNeededCents,
+      });
+      goalNote = `\n\nSparziel „${goal.label}“ angelegt (${formatEur(goal.monthlySaveCents)} / Monat) — unter Ziele sichtbar.`;
+    }
+
+    return `${result.rationale}${goalNote}\n\n_(Lokales Finanzmodell — für natürliche Sprache AI_GATEWAY_API_KEY setzen.)_`;
   }
 
   return [

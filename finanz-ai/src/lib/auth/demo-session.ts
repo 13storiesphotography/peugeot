@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { DEMO_COOKIE } from "@/lib/auth/constants";
 
 export { DEMO_COOKIE };
@@ -24,7 +25,7 @@ export async function getDemoSession(): Promise<DemoSession | null> {
 export async function requireDemoSession(): Promise<DemoSession> {
   const session = await getDemoSession();
   if (!session) {
-    throw new Error("UNAUTHORIZED");
+    redirect("/login");
   }
   return session;
 }
