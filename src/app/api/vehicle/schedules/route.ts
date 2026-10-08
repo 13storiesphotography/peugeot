@@ -1,4 +1,6 @@
 import { requireOwner } from "@/lib/auth/require-owner";
+import { getEntitlement } from "@/lib/billing/entitlement";
+import { PRO_REQUIRED_MESSAGE } from "@/lib/billing/pro-commands";
 import {
   createSchedule,
   deleteSchedule,
@@ -11,6 +13,19 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 const KINDS = new Set<VehicleSchedule["kind"]>(["charge", "climate"]);
+
+async function requireProForClimate(
+  supabase: Parameters<typeof getEntitlement>[0],
+  userId: string,
+  kind: string | undefined,
+) {
+  if (kind !== "climate") return null;
+  const entitlement = await getEntitlement(supabase, userId);
+  if (!entitlement.isPro) {
+    return Response.json({ error: PRO_REQUIRED_MESSAGE }, { status: 402 });
+  }
+  return null;
+}
 
 export async function POST(request: Request) {
   const auth = await requireOwner();
@@ -27,6 +42,13 @@ export async function POST(request: Request) {
   if (!body.kind || !KINDS.has(body.kind as VehicleSchedule["kind"])) {
     return Response.json({ error: "Ungültiger Zeitplan-Typ." }, { status: 400 });
   }
+
+  const proBlock = await requireProForClimate(
+    auth.supabase,
+    auth.userId,
+    body.kind,
+  );
+  if (proBlock) return proBlock;
 
   try {
     const result = await createSchedule(auth.supabase, auth.userId, {
@@ -63,6 +85,20 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "Ungültige Schedule-Daten." }, { status: 400 });
   }
 
+  // Climate edits always sync ThermalPrecond — Pro only.
+  const { data: existing } = await auth.supabase
+    .from("vehicle_schedules")
+    .select("kind")
+    .eq("id", body.scheduleId)
+    .eq("user_id", auth.userId)
+    .maybeSingle();
+  const proBlock = await requireProForClimate(
+    auth.supabase,
+    auth.userId,
+    existing?.kind,
+  );
+  if (proBlock) return proBlock;
+
   try {
     const result = await updateSchedule(auth.supabase, auth.userId, body.scheduleId, {
       enabled: body.enabled,
@@ -88,6 +124,19 @@ export async function DELETE(request: Request) {
   if (!body.scheduleId) {
     return Response.json({ error: "scheduleId fehlt." }, { status: 400 });
   }
+
+  const { data: existing } = await auth.supabase
+    .from("vehicle_schedules")
+    .select("kind")
+    .eq("id", body.scheduleId)
+    .eq("user_id", auth.userId)
+    .maybeSingle();
+  const proBlock = await requireProForClimate(
+    auth.supabase,
+    auth.userId,
+    existing?.kind,
+  );
+  if (proBlock) return proBlock;
 
   try {
     const result = await deleteSchedule(

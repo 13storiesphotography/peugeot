@@ -2455,6 +2455,14 @@ export async function createSchedule(
     payload.source = "app";
   }
 
+  // Peugeot ThermalPrecond only has 4 program slots.
+  if (input.kind === "climate") {
+    const existing = await listClimateSchedules(supabase, userId);
+    if (existing.length >= 4) {
+      throw new Error("Maximal 4 Vorklima-Pläne (wie in MyPeugeot).");
+    }
+  }
+
   const { data, error } = await supabase
     .from("vehicle_schedules")
     .insert({

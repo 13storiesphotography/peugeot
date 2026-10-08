@@ -8,7 +8,7 @@ const freeItems = [
 
 const proItems = [
   "Alles aus Free",
-  "Vorklima starten und stoppen",
+  "Vorklima starten, stoppen und planen",
   "Entriegeln, Verriegeln, Finden, Hupe",
   "80%-Ladelimit",
 ];
