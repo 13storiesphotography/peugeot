@@ -8,6 +8,7 @@ interface QuickActionsProps {
   climateOn: boolean;
   busy: boolean;
   remoteReady?: boolean;
+  /** Kept for call-site compat — buttons stay visible even when Peugeot rejects signals. */
   remoteSignalsOk?: boolean | null;
   isPro?: boolean;
   onCommand: (command: VehicleCommand) => void;
@@ -22,90 +23,72 @@ type Action = {
   onClick: () => void;
 };
 
-/** Primary actions under the vehicle. Lock/find only when Peugeot allows them. */
+/** Primary actions under the vehicle — always show lock / climate / find. */
 export function QuickActions({
   locked,
   climateOn,
   busy,
   remoteReady = true,
-  remoteSignalsOk = null,
   isPro = false,
   onCommand,
   onOpenClimate,
 }: QuickActionsProps) {
-  const showSignals = remoteSignalsOk !== false;
   const goPro = () => {
     window.location.href = "/control/settings#pro";
   };
 
-  const climate: Action = {
-    id: "climate",
-    label: climateOn ? "Vorklima aus" : "Vorklima",
-    active: climateOn,
-    icon: <IconClimate />,
-    onClick: () => {
-      if (!isPro) {
-        goPro();
-        return;
-      }
-      if (climateOn) {
-        onCommand("climate_stop");
-        return;
-      }
-      if (!remoteReady && onOpenClimate) {
-        onOpenClimate();
-        return;
-      }
-      onCommand("climate_start");
+  const actions: Action[] = [
+    {
+      id: "lock",
+      label: locked ? "Entriegeln" : "Verriegeln",
+      active: !locked,
+      icon: <IconLock locked={locked} />,
+      onClick: () => (isPro ? onCommand(locked ? "unlock" : "lock") : goPro()),
     },
-  };
-
-  const actions: Action[] = showSignals
-    ? [
-        {
-          id: "lock",
-          label: locked ? "Entriegeln" : "Verriegeln",
-          active: !locked,
-          icon: <IconLock locked={locked} />,
-          onClick: () => (isPro ? onCommand(locked ? "unlock" : "lock") : goPro()),
-        },
-        climate,
-        {
-          id: "flash",
-          label: "Finden",
-          icon: <IconFind />,
-          onClick: () => (isPro ? onCommand("flash") : goPro()),
-        },
-      ]
-    : [
-        climate,
-        {
-          id: "wakeup",
-          label: "Wecken",
-          icon: <IconWake />,
-          onClick: () => (isPro ? onCommand("wakeup") : goPro()),
-        },
-      ];
+    {
+      id: "climate",
+      label: climateOn ? "Vorklima aus" : "Vorklima",
+      active: climateOn,
+      icon: <IconClimate />,
+      onClick: () => {
+        if (!isPro) {
+          goPro();
+          return;
+        }
+        if (climateOn) {
+          onCommand("climate_stop");
+          return;
+        }
+        if (!remoteReady && onOpenClimate) {
+          onOpenClimate();
+          return;
+        }
+        onCommand("climate_start");
+      },
+    },
+    {
+      id: "flash",
+      label: "Finden",
+      icon: <IconFind />,
+      onClick: () => (isPro ? onCommand("flash") : goPro()),
+    },
+  ];
 
   return (
     <div
-      className={`mx-auto grid w-full max-w-sm gap-3 ${
-        actions.length === 2 ? "grid-cols-2" : "grid-cols-3"
-      }${busy ? " quick-actions-busy" : ""}`}
+      className={`mx-auto grid w-full max-w-sm grid-cols-3 gap-3${
+        busy ? " quick-actions-busy" : ""
+      }`}
     >
       {actions.map((action) => (
         <button
           key={action.id}
           type="button"
-          disabled={busy || (action.id === "wakeup" && !remoteReady)}
+          disabled={busy}
           onClick={action.onClick}
           className={`action-btn ui-surface ui-tile ${
             action.active ? "ui-surface-active" : ""
           }`}
-          style={{
-            opacity:
-              action.id === "wakeup" && !remoteReady ? 0.45 : 1,
-          }}
         >
           <span
             className="ui-tile-icon"
@@ -118,9 +101,7 @@ export function QuickActions({
           >
             {action.icon}
           </span>
-          <span className="ui-tile-label">
-            {action.label}
-          </span>
+          <span className="ui-tile-label">{action.label}</span>
         </button>
       ))}
     </div>
@@ -190,20 +171,6 @@ function IconFind() {
         strokeWidth="1.8"
         strokeLinecap="round"
       />
-    </svg>
-  );
-}
-
-function IconWake() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
 }
