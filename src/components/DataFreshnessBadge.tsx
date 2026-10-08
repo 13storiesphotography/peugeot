@@ -117,7 +117,7 @@ const TONE_STYLES: Record<
   },
 };
 
-/** Compact badge: nearly-live vs stale vehicle telemetry. */
+/** Compact freshness label — pill badge or quiet plain text. */
 export function DataFreshnessBadge({
   lastUpdatedAt,
   nowMs,
@@ -126,6 +126,8 @@ export function DataFreshnessBadge({
   refreshing,
   className = "",
   showDetail = false,
+  /** `badge` = colored pill (Laden when plugged). `plain` = muted text only. */
+  variant = "badge",
 }: {
   lastUpdatedAt: string;
   nowMs?: number;
@@ -134,6 +136,7 @@ export function DataFreshnessBadge({
   refreshing?: boolean;
   className?: string;
   showDetail?: boolean;
+  variant?: "badge" | "plain";
 }) {
   const freshness = classifyDataFreshness(lastUpdatedAt, {
     nowMs,
@@ -143,6 +146,27 @@ export function DataFreshnessBadge({
   });
   const style = TONE_STYLES[freshness.tone];
   const pulse = freshness.tone === "live" || Boolean(refreshing);
+
+  if (variant === "plain") {
+    // Quiet header copy — no "Veraltet"/pill chrome; age only.
+    const plainLabel = refreshing
+      ? "Aktualisiere…"
+      : freshness.tone === "demo"
+        ? "Demo"
+        : freshness.tone === "offline"
+          ? "Offline"
+          : `Stand ${formatAgeShort(freshness.ageMinutes)}`;
+    return (
+      <div className={`min-w-0 ${className}`} title={freshness.detail} role="status">
+        <p className="truncate text-[11px] text-[var(--fg-muted)]">{plainLabel}</p>
+        {showDetail && freshness.detail && !refreshing ? (
+          <p className="mt-0.5 text-[11px] text-[var(--fg-muted)] opacity-80">
+            {freshness.detail}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className={`min-w-0 ${className}`}>
