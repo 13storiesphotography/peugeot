@@ -99,7 +99,7 @@ export function LandingPage({
             </div>
           </div>
 
-          <div className="landing-hero-visual order-1 lg:order-2">
+          <div className="landing-hero-visual order-1 lg:order-2 lg:sticky lg:top-24">
             <LandingScreens compact autoCycle />
           </div>
         </section>
