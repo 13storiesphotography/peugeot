@@ -38,13 +38,6 @@ export function LocationLink({ location, className }: Props) {
   const ageLabel = location.updatedAt
     ? formatLocationAge(location.updatedAt, nowMs)
     : null;
-  const ageMinutes = location.updatedAt
-    ? Math.max(
-        0,
-        Math.round((nowMs - new Date(location.updatedAt).getTime()) / 60_000),
-      )
-    : 0;
-  const staleWhileDrivingHint = ageMinutes >= 5;
 
   const body = (
     <>
@@ -54,9 +47,6 @@ export function LocationLink({ location, className }: Props) {
         {ageLabel ? (
           <p className="mt-1 text-xs text-[var(--fg-muted)]">
             Position {ageLabel}
-            {staleWhileDrivingHint
-              ? " · unterwegs oft verzögert"
-              : ""}
           </p>
         ) : null}
       </div>
