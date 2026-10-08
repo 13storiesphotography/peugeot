@@ -6,7 +6,7 @@ import {
 import { healPeugeotSessionWithVault } from "@/lib/stellantis/session-heal";
 import {
   assertCronRequestAuth,
-  requireCronSecret,
+  resolveCronRpcSecret,
 } from "@/lib/auth/cron-secret";
 import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 
@@ -38,11 +38,11 @@ const MAX_REFRESH_AGE_MS = 40 * 60_000;
 const HEAL_BACKOFF_MS = 6 * 60 * 60_000;
 
 async function run(request: Request) {
-  if (!assertCronRequestAuth(request)) {
+  if (!(await assertCronRequestAuth(request))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const cronSecret = requireCronSecret();
+  const cronSecret = await resolveCronRpcSecret();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   if (!url || !getServiceRoleKey()) {
     return Response.json(
