@@ -72,9 +72,14 @@ export function assessAffordability(
 ): AffordabilityResult {
   const liquidGiro =
     snapshot.accounts.find((a) => a.id === "acc_giro")?.balanceCents ?? 0;
+  // Sicherheitsreserve wird vom freien Monatsbudget und vom Giro abgezogen
+  const afterBuffer = Math.max(
+    0,
+    snapshot.totals.freeCashCents - snapshot.totals.safetyBufferCents,
+  );
   const spendableNow = Math.max(
     0,
-    Math.min(snapshot.totals.freeCashCents, liquidGiro - snapshot.totals.safetyBufferCents),
+    Math.min(afterBuffer, liquidGiro - snapshot.totals.safetyBufferCents),
   );
 
   const canAffordNow = priceCents <= spendableNow;
@@ -87,8 +92,8 @@ export function assessAffordability(
     : Math.max(1, Math.ceil(shortfallCents / Math.max(monthlySaveCapacity(snapshot), 1)));
 
   const rationale = canAffordNow
-    ? `Nach Fixkosten und Sicherheitsreserve bleiben ca. ${eur(spendableNow)} frei. ${itemLabel} für ${eur(priceCents)} passt in diesen Monat.`
-    : `Frei verfügbar sind ca. ${eur(spendableNow)} (inkl. Reserve ${eur(snapshot.totals.safetyBufferCents)}). Für ${itemLabel} fehlen ${eur(shortfallCents)}. Mit einer Sparrate von ca. ${eur(Math.ceil(shortfallCents / monthsToSave))} über ${monthsToSave} Monat(e) erreichst du den Betrag.`;
+    ? `Nach Fixkosten und ${eur(snapshot.totals.safetyBufferCents)} Sicherheitsreserve bleiben ca. ${eur(spendableNow)} frei. ${itemLabel} für ${eur(priceCents)} passt in diesen Monat.`
+    : `Nach Reserve bleiben ca. ${eur(spendableNow)} frei. Für ${itemLabel} (${eur(priceCents)}) fehlen ${eur(shortfallCents)}. Mit ca. ${eur(Math.ceil(shortfallCents / monthsToSave))} Sparrate über ${monthsToSave} Monat(e) erreichst du den Betrag.`;
 
   return {
     itemLabel,

@@ -30,24 +30,27 @@ export const DEMO_BUDGETS: Budget[] = [
   { id: "b5", category: "subscriptions", label: "Abos", limitCents: 65_00, month },
 ];
 
+/**
+ * Gehalt 4.200 € − Ausgaben ~3.030 € ≈ 1.170 € frei.
+ * Nach 500 € Reserve bleiben ~670 € — Schrank 799 € knapp nicht, Sparplan sinnvoll.
+ */
 export const DEMO_TRANSACTIONS: Transaction[] = [
-  t("tx1", "acc_giro", `${month}-01`, 320_000, "Arbeitgeber GmbH", "Gehalt", "income"),
-  t("tx2", "acc_giro", `${month}-01`, -98_000, "Immobilienverwaltung", "Miete Wohnung", "housing"),
-  t("tx3", "acc_giro", `${month}-02`, -24_500, "Versicherung AG", "Haftpflicht+Hausrat", "insurance"),
-  t("tx4", "acc_giro", `${month}-03`, -14_900, "Stadtwerke", "Strom Abschlag", "housing"),
-  t("tx5", "acc_giro", `${month}-04`, -6_499, "Streaming Bundle", "Netflix+Spotify", "subscriptions"),
-  t("tx6", "acc_giro", `${month}-05`, -8_790, "Mobilfunk", "Handyvertrag", "subscriptions"),
-  t("tx7", "acc_giro", `${month}-06`, -62_340, "REWE", "Wocheneinkauf", "groceries"),
-  t("tx8", "acc_giro", `${month}-08`, -48_120, "Edeka", "Einkauf", "groceries"),
-  t("tx9", "acc_giro", `${month}-10`, -39_800, "BioMarkt", "Lebensmittel", "groceries"),
+  t("tx1", "acc_giro", `${month}-01`, 420_000, "Arbeitgeber GmbH", "Gehalt", "income"),
+  t("tx2", "acc_giro", `${month}-01`, -95_000, "Immobilienverwaltung", "Miete Wohnung", "housing"),
+  t("tx3", "acc_giro", `${month}-02`, -18_000, "Versicherung AG", "Haftpflicht+Hausrat", "insurance"),
+  t("tx4", "acc_giro", `${month}-03`, -12_000, "Stadtwerke", "Strom Abschlag", "housing"),
+  t("tx5", "acc_giro", `${month}-04`, -4_500, "Streaming Bundle", "Netflix+Spotify", "subscriptions"),
+  t("tx6", "acc_giro", `${month}-05`, -8_500, "Mobilfunk", "Handyvertrag", "subscriptions"),
+  t("tx7", "acc_giro", `${month}-06`, -28_000, "REWE", "Wocheneinkauf", "groceries"),
+  t("tx8", "acc_giro", `${month}-08`, -26_000, "Edeka", "Einkauf", "groceries"),
+  t("tx9", "acc_giro", `${month}-10`, -22_000, "BioMarkt", "Lebensmittel", "groceries"),
   t("tx10", "acc_giro", `${month}-11`, -49_00, "DB Navigator", "Deutschlandticket", "transport"),
-  t("tx11", "acc_giro", `${month}-12`, -28_500, "Tankstelle", "Tanken", "transport"),
-  t("tx12", "acc_giro", `${month}-14`, -45_000, "Restaurant", "Abendessen", "leisure"),
-  t("tx13", "acc_giro", `${month}-16`, -89_900, "IKEA", "Regal", "shopping"),
-  t("tx14", "acc_giro", `${month}-18`, -22_000, "Kino+Café", "Freizeit", "leisure"),
-  t("tx15", "acc_giro", `${month}-20`, -35_600, "REWE", "Einkauf", "groceries"),
-  t("tx16", "acc_tagesgeld", `${month}-02`, 50_000, "Girokonto", "Sparrate", "transfer"),
-  t("tx17", "acc_giro", `${month}-02`, -50_000, "Tagesgeld", "Sparrate", "transfer"),
+  t("tx11", "acc_giro", `${month}-12`, -15_000, "Tankstelle", "Tanken", "transport"),
+  t("tx12", "acc_giro", `${month}-14`, -22_000, "Restaurant", "Abendessen", "leisure"),
+  t("tx13", "acc_giro", `${month}-16`, -35_000, "IKEA", "Regal", "shopping"),
+  t("tx14", "acc_giro", `${month}-18`, -12_000, "Kino+Café", "Freizeit", "leisure"),
+  t("tx15", "acc_tagesgeld", `${month}-02`, 40_000, "Girokonto", "Sparrate", "transfer"),
+  t("tx16", "acc_giro", `${month}-02`, -40_000, "Tagesgeld", "Sparrate", "transfer"),
 ];
 
 export const SAFETY_BUFFER_CENTS = 500_00;
