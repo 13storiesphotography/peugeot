@@ -5,7 +5,8 @@ import { chargingRateKmhToKw } from "@/lib/stellantis/charge-power";
 
 interface ChargeCurveProps {
   samples: ChargeSample[];
-  live?: boolean;
+  /** True only while the vehicle is currently charging — not demo/live mode. */
+  charging?: boolean;
 }
 
 function formatTime(iso: string): string {
@@ -59,8 +60,8 @@ type PowerPoint = {
   chargeStatus: string;
 };
 
-/** SVG Ladegeschwindigkeit — Leistung (kW) über die Session. */
-export function ChargeCurve({ samples }: ChargeCurveProps) {
+/** SVG Ladegeschwindigkeit — Leistung (kW) über die letzte aufgezeichnete Session. */
+export function ChargeCurve({ samples, charging = false }: ChargeCurveProps) {
   const points: PowerPoint[] = [];
   for (const s of samples) {
     const kw = samplePowerKw(s);
@@ -124,7 +125,8 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
   const last = points[points.length - 1]!;
   const delta = Math.round(last.percent - first.percent);
   const yTicks = [0, yMax / 2, yMax].map((v) => Math.round(v * 10) / 10);
-  const live = last.chargeStatus === "charging";
+  // Axis % is SoC at sample time — not necessarily today's current battery %.
+  const sessionLive = charging && last.chargeStatus === "charging";
 
   return (
     <div className="ui-surface px-4 py-4">
@@ -132,7 +134,7 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
         <div>
           <p className="text-sm font-semibold">Ladegeschwindigkeit</p>
           <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
-            {live ? "" : "Letzte Session · "}
+            {sessionLive ? "Lädt · " : "Letzte Session · "}
             {formatTime(first.recordedAt)}–{formatTime(last.recordedAt)} ·{" "}
             {formatDuration(first.recordedAt, last.recordedAt)}
           </p>
@@ -144,7 +146,7 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
             </span>
           </p>
           <p>
-            {live ? "Jetzt" : "Ende"} {formatKw(lastKw)}
+            {sessionLive ? "Jetzt" : "Zuletzt"} {formatKw(lastKw)}
             {delta !== 0 ? (
               <>
                 {" "}

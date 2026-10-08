@@ -260,11 +260,6 @@ async function recordChargeSample(
   vehicleId: string,
   vehicle: VehicleState,
 ) {
-  const interesting =
-    vehicle.chargeStatus === "charging" ||
-    vehicle.chargeStatus === "complete";
-  if (!interesting) return;
-
   const { data: last } = await supabase
     .from("charge_samples")
     .select(
@@ -282,11 +277,26 @@ async function recordChargeSample(
   const lastStatus = String(last?.charge_status ?? "");
   const lastPercent = Number(last?.battery_percent ?? NaN);
   const lastPower = Number(last?.charge_power_kw ?? NaN);
+  const lastRate = Number(last?.charge_rate_kmh ?? NaN);
   const nextPower = Number(vehicle.chargePowerKw ?? NaN);
   const powerJumped =
     Number.isFinite(lastPower) &&
     Number.isFinite(nextPower) &&
     Math.abs(nextPower - lastPower) >= 2;
+
+  // Close the curve when charging stops — otherwise the last point stays
+  // "charging" forever and the UI said „Jetzt“ while unplugged.
+  const stoppingCharge =
+    lastStatus === "charging" &&
+    (vehicle.chargeStatus === "idle" ||
+      vehicle.chargeStatus === "plugged" ||
+      vehicle.chargeStatus === "complete");
+
+  const interesting =
+    vehicle.chargeStatus === "charging" ||
+    vehicle.chargeStatus === "complete" ||
+    stoppingCharge;
+  if (!interesting) return;
 
   // New session when starting to charge after a gap / different phase.
   let sessionId = String(last?.session_id ?? crypto.randomUUID());
@@ -324,10 +334,18 @@ async function recordChargeSample(
     session_id: sessionId,
     recorded_at: new Date().toISOString(),
     battery_percent: vehicle.batteryPercent,
-    charge_power_kw: vehicle.chargePowerKw,
-    charge_rate_kmh: vehicle.chargeRateKmh,
+    charge_power_kw:
+      vehicle.chargePowerKw ??
+      (stoppingCharge && Number.isFinite(lastPower) ? lastPower : null),
+    charge_rate_kmh:
+      vehicle.chargeRateKmh ??
+      (stoppingCharge && Number.isFinite(lastRate) ? lastRate : null),
     charging_mode: vehicle.chargingMode,
-    charge_status: vehicle.chargeStatus,
+    charge_status: stoppingCharge
+      ? vehicle.chargeStatus === "complete"
+        ? "complete"
+        : "plugged"
+      : vehicle.chargeStatus,
   });
 }
 

@@ -208,7 +208,10 @@ export function ChargePanel({
         </div>
       </div>
 
-      <ChargeCurve samples={chargeCurve} live={live} />
+      <ChargeCurve
+        samples={chargeCurve}
+        charging={vehicle.chargeStatus === "charging"}
+      />
     </section>
   );
 }
