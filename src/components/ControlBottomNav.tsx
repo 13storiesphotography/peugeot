@@ -25,13 +25,15 @@ export function ControlBottomNav({
               key={item.id}
               type="button"
               onClick={() => onChange(item.id)}
-              className="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition"
+              className="control-bottom-item flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-2 text-[10px] font-semibold uppercase tracking-[0.12em]"
               style={{
                 color: active ? "var(--accent-bright)" : "var(--fg-muted)",
               }}
               aria-current={active ? "page" : undefined}
             >
-              {item.icon(active)}
+              <span className="transition-transform duration-200 ease-out">
+                {item.icon(active)}
+              </span>
               <span className="truncate">{item.label}</span>
             </button>
           );

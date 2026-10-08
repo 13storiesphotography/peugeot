@@ -641,7 +641,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               type="button"
               onClick={() => void manualRefresh()}
               disabled={refreshing || busy || bundle.connection.needsReconnect}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] disabled:opacity-50"
+              className="nav-icon-btn grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] disabled:opacity-50"
               aria-label="Fahrzeugdaten aktualisieren"
               title="Fahrzeug wecken und Daten holen"
             >
@@ -680,7 +680,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         {/* Native <a>: Next Link can fail on iOS/PWA for this settings jump. */}
         <a
           href="/control/settings"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] lg:hidden"
+          className="nav-icon-btn grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] lg:hidden"
           aria-label="Einstellungen"
           title="Einstellungen"
         >
@@ -746,7 +746,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "home" ? (
-        <div className="animate-rise-delay-1 w-full min-w-0 space-y-3 pt-2 lg:max-w-4xl lg:space-y-5 lg:pt-0">
+        <div
+          key="home"
+          className="control-panel-enter w-full min-w-0 space-y-3 pt-2 lg:max-w-4xl lg:space-y-5 lg:pt-0"
+        >
           <OnboardingGuide
             state={{
               connected: bundle.connection.connected,
@@ -817,41 +820,47 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ) : null}
 
       {tab === "climate" ? (
-        <DesktopPanel className="lg:max-w-4xl">
-          <ClimatePanel
-            vehicle={vehicle}
-            busy={climateBusy}
-            remoteReady={bundle.connection.remoteReady}
-            climateJob={climateJobView}
-            isPro={bundle.isPro}
-            onCommand={(command) => void runCommand(command)}
-          />
-        </DesktopPanel>
+        <div key="climate" className="control-panel-enter lg:max-w-4xl">
+          <DesktopPanel>
+            <ClimatePanel
+              vehicle={vehicle}
+              busy={climateBusy}
+              remoteReady={bundle.connection.remoteReady}
+              climateJob={climateJobView}
+              isPro={bundle.isPro}
+              onCommand={(command) => void runCommand(command)}
+            />
+          </DesktopPanel>
+        </div>
       ) : null}
 
       {tab === "charge" ? (
-        <DesktopPanel className="lg:max-w-4xl">
-          <ChargePanel
-            vehicle={vehicle}
-            busy={busy}
-            chargeCurve={bundle.chargeCurve}
-            isPro={bundle.isPro}
-            onCommand={(command, opts) => void runCommand(command, opts)}
-          />
-        </DesktopPanel>
+        <div key="charge" className="control-panel-enter lg:max-w-4xl">
+          <DesktopPanel>
+            <ChargePanel
+              vehicle={vehicle}
+              busy={busy}
+              chargeCurve={bundle.chargeCurve}
+              isPro={bundle.isPro}
+              onCommand={(command, opts) => void runCommand(command, opts)}
+            />
+          </DesktopPanel>
+        </div>
       ) : null}
 
       {tab === "controls" ? (
-        <DesktopPanel className="lg:max-w-4xl">
-          <ControlsPanel
-            vehicle={vehicle}
-            busy={busy}
-            remoteReady={bundle.connection.remoteReady}
-            remoteSignalsOk={bundle.connection.remoteSignalsOk}
-            isPro={bundle.isPro}
-            onCommand={(command) => void runCommand(command)}
-          />
-        </DesktopPanel>
+        <div key="controls" className="control-panel-enter lg:max-w-4xl">
+          <DesktopPanel>
+            <ControlsPanel
+              vehicle={vehicle}
+              busy={busy}
+              remoteReady={bundle.connection.remoteReady}
+              remoteSignalsOk={bundle.connection.remoteSignalsOk}
+              isPro={bundle.isPro}
+              onCommand={(command) => void runCommand(command)}
+            />
+          </DesktopPanel>
+        </div>
       ) : null}
 
       {toast ? (
@@ -860,7 +869,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 lg:bottom-10 lg:left-[15.5rem]"
         >
           <p
-            className="max-w-sm rounded-full border px-4 py-2.5 text-center text-sm shadow-lg"
+            className="control-toast max-w-sm rounded-full border px-4 py-2.5 text-center text-sm shadow-lg"
             style={{
               background: "rgba(7, 16, 24, 0.94)",
               borderColor: toast.ok
@@ -876,7 +885,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
       {pendingConfirm && confirmCopy ? (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/55 px-4 pb-28 sm:items-center sm:pb-4"
+          className="control-confirm-backdrop fixed inset-0 z-[60] flex items-end justify-center bg-black/55 px-4 pb-28 sm:items-center sm:pb-4"
           role="presentation"
           onClick={() => setPendingConfirm(null)}
         >
@@ -885,7 +894,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             aria-modal="true"
             aria-labelledby="action-confirm-title"
             aria-describedby="action-confirm-desc"
-            className="animate-rise w-full max-w-sm rounded-[1.5rem] border border-[var(--line)] p-5 shadow-2xl"
+            className="control-confirm-sheet w-full max-w-sm rounded-[1.5rem] border border-[var(--line)] p-5 shadow-2xl"
             style={{ background: "rgba(10, 20, 30, 0.97)" }}
             onClick={(e) => e.stopPropagation()}
           >

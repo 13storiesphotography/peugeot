@@ -47,10 +47,10 @@ export function ClimateProgressBanner({
         style={{ background: "rgba(95,227,192,0.15)" }}
       >
         <div
-          className="h-full rounded-full transition-[width] duration-500 ease-out"
+          className="charge-progress-fill is-charging h-full rounded-full"
           style={{
             width: `${pct}%`,
-            background: "linear-gradient(90deg, #3da8a0, #5fe3c0)",
+            background: "linear-gradient(90deg, #3da8a0, #5fe3c0, #3da8a0)",
           }}
         />
       </div>

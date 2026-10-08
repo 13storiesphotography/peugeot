@@ -166,7 +166,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
 
       <div className="relative z-[2] -mt-1 px-1 lg:mx-auto lg:max-w-sm">
         <div className="flex items-end justify-between gap-4 lg:gap-10">
-          <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tracking-tight tabular-nums leading-none">
+          <p className="battery-metric font-[family-name:var(--font-display)] text-5xl font-semibold tracking-tight tabular-nums leading-none">
             {Math.round(vehicle.batteryPercent)}
             <span className="text-2xl" style={{ color: accent }}>
               %
