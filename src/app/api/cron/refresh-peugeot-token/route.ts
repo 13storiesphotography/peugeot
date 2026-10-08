@@ -30,6 +30,13 @@ function asMeta(value: unknown): Record<string, unknown> {
     : {};
 }
 
+/** Refresh when under this much lifetime remains (~access tokens are ~1h). */
+const SKEW_MS = 50 * 60_000;
+/** Also rotate at least this often so idle refresh tokens stay warm. */
+const MAX_REFRESH_AGE_MS = 40 * 60_000;
+/** Captcha heal backoff after a failed vault login. */
+const HEAL_BACKOFF_MS = 6 * 60 * 60_000;
+
 async function run(request: Request) {
   if (!assertCronRequestAuth(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -54,14 +61,170 @@ async function run(request: Request) {
   }
 
   const rows = (data ?? []) as ConnRow[];
-  const skewMs = 35 * 60_000;
   const results: Array<Record<string, unknown>> = [];
+  const now = Date.now();
 
   for (const row of rows) {
     const meta = asMeta(row.oauth_meta);
     const needsReconnect = Boolean(meta.needsReconnect);
+    const expiresAt = row.token_expires_at
+      ? new Date(row.token_expires_at).getTime()
+      : 0;
+    const lastRefreshedMs = meta.lastRefreshedAt
+      ? new Date(String(meta.lastRefreshedAt)).getTime()
+      : 0;
+    const refreshStale =
+      !lastRefreshedMs || now - lastRefreshedMs > MAX_REFRESH_AGE_MS;
+    const nearExpiry = !expiresAt || expiresAt <= now + SKEW_MS;
 
-    if (needsReconnect) {
+    if (row.refresh_token && !needsReconnect && !nearExpiry && !refreshStale) {
+      results.push({
+        userId: row.user_id,
+        skipped: "stillFresh",
+        expiresAt: row.token_expires_at,
+      });
+      continue;
+    }
+
+    // Prefer refresh_token keepalive — even when needsReconnect was set.
+    if (row.refresh_token) {
+      try {
+        const refreshed = await refreshAccessToken(
+          row.country_code || "DE",
+          row.refresh_token,
+        );
+        const { data: saved, error: saveError } = await supabase.rpc(
+          "cron_save_peugeot_tokens",
+          {
+            p_secret: cronSecret,
+            p_user_id: row.user_id,
+            p_access_token: refreshed.accessToken,
+            p_refresh_token: refreshed.refreshToken,
+            p_token_expires_at: refreshed.expiresAt,
+            p_expected_refresh_token: row.refresh_token,
+          },
+        );
+        if (saveError) throw new Error(saveError.message);
+
+        await supabase
+          .from("peugeot_connections")
+          .update({
+            oauth_meta: {
+              ...meta,
+              needsReconnect: false,
+              authError: null,
+              lastRefreshedAt: new Date().toISOString(),
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", row.user_id);
+
+        results.push({
+          userId: row.user_id,
+          ok: true,
+          saved: Boolean(saved),
+          clearedReconnect: needsReconnect,
+          expiresAt: refreshed.expiresAt,
+        });
+        continue;
+      } catch (err) {
+        const raw = err instanceof Error ? err.message : String(err);
+        if (!isPeugeotAuthFailure(raw)) {
+          results.push({
+            userId: row.user_id,
+            ok: false,
+            error: raw,
+            transient: true,
+          });
+          continue;
+        }
+
+        // Confirmed dead refresh token → heal (with backoff) or mark reconnect.
+        const lastHealMs = meta.lastHealAttemptAt
+          ? new Date(String(meta.lastHealAttemptAt)).getTime()
+          : 0;
+        const healDue = !lastHealMs || now - lastHealMs >= HEAL_BACKOFF_MS;
+
+        if (
+          healDue &&
+          row.mypeugeot_email &&
+          row.mypeugeot_password_enc
+        ) {
+          await supabase
+            .from("peugeot_connections")
+            .update({
+              oauth_meta: {
+                ...meta,
+                lastHealAttemptAt: new Date().toISOString(),
+              },
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", row.user_id);
+
+          const healed = await healPeugeotSessionWithVault(
+            supabase,
+            row.user_id,
+            {
+              countryCode: row.country_code || "DE",
+              email: row.mypeugeot_email,
+              passwordEnc: row.mypeugeot_password_enc,
+            },
+          );
+          if (healed.ok) {
+            results.push({ userId: row.user_id, ok: true, healed: true });
+            continue;
+          }
+          await supabase.rpc("cron_mark_peugeot_reconnect", {
+            p_secret: cronSecret,
+            p_user_id: row.user_id,
+            p_auth_error: humanizePeugeotOAuthError(raw),
+          });
+          results.push({
+            userId: row.user_id,
+            ok: false,
+            error: raw,
+            healError: healed.error,
+          });
+          continue;
+        }
+
+        if (!needsReconnect) {
+          await supabase.rpc("cron_mark_peugeot_reconnect", {
+            p_secret: cronSecret,
+            p_user_id: row.user_id,
+            p_auth_error: humanizePeugeotOAuthError(raw),
+          });
+        }
+        results.push({
+          userId: row.user_id,
+          ok: false,
+          error: raw,
+          skipped: healDue ? "needsReconnect" : "healBackoff",
+        });
+        continue;
+      }
+    }
+
+    // No refresh token — optional heal / skip.
+    const lastHealMs = meta.lastHealAttemptAt
+      ? new Date(String(meta.lastHealAttemptAt)).getTime()
+      : 0;
+    const healDue = !lastHealMs || now - lastHealMs >= HEAL_BACKOFF_MS;
+    if (
+      healDue &&
+      row.mypeugeot_email &&
+      row.mypeugeot_password_enc
+    ) {
+      await supabase
+        .from("peugeot_connections")
+        .update({
+          oauth_meta: {
+            ...meta,
+            lastHealAttemptAt: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", row.user_id);
       const healed = await healPeugeotSessionWithVault(supabase, row.user_id, {
         countryCode: row.country_code || "DE",
         email: row.mypeugeot_email,
@@ -73,80 +236,17 @@ async function run(request: Request) {
           : {
               userId: row.user_id,
               ok: false,
-              skipped: "needsReconnect",
+              skipped: "noRefreshToken",
               healError: healed.error,
             },
       );
       continue;
     }
 
-    if (!row.refresh_token) {
-      results.push({ userId: row.user_id, skipped: "noRefreshToken" });
-      continue;
-    }
-
-    const expiresAt = row.token_expires_at
-      ? new Date(row.token_expires_at).getTime()
-      : 0;
-    if (expiresAt > Date.now() + skewMs) {
-      results.push({
-        userId: row.user_id,
-        skipped: "stillFresh",
-        expiresAt: row.token_expires_at,
-      });
-      continue;
-    }
-
-    try {
-      const refreshed = await refreshAccessToken(
-        row.country_code || "DE",
-        row.refresh_token,
-      );
-      const { data: saved, error: saveError } = await supabase.rpc(
-        "cron_save_peugeot_tokens",
-        {
-          p_secret: cronSecret,
-          p_user_id: row.user_id,
-          p_access_token: refreshed.accessToken,
-          p_refresh_token: refreshed.refreshToken,
-          p_token_expires_at: refreshed.expiresAt,
-          p_expected_refresh_token: row.refresh_token,
-        },
-      );
-      if (saveError) throw new Error(saveError.message);
-      results.push({
-        userId: row.user_id,
-        ok: true,
-        saved: Boolean(saved),
-        expiresAt: refreshed.expiresAt,
-      });
-    } catch (err) {
-      const raw = err instanceof Error ? err.message : String(err);
-      if (isPeugeotAuthFailure(raw)) {
-        const healed = await healPeugeotSessionWithVault(supabase, row.user_id, {
-          countryCode: row.country_code || "DE",
-          email: row.mypeugeot_email,
-          passwordEnc: row.mypeugeot_password_enc,
-        });
-        if (healed.ok) {
-          results.push({ userId: row.user_id, ok: true, healed: true });
-          continue;
-        }
-        await supabase.rpc("cron_mark_peugeot_reconnect", {
-          p_secret: cronSecret,
-          p_user_id: row.user_id,
-          p_auth_error: humanizePeugeotOAuthError(raw),
-        });
-        results.push({
-          userId: row.user_id,
-          ok: false,
-          error: raw,
-          healError: healed.error,
-        });
-      } else {
-        results.push({ userId: row.user_id, ok: false, error: raw });
-      }
-    }
+    results.push({
+      userId: row.user_id,
+      skipped: row.refresh_token ? "healBackoff" : "noRefreshToken",
+    });
   }
 
   return Response.json({

@@ -956,7 +956,24 @@ async function ensurePeugeotAccessToken(
   const tryHeal = async (
     email: string | null | undefined,
     passwordEnc: string | null | undefined,
+    meta: Record<string, unknown>,
   ) => {
+    // Captcha heals are expensive and often fail — backoff 6h after a miss.
+    const lastHealMs = meta.lastHealAttemptAt
+      ? new Date(String(meta.lastHealAttemptAt)).getTime()
+      : 0;
+    if (lastHealMs && Date.now() - lastHealMs < 6 * 60 * 60_000) {
+      return null;
+    }
+    await peugeotConnections()
+      .update({
+        oauth_meta: {
+          ...meta,
+          lastHealAttemptAt: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
     const healed = await healPeugeotSessionWithVault(supabase, userId, {
       countryCode: current.countryCode,
       email,
@@ -966,48 +983,7 @@ async function ensurePeugeotAccessToken(
     return null;
   };
 
-  if (current.oauthMeta.needsReconnect) {
-    const healed = await tryHeal(
-      current.mypeugeotEmail,
-      current.mypeugeotPasswordEnc,
-    );
-    if (healed) return healed;
-    throw new Error(
-      typeof current.oauthMeta.authError === "string" &&
-        current.oauthMeta.authError
-        ? current.oauthMeta.authError
-        : "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.",
-    );
-  }
-
-  const expiresAt = current.tokenExpiresAt
-    ? new Date(current.tokenExpiresAt).getTime()
-    : 0;
-  if (expiresAt >= Date.now() + 60_000) {
-    return current.accessToken;
-  }
-  if (!current.refreshToken) {
-    const healed = await tryHeal(
-      current.mypeugeotEmail,
-      current.mypeugeotPasswordEnc,
-    );
-    if (healed) return healed;
-    const message =
-      "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.";
-    await peugeotConnections()
-      .update({
-        oauth_meta: {
-          ...current.oauthMeta,
-          needsReconnect: true,
-          authError: message,
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId);
-    throw new Error(message);
-  }
-
-  // Another request may have refreshed already — use the freshest row.
+  // Always re-read — another request / cron may have repaired the session.
   const { data: fresh } = await peugeotConnections()
     .select(
       "access_token, refresh_token, token_expires_at, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
@@ -1015,71 +991,69 @@ async function ensurePeugeotAccessToken(
     .eq("user_id", userId)
     .maybeSingle();
 
-  const freshMeta = asOAuthMeta(fresh?.oauth_meta);
+  const freshMeta = asOAuthMeta(fresh?.oauth_meta ?? current.oauthMeta);
   const freshEmail =
     (fresh?.mypeugeot_email as string | null | undefined) ??
     current.mypeugeotEmail;
   const freshPasswordEnc =
     (fresh?.mypeugeot_password_enc as string | null | undefined) ??
     current.mypeugeotPasswordEnc;
-
-  if (freshMeta.needsReconnect) {
-    const healed = await tryHeal(freshEmail, freshPasswordEnc);
-    if (healed) return healed;
-    throw new Error(
-      typeof freshMeta.authError === "string" && freshMeta.authError
-        ? freshMeta.authError
-        : "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.",
-    );
-  }
-
-  const freshExpires = fresh?.token_expires_at
+  const accessToken = String(fresh?.access_token ?? current.accessToken ?? "");
+  const refreshToken =
+    (fresh?.refresh_token as string | null | undefined) ??
+    current.refreshToken;
+  const expiresAt = fresh?.token_expires_at
     ? new Date(fresh.token_expires_at as string).getTime()
-    : 0;
-  if (fresh?.access_token && freshExpires >= Date.now() + 60_000) {
-    return String(fresh.access_token);
+    : current.tokenExpiresAt
+      ? new Date(current.tokenExpiresAt).getTime()
+      : 0;
+
+  // Even with needsReconnect, keep serving a still-valid access token.
+  // Previously we jumped straight to Captcha heal and blocked the app.
+  if (accessToken && expiresAt >= Date.now() + 60_000) {
+    return accessToken;
   }
 
-  const refreshToken = String(
-    fresh?.refresh_token ?? current.refreshToken,
-  );
-
-  try {
-    const refreshed = await refreshAccessToken(
-      current.countryCode,
-      refreshToken,
-    );
-    // Compare-and-swap: only write if another request did not rotate first.
-    const { data: updated, error: updateError } = await peugeotConnections()
-      .update({
-        access_token: refreshed.accessToken,
-        refresh_token: refreshed.refreshToken,
-        token_expires_at: refreshed.expiresAt,
-        oauth_meta: {
-          ...freshMeta,
-          needsReconnect: false,
-          authError: null,
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId)
-      .eq("refresh_token", refreshToken)
-      .select("access_token")
-      .maybeSingle();
-    if (updateError) throw new Error(updateError.message);
-    if (!updated?.access_token) {
-      // Lost the race — read the winner's token.
-      const { data: winner } = await peugeotConnections()
-        .select("access_token, token_expires_at")
+  if (refreshToken) {
+    try {
+      const refreshed = await refreshAccessToken(
+        current.countryCode,
+        refreshToken,
+      );
+      const { data: updated, error: updateError } = await peugeotConnections()
+        .update({
+          access_token: refreshed.accessToken,
+          refresh_token: refreshed.refreshToken,
+          token_expires_at: refreshed.expiresAt,
+          oauth_meta: {
+            ...freshMeta,
+            needsReconnect: false,
+            authError: null,
+            lastRefreshedAt: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        })
         .eq("user_id", userId)
+        .eq("refresh_token", refreshToken)
+        .select("access_token")
         .maybeSingle();
-      if (winner?.access_token) return String(winner.access_token);
-    }
-    return refreshed.accessToken;
-  } catch (error) {
-    const raw = error instanceof Error ? error.message : String(error);
-    if (isPeugeotAuthFailure(raw)) {
-      const healed = await tryHeal(freshEmail, freshPasswordEnc);
+      if (updateError) throw new Error(updateError.message);
+      if (!updated?.access_token) {
+        const { data: winner } = await peugeotConnections()
+          .select("access_token, token_expires_at")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (winner?.access_token) return String(winner.access_token);
+      }
+      return refreshed.accessToken;
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : String(error);
+      if (!isPeugeotAuthFailure(raw)) {
+        // Transient — do not mark reconnect / burn the session.
+        if (accessToken && expiresAt > Date.now()) return accessToken;
+        throw new Error(humanizePeugeotOAuthError(raw));
+      }
+      const healed = await tryHeal(freshEmail, freshPasswordEnc, freshMeta);
       if (healed) return healed;
       const message = humanizePeugeotOAuthError(raw);
       await peugeotConnections()
@@ -1094,11 +1068,27 @@ async function ensurePeugeotAccessToken(
         .eq("user_id", userId);
       throw new Error(message);
     }
-    // Persist reconnect only on confirmed OAuth rejection — never on
-    // transient network / body-read failures (those can leave a still-valid
-    // refresh token, or lose a successful rotation).
-    throw new Error(humanizePeugeotOAuthError(raw));
   }
+
+  const healed = await tryHeal(freshEmail, freshPasswordEnc, freshMeta);
+  if (healed) return healed;
+  const message =
+    typeof freshMeta.authError === "string" && freshMeta.authError
+      ? freshMeta.authError
+      : "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.";
+  if (!freshMeta.needsReconnect) {
+    await peugeotConnections()
+      .update({
+        oauth_meta: {
+          ...freshMeta,
+          needsReconnect: true,
+          authError: message,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+  }
+  throw new Error(message);
 }
 
 function clampSyncInterval(sec: number): number {
