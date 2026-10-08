@@ -65,6 +65,17 @@ export function PricingSection() {
             >
               Pro holen
             </a>
+            <p className="mt-3 max-w-sm text-[11px] leading-relaxed text-[var(--fg-muted)]">
+              Abo verlängert sich automatisch. Kündigen kannst du jederzeit in
+              den Einstellungen zum Periodenende — Details in den{" "}
+              <a
+                href="/agb"
+                className="underline decoration-[var(--line)] underline-offset-2 hover:text-[var(--fg)]"
+              >
+                AGB
+              </a>
+              .
+            </p>
           </article>
         </div>
       </div>
