@@ -50,7 +50,7 @@ export function ControlSideNav({
 }) {
   return (
     <aside
-      className="fixed inset-y-0 left-0 z-40 hidden w-[15.5rem] flex-col border-r border-[var(--line)] bg-[rgba(7,16,24,0.92)] px-4 py-6 backdrop-blur-xl lg:flex"
+      className="control-side-nav fixed inset-y-0 left-0 z-40 hidden w-[15.5rem] flex-col border-r border-[var(--line)] bg-[rgba(7,16,24,0.92)] px-4 py-6 backdrop-blur-xl lg:flex"
       aria-label="Desktop-Navigation"
     >
       <div className="px-2">

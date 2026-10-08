@@ -1,7 +1,6 @@
 "use client";
 
 import { ChargeCurve } from "@/components/ChargeCurve";
-import { DataFreshnessBadge } from "@/components/DataFreshnessBadge";
 import { SectionHeader } from "@/components/SectionHeader";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
 import type { ChargeSample } from "@/lib/vehicle/repository";
@@ -18,9 +17,6 @@ interface ChargePanelProps {
   busy: boolean;
   chargeCurve?: ChargeSample[];
   isPro?: boolean;
-  nowMs?: number;
-  offline?: boolean;
-  refreshing?: boolean;
   onCommand: (
     command: VehicleCommand,
     opts?: { chargeLimitPercent?: number },
@@ -80,16 +76,9 @@ export function ChargePanel({
   busy,
   chargeCurve = [],
   isPro = false,
-  nowMs,
-  offline = false,
-  refreshing = false,
   onCommand,
 }: ChargePanelProps) {
   const charging = vehicle.chargeStatus === "charging";
-  const pluggedIn =
-    vehicle.chargeStatus === "plugged" ||
-    vehicle.chargeStatus === "charging" ||
-    vehicle.chargeStatus === "complete";
   const live = vehicle.mode === "live";
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
   const eightyOn = isPro && isEightyPercentLimitActive(vehicle);
@@ -115,20 +104,7 @@ export function ChargePanel({
 
   return (
     <section className="animate-rise space-y-6 pt-2 lg:pt-0">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <SectionHeader title="Laden" hint={statusLine} hideTitleOnDesktop />
-        {/* Colored badge only when on cable — idle stays quiet text. */}
-        <DataFreshnessBadge
-          lastUpdatedAt={vehicle.lastUpdatedAt}
-          nowMs={nowMs}
-          mode={vehicle.mode}
-          offline={offline}
-          refreshing={refreshing}
-          showDetail={pluggedIn}
-          variant={pluggedIn ? "badge" : "plain"}
-          className="lg:pt-1"
-        />
-      </div>
+      <SectionHeader title="Laden" hint={statusLine} hideTitleOnDesktop />
 
       <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
         <div className="flex flex-col items-center py-2 lg:items-start lg:py-0">
