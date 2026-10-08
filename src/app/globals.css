@@ -617,28 +617,30 @@ a[data-instant-nav][aria-busy="true"] {
   pointer-events: auto;
   isolation: isolate;
   overflow: hidden;
-  min-height: 3.65rem;
-  padding: 0.32rem;
+  /* Instagram floating bar: slimmer, lighter, content peeks through. */
+  min-height: 3.25rem;
+  padding: 0.35rem 0.45rem;
   border-radius: 999px;
-  border: 1px solid rgba(238, 246, 248, 0.18);
+  border: 1px solid rgba(238, 246, 248, 0.2);
   background:
     linear-gradient(
-      160deg,
-      rgba(238, 246, 248, 0.16) 0%,
-      rgba(14, 28, 40, 0.38) 38%,
-      rgba(7, 16, 24, 0.52) 100%
+      165deg,
+      rgba(238, 246, 248, 0.14) 0%,
+      rgba(14, 28, 40, 0.22) 45%,
+      rgba(7, 16, 24, 0.28) 100%
     );
   box-shadow:
-    0 14px 40px rgba(0, 0, 0, 0.42),
-    0 2px 0 rgba(255, 255, 255, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(28px) saturate(1.55);
-  -webkit-backdrop-filter: blur(28px) saturate(1.55);
+    0 12px 32px rgba(0, 0, 0, 0.32),
+    0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(32px) saturate(1.65);
+  -webkit-backdrop-filter: blur(32px) saturate(1.65);
   transition:
-    min-height 0.32s cubic-bezier(0.34, 1.2, 0.64, 1),
-    padding 0.32s cubic-bezier(0.34, 1.2, 0.64, 1),
-    transform 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
+    min-height 0.34s cubic-bezier(0.34, 1.2, 0.64, 1),
+    padding 0.34s cubic-bezier(0.34, 1.2, 0.64, 1),
+    width 0.34s cubic-bezier(0.34, 1.2, 0.64, 1),
+    transform 0.34s cubic-bezier(0.34, 1.2, 0.64, 1);
   touch-action: pan-y;
 }
 
@@ -650,87 +652,88 @@ a[data-instant-nav][aria-busy="true"] {
   border-radius: inherit;
   background:
     radial-gradient(
-      120% 80% at 18% -10%,
-      rgba(255, 255, 255, 0.28),
-      transparent 42%
+      130% 90% at 20% -20%,
+      rgba(255, 255, 255, 0.34),
+      transparent 45%
     ),
     radial-gradient(
-      90% 60% at 88% 120%,
-      rgba(95, 227, 192, 0.12),
-      transparent 50%
+      80% 50% at 80% 120%,
+      rgba(95, 227, 192, 0.1),
+      transparent 55%
     );
   mix-blend-mode: soft-light;
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 .control-glass-pill {
   position: absolute;
-  top: 0.32rem;
-  bottom: 0.32rem;
+  top: 0;
   left: 0;
   z-index: 0;
   border-radius: 999px;
+  /* Soft glass blob — not a heavy teal slab. */
   background:
     linear-gradient(
       180deg,
-      rgba(95, 227, 192, 0.34) 0%,
-      rgba(61, 168, 160, 0.18) 55%,
-      rgba(31, 111, 95, 0.14) 100%
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(95, 227, 192, 0.2) 55%,
+      rgba(95, 227, 192, 0.1) 100%
     );
-  border: 1px solid rgba(95, 227, 192, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
-    0 6px 18px rgba(31, 111, 95, 0.28);
-  will-change: transform, width;
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+    0 4px 14px rgba(31, 111, 95, 0.18);
+  will-change: transform, width, height;
   pointer-events: none;
 }
 
 .control-glass-item {
-  min-height: 3rem;
+  min-height: 2.7rem;
   justify-content: center;
   border-radius: 999px;
+  gap: 0.15rem;
 }
 
 .control-glass-icon {
-  transition: transform 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+  width: 1.85rem;
+  height: 1.85rem;
+  transition: transform 0.3s cubic-bezier(0.34, 1.45, 0.64, 1);
 }
 
 .control-glass-icon-active {
-  transform: translateY(-1px) scale(1.12);
+  transform: translateY(-0.5px) scale(1.1);
 }
 
 .control-glass-label {
-  max-height: 1.1rem;
+  max-height: 1rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
   opacity: 1;
   transform: translateY(0);
   transition:
-    max-height 0.32s cubic-bezier(0.34, 1.2, 0.64, 1),
+    max-height 0.34s cubic-bezier(0.34, 1.2, 0.64, 1),
     opacity 0.2s ease,
-    transform 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
+    transform 0.34s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 .control-glass-nav-min .control-glass-shell {
-  min-height: 2.75rem;
-  padding: 0.22rem;
-  transform: scale(0.985);
+  min-height: 2.55rem;
+  max-width: 18.5rem;
+  padding: 0.28rem 0.4rem;
+  transform: translateY(2px) scale(0.98);
 }
 
 .control-glass-nav-min .control-glass-item {
-  min-height: 2.3rem;
+  min-height: 2rem;
   gap: 0;
 }
 
 .control-glass-nav-min .control-glass-label {
   max-height: 0;
   opacity: 0;
-  transform: translateY(5px);
+  transform: translateY(4px);
   overflow: hidden;
-}
-
-.control-glass-nav-min .control-glass-pill {
-  top: 0.22rem;
-  bottom: 0.22rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
