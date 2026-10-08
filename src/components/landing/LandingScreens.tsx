@@ -42,7 +42,7 @@ function PhoneFrame({
           <span>LTE</span>
         </div>
         <div
-          className="landing-screen-swap flex min-h-[17.5rem] flex-col"
+          className="landing-screen-swap flex min-h-[19.75rem] flex-col"
           key={activeLabel}
         >
           {children}
