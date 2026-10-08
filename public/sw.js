@@ -1,5 +1,5 @@
 /* Peugeot Control — lightweight offline shell */
-const CACHE = "e3008-shell-v3";
+const CACHE = "e3008-shell-v4";
 const PRECACHE = [
   "/manifest.webmanifest",
   "/icon.svg",
@@ -7,6 +7,8 @@ const PRECACHE = [
   "/icon-512.png",
   "/apple-touch-icon.png",
 ];
+
+const OFFLINE_HTML = `<!doctype html><html lang=de><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name=theme-color content="#071018"><title>Peugeot Control</title><body style="margin:0;background:#071018;color:#eef6f8;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100dvh"><div style="text-align:center;padding:2rem"><p style="font-size:1.25rem;font-weight:600;letter-spacing:-0.02em">Peugeot Control</p><p style="opacity:.7;margin-top:.75rem;font-size:.9rem">Verbinde…</p></div></body></html>`;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -36,25 +38,41 @@ self.addEventListener("fetch", (event) => {
   // Never cache authenticated API — client keeps last snapshot in localStorage.
   if (url.pathname.startsWith("/api/")) return;
 
-  // App shell / navigations: network first, fall back to cache.
+  // Navigations: stale-while-revalidate so cold PWA opens paint immediately
+  // from the last /control shell instead of waiting on auth/network TTFB.
   if (req.mode === "navigate") {
     event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          void caches.open(CACHE).then((cache) => cache.put(req, copy));
-          return res;
-        })
-        .catch(async () => {
-          const cached = await caches.match(req);
-          if (cached) return cached;
-          const control = await caches.match("/control");
-          if (control) return control;
-          return new Response(
-            "<!doctype html><html lang=de><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\"><title>Peugeot Control Offline</title><body style=\"margin:0;background:#071018;color:#eef6f8;font-family:system-ui;display:grid;place-items:center;min-height:100dvh\"><div style=\"text-align:center;padding:2rem\"><p style=\"font-size:1.25rem;font-weight:600\">Offline</p><p style=\"opacity:.7;margin-top:.5rem\">Kein Netz — letzter Stand erscheint beim nächsten Besuch, sobald /control gecacht ist.</p></div></body></html>",
-            { headers: { "Content-Type": "text/html; charset=utf-8" } },
-          );
-        }),
+      (async () => {
+        const cache = await caches.open(CACHE);
+        const cached =
+          (await cache.match(req)) ||
+          (await cache.match("/control")) ||
+          (await cache.match("/"));
+
+        const networkPromise = fetch(req)
+          .then((res) => {
+            if (res && res.ok) {
+              void cache.put(req, res.clone());
+              if (url.pathname === "/control" || url.pathname.startsWith("/control/")) {
+                void cache.put("/control", res.clone());
+              }
+            }
+            return res;
+          })
+          .catch(() => null);
+
+        if (cached) {
+          event.waitUntil(networkPromise);
+          return cached;
+        }
+
+        const network = await networkPromise;
+        if (network) return network;
+
+        return new Response(OFFLINE_HTML, {
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        });
+      })(),
     );
     return;
   }
@@ -62,6 +80,7 @@ self.addEventListener("fetch", (event) => {
   // Static icons / assets: cache first.
   if (
     url.pathname.startsWith("/icon") ||
+    url.pathname.startsWith("/splash/") ||
     url.pathname === "/apple-touch-icon.png" ||
     url.pathname === "/manifest.webmanifest"
   ) {
