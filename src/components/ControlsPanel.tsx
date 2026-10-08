@@ -98,12 +98,10 @@ export function ControlsPanel({
       ) : null}
 
       {signalsLikelyMissing ? (
-        <div className="rounded-2xl border border-[var(--line)] px-4 py-3 text-sm text-[var(--fg-muted)]">
-          Peugeot hat Schloss/Signale zuletzt abgelehnt — oft fehlt{" "}
-          <span className="text-[var(--fg)]">Connect PLUS / Remote Control</span>{" "}
-          in MyPeugeot. Buttons bleiben; erneut tippen prüft nochmal. Vorklima
-          (e-Remote) funktioniert weiter.
-        </div>
+        <p className="text-sm text-[var(--fg-muted)]">
+          Schloss/Signale brauchen{" "}
+          <span className="text-[var(--fg)]">Connect PLUS</span> in MyPeugeot.
+        </p>
       ) : null}
 
       <div className="flex flex-col gap-3 lg:grid lg:grid-cols-4">
