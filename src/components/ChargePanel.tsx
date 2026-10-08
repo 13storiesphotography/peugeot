@@ -192,26 +192,14 @@ export function ChargePanel({
                     chargeLimitPercent: eightyOn ? 100 : 80,
                   })
                 }
-                className="action-btn relative h-8 w-14 shrink-0 rounded-full transition disabled:opacity-55"
-                style={{
-                  background: eightyOn
-                    ? "linear-gradient(135deg, #5fe3c0, #3da8a0)"
-                    : "rgba(143,168,181,0.25)",
-                }}
+                className={`action-btn ui-switch${eightyOn ? " ui-switch-on" : ""}`}
               >
-                <span
-                  className="absolute top-1 h-6 w-6 rounded-full bg-white shadow transition"
-                  style={{ left: eightyOn ? "1.75rem" : "0.25rem" }}
-                />
+                <span className="ui-switch-knob" />
               </button>
             ) : (
               <a
                 href="/control/settings#pro"
-                className="action-btn shrink-0 rounded-full px-3 py-2 text-xs font-semibold"
-                style={{
-                  background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
-                  color: "#031016",
-                }}
+                className="action-btn btn-primary shrink-0 rounded-2xl px-3 py-2 text-xs font-semibold"
               >
                 Pro ansehen
               </a>
