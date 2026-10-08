@@ -47,22 +47,12 @@ function formatSync(iso: string | null): string | null {
   }).format(new Date(iso));
 }
 
-function useIsIos(): [boolean, (next: boolean) => void] {
+function useIsIos(): boolean {
   const [ios, setIos] = useState(false);
   useEffect(() => {
     setIos(/iPhone|iPad|iPod/i.test(navigator.userAgent));
   }, []);
-  return [ios, setIos];
-}
-
-/** Desktop Safari: clear readOnly then re-focus so the keyboard can attach. */
-function unlockReadonlyForKeyboard(el: HTMLInputElement) {
-  if (!el.readOnly) return;
-  el.readOnly = false;
-  window.setTimeout(() => {
-    el.blur();
-    el.focus({ preventScroll: true });
-  }, 0);
+  return ios;
 }
 
 export function PeugeotConnectForm({
@@ -78,9 +68,13 @@ export function PeugeotConnectForm({
   initialOAuthCountry?: string | null;
   initialOAuthError?: string | null;
 }) {
-  const [isIos, setIos] = useIsIos();
+  const isIos = useIsIos();
   const [countryCode, setCountryCode] = useState(
     initialOAuthCountry || connection.countryCode || "DE",
+  );
+  /** Avoid mounting a password field until needed — iOS autofill steals the keyboard. */
+  const [showPasswordField, setShowPasswordField] = useState(
+    !connection.hasPasswordStored,
   );
   const [passwordState, passwordAction, passwordPending] = useActionState(
     connectPeugeotWithPassword,
@@ -107,6 +101,7 @@ export function PeugeotConnectForm({
   );
   const [linkCopied, setLinkCopied] = useState(false);
   const [autoStarted, setAutoStarted] = useState(false);
+  const [manualOpen, setManualOpen] = useState(Boolean(initialOAuthCode));
   const codeFormRef = useRef<HTMLFormElement>(null);
   const codeRef = useRef<HTMLTextAreaElement>(null);
 
@@ -193,8 +188,15 @@ export function PeugeotConnectForm({
       ? passwordState
       : codeState;
   const pending = passwordPending || codePending;
+  const captchaBlocked = Boolean(
+    state.manualCode || (state.error && /captcha/i.test(state.error)),
+  );
   const [loginPhase, setLoginPhase] = useState(0);
   const [loginSlow, setLoginSlow] = useState(false);
+
+  useEffect(() => {
+    if (captchaBlocked) setManualOpen(true);
+  }, [captchaBlocked]);
 
   useEffect(() => {
     if (!passwordPending) {
@@ -222,7 +224,14 @@ export function PeugeotConnectForm({
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
             MyPeugeot
           </h2>
-          <p className="mt-1 text-sm text-[var(--fg-muted)]">
+          <p
+            className={`mt-1 text-sm ${
+              connection.needsReconnect
+                ? "font-semibold text-[var(--danger)]"
+                : "text-[var(--fg-muted)]"
+            }`}
+            role={connection.needsReconnect ? "alert" : undefined}
+          >
             {connection.needsReconnect
               ? "Anmeldung abgelaufen — bitte neu verbinden."
               : connection.connected
@@ -244,14 +253,6 @@ export function PeugeotConnectForm({
         ) : null}
       </div>
 
-      {connection.needsReconnect ? (
-        <div className="ui-alert mt-4" role="alert">
-          <p className="font-semibold text-[var(--danger)]">
-            Neu anmelden erforderlich
-          </p>
-        </div>
-      ) : null}
-
       {showForm ? (
         <>
           <div className="mt-4 grid gap-3">
@@ -269,16 +270,9 @@ export function PeugeotConnectForm({
               </select>
             </label>
 
-            {/* Desktop: honeypot + readonly-until-focus reduces wrong-site autofill.
-                iOS: those tricks steal focus / show „Automatisch ausfüllen“ and the
-                keyboard never comes back — keep fields normally editable there. */}
             <form
               autoComplete="off"
               className="relative grid gap-3"
-              onTouchStartCapture={() => {
-                // First paint is non-iOS (SSR/hydration). Unlock iOS path ASAP.
-                if (!isIos) setIos(true);
-              }}
               onSubmit={(event) => {
                 event.preventDefault();
                 const formData = new FormData(event.currentTarget);
@@ -288,105 +282,86 @@ export function PeugeotConnectForm({
               }}
             >
               <input type="hidden" name="countryCode" value={countryCode} />
-              {!isIos ? (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
-                >
-                  <input
-                    type="text"
-                    name="email"
-                    autoComplete="username"
-                    tabIndex={-1}
-                  />
-                  <input
-                    type="password"
-                    name="site-password"
-                    autoComplete="current-password"
-                    tabIndex={-1}
-                  />
-                </div>
-              ) : null}
               <p className="text-xs text-[var(--fg-muted)]">
                 MyPeugeot-Zugangsdaten (nicht peugeotcontrol.app).
-                {isIos
-                  ? " Tippe in ein Feld — die Tastatur sollte erscheinen. Passwort ggf. über Schlüsselanhänger → Andere Passwörter."
-                  : " Auf dem iPhone: Tastatur → Schlüssel → „Andere Passwörter…“ → nach Peugeot suchen."}
+                {connection.hasPasswordStored
+                  ? " Gespeichertes Passwort ist hinterlegt — „Verbinden“ reicht oft."
+                  : " E-Mail und Passwort von MyPeugeot (nicht von peugeotcontrol.app)."}
               </p>
               <label className="block text-sm">
                 <span className="text-[var(--fg-muted)]">MyPeugeot E-Mail</span>
+                {/* Neutral names + type=text: username/password fields make iOS
+                    show Autofill (yellow) and drop the keyboard. */}
                 <input
-                  id="mypeugeot-email"
-                  name="mypeugeotEmail"
-                  type="email"
+                  id="mp-account"
+                  name="mpAccount"
+                  type="text"
                   required
                   defaultValue={connection.mypeugeotEmail ?? ""}
                   className="mt-1 ui-field"
-                  autoComplete={isIos ? "username" : "off"}
+                  autoComplete="off"
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
                   inputMode="email"
                   enterKeyHint="next"
-                  data-1p-ignore={isIos ? undefined : "true"}
-                  data-lpignore={isIos ? undefined : "true"}
-                  data-bwignore={isIos ? undefined : "true"}
-                  data-form-type={isIos ? undefined : "other"}
-                  readOnly={!isIos}
-                  onFocus={
-                    isIos
-                      ? undefined
-                      : (e) => {
-                          unlockReadonlyForKeyboard(e.currentTarget);
-                        }
-                  }
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-bwignore="true"
+                  data-form-type="other"
                   disabled={passwordPending}
                 />
               </label>
-              <label className="block text-sm">
-                <span className="text-[var(--fg-muted)]">Passwort</span>
-                <input
-                  id="mypeugeot-secret"
-                  name="mypeugeotPassword"
-                  type={isIos ? "password" : "text"}
-                  required={!connection.hasPasswordStored}
-                  placeholder={
-                    connection.hasPasswordStored
-                      ? "Gespeichert — nur bei Wechsel neu eingeben"
-                      : undefined
-                  }
-                  className="mt-1 ui-field"
-                  style={
-                    isIos
-                      ? undefined
-                      : ({ WebkitTextSecurity: "disc" } as CSSProperties)
-                  }
-                  autoComplete={isIos ? "current-password" : "off"}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  enterKeyHint="go"
-                  data-1p-ignore={isIos ? undefined : "true"}
-                  data-lpignore={isIos ? undefined : "true"}
-                  data-bwignore={isIos ? undefined : "true"}
-                  data-form-type={isIos ? undefined : "other"}
-                  readOnly={!isIos}
-                  onFocus={
-                    isIos
-                      ? undefined
-                      : (e) => {
-                          unlockReadonlyForKeyboard(e.currentTarget);
-                        }
-                  }
-                  disabled={passwordPending}
-                />
-                {connection.hasPasswordStored ? (
-                  <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
-                    Passwort liegt verschlüsselt für Auto-Login vor. Feld leer
-                    lassen = gespeichertes Passwort nutzen.
+              {connection.hasPasswordStored && !showPasswordField ? (
+                <div className="rounded-2xl border border-[var(--line)] bg-white/[0.03] px-3 py-3">
+                  <p className="text-sm text-[var(--fg)]">
+                    Passwort gespeichert (verschlüsselt)
                   </p>
-                ) : null}
-              </label>
+                  <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
+                    Tippe „Verbinden“, oder nur bei Bedarf ein neues Passwort.
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-semibold text-[var(--accent-bright)] underline-offset-2 hover:underline"
+                    onClick={() => setShowPasswordField(true)}
+                  >
+                    Anderes Passwort eingeben
+                  </button>
+                </div>
+              ) : (
+                <label className="block text-sm">
+                  <span className="text-[var(--fg-muted)]">Passwort</span>
+                  {/* No type=password, no autocomplete=current-password, no
+                      programmatic focus — those leave iOS stuck without a keyboard. */}
+                  <input
+                    id="mp-secret"
+                    name="mpSecret"
+                    type="text"
+                    required={!connection.hasPasswordStored}
+                    className="mt-1 ui-field"
+                    style={{ WebkitTextSecurity: "disc" } as CSSProperties}
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="go"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                    data-bwignore="true"
+                    data-form-type="other"
+                    disabled={passwordPending}
+                  />
+                  {connection.hasPasswordStored ? (
+                    <button
+                      type="button"
+                      className="mt-2 text-xs font-semibold text-[var(--fg-muted)] underline-offset-2 hover:underline"
+                      onClick={() => setShowPasswordField(false)}
+                    >
+                      Gespeichertes Passwort behalten
+                    </button>
+                  ) : null}
+                </label>
+              )}
               {passwordPending ? (
                 <div
                   className="rounded-2xl border border-[var(--line)] bg-white/[0.04] px-3 py-3"
@@ -476,23 +451,44 @@ export function PeugeotConnectForm({
             </div>
           ) : null}
 
-          <details className="mt-4 text-sm" open={Boolean(initialOAuthCode)}>
+          <details
+            className="mt-4 text-sm"
+            open={manualOpen}
+            onToggle={(e) => setManualOpen(e.currentTarget.open)}
+          >
             <summary className="cursor-pointer text-[var(--accent-bright)]">
-              Alternativ: Code vom Computer einfügen
+              {captchaBlocked
+                ? "Code vom Computer einlösen"
+                : "Alternativ: Code vom Computer einfügen"}
             </summary>
 
-            <p className="mt-2 text-xs text-[var(--fg-muted)]">
-              Am Mac/PC Peugeot-Login öffnen → WEITER →{" "}
-              <code className="text-[var(--accent-bright)]">mymap://…?code=…</code>{" "}
-              kopieren und hier einlösen.
-            </p>
+            {captchaBlocked ? (
+              <p className="mt-2 text-sm text-[var(--danger)]" role="alert">
+                Peugeot Captcha blockiert die Automatik. Login-Link am Computer
+                öffnen, nach „Weiter“ die{" "}
+                <code className="text-[var(--accent-bright)]">mymap://…</code>
+                -Adresse hier einlösen.
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-[var(--fg-muted)]">
+                Am Mac/PC Peugeot-Login öffnen → WEITER →{" "}
+                <code className="text-[var(--accent-bright)]">
+                  mymap://…?code=…
+                </code>{" "}
+                kopieren und hier einlösen.
+              </p>
+            )}
 
             {isIos ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => void copyLoginLink()}
-                  className="action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+                  className={
+                    captchaBlocked
+                      ? "action-btn btn-primary rounded-full px-4 py-2.5 text-sm font-semibold"
+                      : "action-btn rounded-full border border-[var(--line)] px-4 py-2.5 text-sm font-semibold"
+                  }
                 >
                   {linkCopied ? "Login-Link kopiert" : "Login-Link für PC kopieren"}
                 </button>
@@ -571,7 +567,8 @@ export function PeugeotConnectForm({
             {pasteHint}
           </p>
         ) : null}
-        {state.error ? (
+        {/* Captcha text lives in the open computer-code panel — don't repeat it. */}
+        {state.error && !captchaBlocked ? (
           <p role="alert" className="text-[var(--danger)]">
             {state.error}
           </p>

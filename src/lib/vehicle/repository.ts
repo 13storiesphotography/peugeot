@@ -424,7 +424,7 @@ export async function getSettingsBundle(
   const [{ data: connection }, entitlement] = await Promise.all([
     peugeotConnections()
       .select(
-        "connected, country_code, mypeugeot_email, mypeugeot_password_enc, vehicle_api_id, access_token, last_sync_at, remote_ready, customer_id, sync_interval_sec, oauth_meta",
+        "connected, country_code, mypeugeot_email, mypeugeot_password_enc, vehicle_api_id, access_token, token_expires_at, last_sync_at, remote_ready, customer_id, sync_interval_sec, oauth_meta",
       )
       .eq("user_id", userId)
       .maybeSingle(),
@@ -432,6 +432,30 @@ export async function getSettingsBundle(
   ]);
 
   const oauthMeta = asOAuthMeta(connection?.oauth_meta);
+  const accessExpiresAt = connection?.token_expires_at
+    ? new Date(String(connection.token_expires_at)).getTime()
+    : 0;
+  const accessStillGood =
+    Boolean(connection?.access_token) &&
+    accessExpiresAt > Date.now() + 60_000;
+
+  // Stale flag: session is fine but UI still screams reconnect (often after a
+  // transient refresh blip). Clear it so Settings does not push Captcha login.
+  if (oauthMeta.needsReconnect && accessStillGood) {
+    await peugeotConnections()
+      .update({
+        oauth_meta: {
+          ...oauthMeta,
+          needsReconnect: false,
+          authError: null,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+    oauthMeta.needsReconnect = false;
+    oauthMeta.authError = null;
+  }
+
   const needsReconnect =
     Boolean(oauthMeta.needsReconnect) ||
     // Connected row without a usable token is the same as expired auth.
@@ -1010,7 +1034,21 @@ async function ensurePeugeotAccessToken(
 
   // Even with needsReconnect, keep serving a still-valid access token.
   // Previously we jumped straight to Captcha heal and blocked the app.
+  // Also clear a stale needsReconnect — otherwise Settings keeps nagging
+  // and „Verbinden“ burns a Captcha login while the session is fine.
   if (accessToken && expiresAt >= Date.now() + 60_000) {
+    if (freshMeta.needsReconnect) {
+      await peugeotConnections()
+        .update({
+          oauth_meta: {
+            ...freshMeta,
+            needsReconnect: false,
+            authError: null,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+    }
     return accessToken;
   }
 
