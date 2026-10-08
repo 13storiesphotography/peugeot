@@ -102,6 +102,19 @@ export function ChargeCurve({ samples, charging = false }: ChargeCurveProps) {
   const kws = points.map((p) => p.kw);
   const peakKw = Math.max(...kws);
   const lastKw = kws[kws.length - 1]!;
+  // Time-weighted average power over the session (Ø).
+  let avgKw = lastKw;
+  {
+    let area = 0;
+    let duration = 0;
+    for (let i = 1; i < points.length; i++) {
+      const dt = points[i]!.at - points[i - 1]!.at;
+      if (dt <= 0) continue;
+      area += ((points[i]!.kw + points[i - 1]!.kw) / 2) * dt;
+      duration += dt;
+    }
+    if (duration > 0) avgKw = area / duration;
+  }
   // Nice Y scale: 0 … ceil peak to a readable step.
   const yMaxRaw = Math.max(peakKw * 1.08, peakKw + 1);
   const step =
@@ -134,7 +147,7 @@ export function ChargeCurve({ samples, charging = false }: ChargeCurveProps) {
         <div>
           <p className="text-sm font-semibold">Ladegeschwindigkeit</p>
           <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
-            {sessionLive ? "Lädt · " : "Letzte Session · "}
+            {sessionLive ? "Lädt · " : null}
             {formatTime(first.recordedAt)}–{formatTime(last.recordedAt)} ·{" "}
             {formatDuration(first.recordedAt, last.recordedAt)}
           </p>
@@ -146,7 +159,11 @@ export function ChargeCurve({ samples, charging = false }: ChargeCurveProps) {
             </span>
           </p>
           <p>
-            {sessionLive ? "Jetzt" : "Zuletzt"} {formatKw(lastKw)}
+            {sessionLive ? (
+              <>Jetzt {formatKw(lastKw)}</>
+            ) : (
+              <>Ø {formatKw(avgKw)}</>
+            )}
             {delta !== 0 ? (
               <>
                 {" "}
