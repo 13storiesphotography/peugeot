@@ -12,6 +12,7 @@ import {
   commandRequiresPro,
   PRO_REQUIRED_MESSAGE,
 } from "@/lib/billing/pro-commands";
+import { peugeotConnections } from "@/lib/supabase/peugeot-connections";
 
 export type VehicleSchedule = {
   id: string;
@@ -159,7 +160,7 @@ async function ensureVehicle(
       throw new Error(stateError.message);
     }
 
-    await supabase.from("peugeot_connections").insert({
+    await peugeotConnections().insert({
       user_id: userId,
       vehicle_id: created.id,
       country_code: "DE",
@@ -394,8 +395,7 @@ export async function getSettingsBundle(
   const { vehicleId, vehicle: base } = await ensureVehicle(supabase, userId);
 
   const [{ data: connection }, entitlement] = await Promise.all([
-    supabase
-      .from("peugeot_connections")
+    peugeotConnections()
       .select(
         "connected, country_code, mypeugeot_email, mypeugeot_password_enc, vehicle_api_id, access_token, last_sync_at, remote_ready, customer_id, sync_interval_sec, oauth_meta",
       )
@@ -459,8 +459,7 @@ async function loadVehicleBundle(
 
   const [{ data: connection }, { data: schedules }, { data: activity }, entitlement] =
     await Promise.all([
-      supabase
-        .from("peugeot_connections")
+      peugeotConnections()
         .select(
           "connected, country_code, mypeugeot_email, mypeugeot_password_enc, vehicle_api_id, access_token, refresh_token, token_expires_at, last_sync_at, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at, sync_interval_sec, oauth_meta",
         )
@@ -672,8 +671,7 @@ async function loadVehicleBundle(
       await saveState(supabase, userId, vehicleId, vehicle);
       // Do not auto-replace climate schedules here — that undoes deletes in the
       // app. Import only via „Pläne vom Fahrzeug laden“.
-      await supabase
-        .from("peugeot_connections")
+      await peugeotConnections()
         .update({ last_sync_at: new Date().toISOString() })
         .eq("user_id", userId);
       connection.last_sync_at = new Date().toISOString();
@@ -718,8 +716,7 @@ async function loadVehicleBundle(
     const message =
       syncError ||
       "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.";
-    await supabase
-      .from("peugeot_connections")
+    await peugeotConnections()
       .update({
         oauth_meta: {
           ...oauthMeta,
@@ -885,15 +882,13 @@ async function setRemoteSignalsOk(
   userId: string,
   ok: boolean,
 ): Promise<void> {
-  const { data } = await supabase
-    .from("peugeot_connections")
+  const { data } = await peugeotConnections()
     .select("oauth_meta")
     .eq("user_id", userId)
     .maybeSingle();
   const meta = asOAuthMeta(data?.oauth_meta);
   if (meta.remoteSignalsOk === ok) return;
-  await supabase
-    .from("peugeot_connections")
+  await peugeotConnections()
     .update({
       oauth_meta: {
         ...meta,
@@ -972,8 +967,7 @@ async function ensurePeugeotAccessToken(
     if (healed) return healed;
     const message =
       "MyPeugeot-Anmeldung abgelaufen. Bitte unter Einstellungen neu verbinden.";
-    await supabase
-      .from("peugeot_connections")
+    await peugeotConnections()
       .update({
         oauth_meta: {
           ...current.oauthMeta,
@@ -987,8 +981,7 @@ async function ensurePeugeotAccessToken(
   }
 
   // Another request may have refreshed already — use the freshest row.
-  const { data: fresh } = await supabase
-    .from("peugeot_connections")
+  const { data: fresh } = await peugeotConnections()
     .select(
       "access_token, refresh_token, token_expires_at, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
     )
@@ -1030,8 +1023,7 @@ async function ensurePeugeotAccessToken(
       refreshToken,
     );
     // Compare-and-swap: only write if another request did not rotate first.
-    const { data: updated, error: updateError } = await supabase
-      .from("peugeot_connections")
+    const { data: updated, error: updateError } = await peugeotConnections()
       .update({
         access_token: refreshed.accessToken,
         refresh_token: refreshed.refreshToken,
@@ -1050,8 +1042,7 @@ async function ensurePeugeotAccessToken(
     if (updateError) throw new Error(updateError.message);
     if (!updated?.access_token) {
       // Lost the race — read the winner's token.
-      const { data: winner } = await supabase
-        .from("peugeot_connections")
+      const { data: winner } = await peugeotConnections()
         .select("access_token, token_expires_at")
         .eq("user_id", userId)
         .maybeSingle();
@@ -1064,8 +1055,7 @@ async function ensurePeugeotAccessToken(
       const healed = await tryHeal(freshEmail, freshPasswordEnc);
       if (healed) return healed;
       const message = humanizePeugeotOAuthError(raw);
-      await supabase
-        .from("peugeot_connections")
+      await peugeotConnections()
         .update({
           oauth_meta: {
             ...freshMeta,
@@ -1223,8 +1213,7 @@ async function ensureLiveRemoteSession(
   userId: string,
   bundle: VehicleBundle,
 ): Promise<LiveRemoteSession> {
-  const { data: connection } = await supabase
-    .from("peugeot_connections")
+  const { data: connection } = await peugeotConnections()
     .select(
       "connected, country_code, access_token, refresh_token, token_expires_at, customer_id, remote_ready, otp_state, remote_access_token, remote_refresh_token, remote_token_updated_at",
     )
@@ -1270,8 +1259,7 @@ async function ensureLiveRemoteSession(
         String(connection.refresh_token),
       );
       oauthToken = refreshed.accessToken;
-      await supabase
-        .from("peugeot_connections")
+      await peugeotConnections()
         .update({
           access_token: refreshed.accessToken,
           refresh_token: refreshed.refreshToken,
@@ -1300,8 +1288,7 @@ async function ensureLiveRemoteSession(
     remoteAccess = refreshed.remote.accessToken;
     remoteRefresh = refreshed.remote.refreshToken;
     otpState = refreshed.otpState;
-    await supabase
-      .from("peugeot_connections")
+    await peugeotConnections()
       .update({
         remote_access_token: remoteAccess,
         remote_refresh_token: remoteRefresh,
@@ -1325,8 +1312,7 @@ async function ensureLiveRemoteSession(
       "@/lib/stellantis/otp/session"
     );
     if (isOtpAccessFailure(raw)) {
-      await supabase
-        .from("peugeot_connections")
+      await peugeotConnections()
         .update({
           remote_ready: false,
           remote_access_token: null,
@@ -1592,8 +1578,7 @@ async function runLiveChargeLimitCommand(
   let status: unknown = null;
   try {
     if (bundle.connection.vehicleApiId && bundle.connection.hasAccessToken) {
-      const { data: connection } = await supabase
-        .from("peugeot_connections")
+      const { data: connection } = await peugeotConnections()
         .select(
           "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
         )
@@ -1862,8 +1847,7 @@ async function pollClimateConfirmation(
     return { vehicle: optimistic };
   }
 
-  const { data: connection } = await supabase
-    .from("peugeot_connections")
+  const { data: connection } = await peugeotConnections()
     .select(
       "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
     )
@@ -1946,8 +1930,7 @@ async function tryLoadVehiclePrograms(
     return null;
   }
   try {
-    const { data: connection } = await supabase
-      .from("peugeot_connections")
+    const { data: connection } = await peugeotConnections()
       .select(
         "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
       )
@@ -2071,8 +2054,7 @@ export async function importClimateSchedulesFromVehicle(
 ): Promise<{ schedules: VehicleSchedule[]; imported: number; message: string }> {
   const { vehicleId, vehicle } = await ensureVehicle(supabase, userId);
 
-  const { data: connection } = await supabase
-    .from("peugeot_connections")
+  const { data: connection } = await peugeotConnections()
     .select(
       "connected, country_code, vehicle_api_id, access_token, refresh_token, token_expires_at, oauth_meta, remote_ready, customer_id, otp_state, remote_access_token, remote_refresh_token, mypeugeot_email, mypeugeot_password_enc",
     )
@@ -2142,8 +2124,7 @@ export async function importClimateSchedulesFromVehicle(
       status,
     );
 
-    await supabase
-      .from("peugeot_connections")
+    await peugeotConnections()
       .update({ last_sync_at: new Date().toISOString() })
       .eq("user_id", userId);
 
@@ -2214,8 +2195,7 @@ export async function updateSyncInterval(
   syncIntervalSec: number,
 ) {
   const sec = clampSyncInterval(syncIntervalSec);
-  const { error } = await supabase
-    .from("peugeot_connections")
+  const { error } = await peugeotConnections()
     .update({
       sync_interval_sec: sec,
       updated_at: new Date().toISOString(),
@@ -2251,8 +2231,7 @@ export async function updatePeugeotConnection(
     payload.access_token = input.accessToken || null;
   }
 
-  const { error } = await supabase
-    .from("peugeot_connections")
+  const { error } = await peugeotConnections()
     .upsert(payload, { onConflict: "user_id" });
 
   if (error) throw new Error(error.message);

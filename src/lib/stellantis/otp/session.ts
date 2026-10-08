@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import {
+  openRemotePin,
+  sealRemotePin,
+} from "@/lib/stellantis/credential-vault";
+import {
   aesEcbDecrypt,
   aesEcbEncryptRaw,
   oaepEncrypt,
@@ -216,7 +220,7 @@ export async function activateOtpSession(input: {
     ? {
         ...input.previous,
         deviceId: input.previous.deviceId || input.deviceId,
-        codePin: input.pin,
+        codePin: input.pin, // sealed before return
       }
     : { ...createEmptyOtpState(input.deviceId), codePin: input.pin };
 
@@ -309,6 +313,8 @@ export async function activateOtpSession(input: {
     synchroKeys(state, ms, kma);
   }
 
+  // Never persist the raw PIN — seal with the app vault before storage.
+  state.codePin = sealRemotePin(input.pin);
   return state;
 }
 
@@ -317,6 +323,16 @@ export async function generateOtpCode(
   state: OtpPersistedState,
 ): Promise<{ code: string; state: OtpPersistedState }> {
   const next = { ...state };
+  const pin = openRemotePin(next.codePin);
+  if (!pin) {
+    throw new Error(
+      humanizeOtpError(
+        "Fernbedienung abgelaufen — bitte unter Einstellungen die PIN neu freischalten.",
+      ),
+    );
+  }
+  // Keep sealed form in persisted state; use plaintext pin only in memory.
+  next.codePin = sealRemotePin(pin);
   let defi = "";
 
   const runOnce = async () => {
@@ -338,7 +354,7 @@ export async function generateOtpCode(
       );
     }
     const challenge = str(setup.challenge);
-    const R = getR(next, challenge, "", next.codePin);
+    const R = getR(next, challenge, "", pin);
     const finalXml = await iwRequest({
       action: "ActionFinalize",
       mode: "otp",
@@ -360,7 +376,7 @@ export async function generateOtpCode(
         ),
       );
     }
-    synchroKeys(next, final, generateKma(next, next.codePin));
+    synchroKeys(next, final, generateKma(next, pin));
     defi = str(final.defi);
     return Boolean(final.J);
   };

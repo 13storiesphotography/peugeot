@@ -1,14 +1,15 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { exchangeAuthorizationCode } from "@/lib/stellantis/api";
 import { decryptPeugeotPassword } from "@/lib/stellantis/credential-vault";
+import { capturePeugeotOAuthCode } from "@/lib/stellantis/oauth-auto-login";
 import { capturePeugeotOAuthCodeRemote } from "@/lib/stellantis/oauth-remote";
+import { peugeotConnections } from "@/lib/supabase/peugeot-connections";
 
 /**
- * Re-login via community OAuth helper using the encrypted password vault.
- * Used when Peugeot returns invalid_grant for the refresh token.
+ * Re-login using the encrypted password vault when Peugeot returns invalid_grant.
+ * Prefers on-server Puppeteer; optional STELLOAUTH_URL only as explicit fallback.
  */
 export async function healPeugeotSessionWithVault(
-  supabase: SupabaseClient,
+  _supabase: unknown,
   userId: string,
   input: {
     countryCode: string;
@@ -28,23 +29,31 @@ export async function healPeugeotSessionWithVault(
     };
   }
 
-  const captured = await capturePeugeotOAuthCodeRemote({
-    countryCode: input.countryCode || "DE",
+  const countryCode = input.countryCode || "DE";
+  let captured = await capturePeugeotOAuthCode({
+    countryCode,
     email,
     password,
-    timeoutMs: 80_000,
   });
   if (!captured.ok) {
-    return { ok: false, error: captured.error };
+    const remote = await capturePeugeotOAuthCodeRemote({
+      countryCode,
+      email,
+      password,
+      timeoutMs: 80_000,
+    });
+    if (!remote.ok) {
+      return {
+        ok: false,
+        error: captured.error || remote.error,
+      };
+    }
+    captured = remote;
   }
 
-  const tokens = await exchangeAuthorizationCode(
-    input.countryCode || "DE",
-    captured.code,
-  );
+  const tokens = await exchangeAuthorizationCode(countryCode, captured.code);
 
-  const { data: existing } = await supabase
-    .from("peugeot_connections")
+  const { data: existing } = await peugeotConnections()
     .select("oauth_meta")
     .eq("user_id", userId)
     .maybeSingle();
@@ -55,8 +64,7 @@ export async function healPeugeotSessionWithVault(
       ? (existing.oauth_meta as Record<string, unknown>)
       : {};
 
-  const { error } = await supabase
-    .from("peugeot_connections")
+  const { error } = await peugeotConnections()
     .update({
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,

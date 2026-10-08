@@ -14,7 +14,7 @@ import {
 import { otpType } from "@/lib/auth/otp-type";
 import { sendAuthEmail } from "@/lib/auth/send-auth-email";
 import { sendRecoveryWithoutPkce } from "@/lib/auth/send-recovery";
-import { getSiteOrigin } from "@/lib/auth/site-origin";
+import { getSiteOrigin, resolveSiteOrigin } from "@/lib/auth/site-origin";
 import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { notifySignupEvent } from "@/lib/auth/notify-signup";
@@ -34,18 +34,12 @@ export type AuthState = {
 };
 
 function publicSiteOrigin(headerStore: Headers): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   const origin = headerStore.get("origin")?.replace(/\/$/, "") ?? "";
   const host =
     headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "";
   const proto = headerStore.get("x-forwarded-proto") ?? "https";
   const fromHost = host ? `${proto}://${host}`.replace(/\/$/, "") : "";
-  const candidate =
-    origin || fromHost || configured || "https://www.peugeotcontrol.app";
-  if (candidate.includes("localhost") || candidate.includes("127.0.0.1")) {
-    return configured || "https://www.peugeotcontrol.app";
-  }
-  return candidate;
+  return resolveSiteOrigin(origin || fromHost || null);
 }
 
 function confirmEmailRedirectTo(headerStore: Headers): string {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
+import { clientIp, takeToken } from "@/lib/traffic/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 503 });
   }
 
+  const ip = clientIp(request);
+  const ipLimit = takeToken(`traffic:ip:${ip}`, 60, 60_000);
+  if (!ipLimit.ok) {
+    return NextResponse.json(
+      { ok: false },
+      {
+        status: 429,
+        headers: { "Retry-After": String(ipLimit.retryAfterSec) },
+      },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -51,6 +64,17 @@ export async function POST(request: Request) {
   const visitorId = sanitizeVisitor(payload.visitorId);
   if (!path || !visitorId) {
     return NextResponse.json({ ok: false }, { status: 400 });
+  }
+
+  const visitorLimit = takeToken(`traffic:vid:${visitorId}`, 30, 60_000);
+  if (!visitorLimit.ok) {
+    return NextResponse.json(
+      { ok: false },
+      {
+        status: 429,
+        headers: { "Retry-After": String(visitorLimit.retryAfterSec) },
+      },
+    );
   }
 
   const referrer = sanitizeReferrer(payload.referrer);
