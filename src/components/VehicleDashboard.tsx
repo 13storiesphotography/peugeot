@@ -1009,8 +1009,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               busy={climateBusy}
               remoteReady={bundle.connection.remoteReady}
               climateJob={climateJobView}
+              schedules={bundle.schedules}
               isPro={bundle.isPro}
               onCommand={(command) => void runCommand(command)}
+              onSchedulesChanged={() => void refresh(true, { silent: true })}
             />
           </DesktopPanel>
         </div>

@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ClimateProgressBanner } from "@/components/ClimateProgressBanner";
+import { SchedulePanel } from "@/components/SchedulePanel";
 import { SectionHeader } from "@/components/SectionHeader";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
+import type { VehicleSchedule } from "@/lib/vehicle/repository";
 
 interface ClimatePanelProps {
   vehicle: VehicleState;
@@ -15,7 +18,9 @@ interface ClimatePanelProps {
     phaseLabel: string;
     detail?: string;
   } | null;
+  schedules?: VehicleSchedule[];
   onCommand: (command: VehicleCommand) => void;
+  onSchedulesChanged?: () => void;
   isPro?: boolean;
 }
 
@@ -29,13 +34,17 @@ export function ClimatePanel({
   busy,
   remoteReady = false,
   climateJob = null,
+  schedules = [],
   onCommand,
+  onSchedulesChanged,
   isPro = false,
 }: ClimatePanelProps) {
   const live = vehicle.mode === "live";
   const active = vehicle.climateStatus !== "off";
   const climateRemoteOk = !live || remoteReady;
   const pending = Boolean(climateJob);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
 
   const statusHint = pending
     ? climateJob!.phaseLabel
@@ -45,7 +54,28 @@ export function ClimatePanel({
         : vehicle.climateStatus === "cooling"
           ? "Vorklima · kühlt"
           : "Vorklima aktiv"
-      : "Fernstart für Vorklima";
+      : "Fernstart und Pläne für Vorklima";
+
+  const importFromVehicle = async () => {
+    setImportBusy(true);
+    setImportMsg(null);
+    try {
+      const res = await fetch("/api/vehicle/schedules/import-climate", {
+        method: "POST",
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Import fehlgeschlagen");
+      setImportMsg(data.message ?? "Übernommen.");
+      onSchedulesChanged?.();
+    } catch (err) {
+      setImportMsg(err instanceof Error ? err.message : "Fehler");
+    } finally {
+      setImportBusy(false);
+    }
+  };
 
   return (
     <section className="animate-rise space-y-6 pt-2 lg:mx-auto lg:max-w-md lg:pt-0">
@@ -85,9 +115,9 @@ export function ClimatePanel({
       ) : (
         <div className="ui-surface space-y-3 px-4 py-4 text-center">
           <p className="text-sm text-[var(--fg-muted)]">
-            Vorklima starten und stoppen ist in{" "}
+            Vorklima starten und planen ist in{" "}
             <span className="font-semibold text-[var(--fg)]">Pro</span>{" "}
-            enthalten — freundlich und jederzeit kündbar.
+            enthalten.
           </p>
           <a
             href="/control/settings#pro"
@@ -116,6 +146,35 @@ export function ClimatePanel({
             : `Außen ${formatTemp(vehicle.outdoorTempC)}${live ? "" : " · Demo"}`}
         </p>
       )}
+
+      {onSchedulesChanged ? (
+        <>
+          <SchedulePanel
+            schedules={schedules}
+            onChanged={onSchedulesChanged}
+            kinds={["climate"]}
+            compact
+            title="Vorklima planen"
+            hint={
+              isPro
+                ? live
+                  ? "Wie in MyPeugeot — Speichern geht ans Fahrzeug."
+                  : "Demo: Pläne nur in der App."
+                : "Mit Pro Zeitpläne anlegen und ans Auto senden."
+            }
+            editable={isPro}
+            onImportFromVehicle={
+              isPro && live ? importFromVehicle : undefined
+            }
+            importBusy={importBusy}
+          />
+          {importMsg ? (
+            <p className="text-center text-xs text-[var(--fg-muted)]">
+              {importMsg}
+            </p>
+          ) : null}
+        </>
+      ) : null}
     </section>
   );
 }
