@@ -221,11 +221,17 @@ body {
   border: 1px solid var(--line);
   border-radius: 1rem;
   background: rgba(14, 28, 40, 0.45);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.18s ease,
+    box-shadow 0.2s ease;
 }
 
 .ui-surface-active {
   border-color: rgba(95, 227, 192, 0.45);
   background: rgba(95, 227, 192, 0.1);
+  box-shadow: 0 0 0 1px rgba(95, 227, 192, 0.12);
 }
 
 .ui-tile {
@@ -237,6 +243,14 @@ body {
   text-align: center;
 }
 
+.ui-tile:hover:not(:disabled) .ui-tile-icon {
+  transform: scale(1.06);
+}
+
+.ui-tile:active:not(:disabled) .ui-tile-icon {
+  transform: scale(0.94);
+}
+
 .ui-tile-icon {
   display: grid;
   place-items: center;
@@ -245,6 +259,10 @@ body {
   border-radius: 9999px;
   background: rgba(0, 0, 0, 0.28);
   color: var(--fg);
+  transition:
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .ui-tile-label {
@@ -376,30 +394,14 @@ body {
   animation: landing-hero-in 1s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both;
 }
 
-@keyframes landing-phone-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
 @keyframes landing-glow-breathe {
   0%,
   100% {
     opacity: 0.35;
-    transform: scale(0.96);
   }
   50% {
-    opacity: 0.7;
-    transform: scale(1.04);
+    opacity: 0.65;
   }
-}
-
-.landing-phone {
-  animation: landing-phone-float 5.5s ease-in-out infinite;
 }
 
 .landing-phone-glow {
@@ -448,13 +450,156 @@ body {
   animation: soft-breathe 3.2s ease-in-out infinite;
 }
 
+/* Control app micro-interactions */
+@keyframes control-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.control-panel-enter {
+  animation: control-panel-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.control-toast {
+  animation: toast-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes confirm-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes confirm-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.control-confirm-backdrop {
+  animation: confirm-backdrop-in 0.2s ease both;
+}
+
+.control-confirm-sheet {
+  animation: confirm-sheet-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.nav-icon-btn {
+  transition:
+    transform 0.16s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    background 0.18s ease;
+}
+
+.nav-icon-btn:hover:not(:disabled) {
+  border-color: rgba(95, 227, 192, 0.4);
+  color: var(--fg);
+}
+
+.nav-icon-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.control-bottom-item {
+  position: relative;
+  transition: color 0.18s ease;
+}
+
+.control-bottom-item::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0.2rem;
+  width: 1.1rem;
+  height: 0.16rem;
+  border-radius: 999px;
+  background: var(--accent-bright);
+  transform: translateX(-50%) scaleX(0);
+  transform-origin: center;
+  opacity: 0;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.18s ease;
+}
+
+.control-bottom-item[aria-current="page"]::after {
+  transform: translateX(-50%) scaleX(1);
+  opacity: 1;
+}
+
+.control-bottom-item:active {
+  transform: scale(0.96);
+}
+
+.control-side-item {
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.16s ease;
+}
+
+.control-side-item:active {
+  transform: scale(0.98);
+}
+
+@keyframes charge-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.charge-progress-fill {
+  background-size: 200% 100%;
+  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.charge-progress-fill.is-charging {
+  animation: charge-shimmer 1.8s linear infinite;
+}
+
+.battery-metric {
+  transition: color 0.25s ease;
+}
+
+.quick-actions-busy .ui-tile:not(:disabled) {
+  animation: soft-breathe 1.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-hero-brand,
   .landing-hero-line,
   .landing-hero-copy,
   .landing-hero-cta,
   .landing-hero-visual,
-  .landing-phone,
   .landing-phone-glow,
   .landing-screen-swap,
   .landing-curve-draw,
@@ -462,11 +607,20 @@ body {
   .animate-rise,
   .animate-rise-delay-1,
   .animate-rise-delay-2,
-  .animate-rise-delay-3 {
+  .animate-rise-delay-3,
+  .control-panel-enter,
+  .control-toast,
+  .control-confirm-backdrop,
+  .control-confirm-sheet,
+  .quick-actions-busy .ui-tile,
+  .charge-progress-fill.is-charging {
     animation: none !important;
   }
 
-  .landing-charge-bar {
-    transition: none;
+  .landing-charge-bar,
+  .charge-progress-fill,
+  .ui-surface,
+  .ui-tile-icon {
+    transition: none !important;
   }
 }

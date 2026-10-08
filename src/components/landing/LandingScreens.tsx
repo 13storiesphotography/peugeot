@@ -41,7 +41,10 @@ function PhoneFrame({
           <span className="h-5 w-16 rounded-full bg-black/45" />
           <span>LTE</span>
         </div>
-        <div className="landing-screen-swap" key={activeLabel}>
+        <div
+          className="landing-screen-swap flex min-h-[19.75rem] flex-col"
+          key={activeLabel}
+        >
           {children}
         </div>
         <div className="flex justify-around border-t border-[var(--line)] bg-[#071018]/95 px-2 py-2.5 text-[10px] font-semibold">
