@@ -1,11 +1,14 @@
 "use client";
 
 import { ChargeCurve } from "@/components/ChargeCurve";
+import { DataFreshnessBadge } from "@/components/DataFreshnessBadge";
 import { SectionHeader } from "@/components/SectionHeader";
 import type { VehicleCommand, VehicleState } from "@/lib/types";
 import type { ChargeSample } from "@/lib/vehicle/repository";
 import {
+  chargeSpeedHint,
   chargeSpeedLabel,
+  chargeTypeLabel,
   effectiveChargeTargetPercent,
   isEightyPercentLimitActive,
   normalizeChargeSpeedMode,
@@ -16,6 +19,9 @@ interface ChargePanelProps {
   busy: boolean;
   chargeCurve?: ChargeSample[];
   isPro?: boolean;
+  nowMs?: number;
+  offline?: boolean;
+  refreshing?: boolean;
   onCommand: (
     command: VehicleCommand,
     opts?: { chargeLimitPercent?: number },
@@ -30,6 +36,16 @@ function formatEta(iso: string | null): string {
   }).format(new Date(iso));
 }
 
+function formatKw(kw: number | null): string {
+  if (kw == null || !Number.isFinite(kw)) return "—";
+  return `${kw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`;
+}
+
+function formatRate(kmh: number | null): string {
+  if (kmh == null || !Number.isFinite(kmh) || kmh <= 0) return "—";
+  return `+${Math.round(kmh)} km/h`;
+}
+
 const statusLabel: Record<VehicleState["chargeStatus"], string> = {
   idle: "Nicht am Ladekabel",
   plugged: "Am Ladekabel",
@@ -38,16 +54,42 @@ const statusLabel: Record<VehicleState["chargeStatus"], string> = {
   error: "Fehler",
 };
 
+function Metric({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string | null;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] text-[var(--fg-muted)]">{label}</p>
+      <p className="mt-1 truncate font-semibold tabular-nums">{value}</p>
+      {hint ? (
+        <p className="mt-0.5 truncate text-[11px] text-[var(--fg-muted)]">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function ChargePanel({
   vehicle,
   busy,
   chargeCurve = [],
   isPro = false,
+  nowMs,
+  offline = false,
+  refreshing = false,
   onCommand,
 }: ChargePanelProps) {
   const charging = vehicle.chargeStatus === "charging";
   const live = vehicle.mode === "live";
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
+  const typeLabel = chargeTypeLabel(vehicle.chargingType);
   const eightyOn = isPro && isEightyPercentLimitActive(vehicle);
   const targetPercent = isPro
     ? effectiveChargeTargetPercent(vehicle)
@@ -71,26 +113,47 @@ export function ChargePanel({
 
   return (
     <section className="animate-rise space-y-6 pt-2 lg:pt-0">
-      <SectionHeader title="Laden" hint={statusLine} hideTitleOnDesktop />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <SectionHeader title="Laden" hint={statusLine} hideTitleOnDesktop />
+        <DataFreshnessBadge
+          lastUpdatedAt={vehicle.lastUpdatedAt}
+          nowMs={nowMs}
+          mode={vehicle.mode}
+          offline={offline}
+          refreshing={refreshing}
+          showDetail
+          className="lg:pt-1"
+        />
+      </div>
 
       <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
         <div className="flex flex-col items-center py-2 lg:items-start lg:py-0">
           <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tabular-nums leading-none">
             {Math.round(vehicle.batteryPercent)}
-            <span className="text-2xl text-[var(--accent-bright)]">%</span>
+            <span
+              className="text-2xl"
+              style={{
+                color:
+                  charging && speed === "quick"
+                    ? "var(--warn)"
+                    : "var(--accent-bright)",
+              }}
+            >
+              %
+            </span>
           </p>
           <div
             className="mt-5 h-1.5 w-40 overflow-hidden rounded-full lg:w-full lg:max-w-xs"
             style={{ background: "rgba(143,168,181,0.15)" }}
           >
             <div
-              className="h-full rounded-full transition-all duration-700"
+              className={`h-full rounded-full transition-all duration-700 ${charging ? "charge-progress-fill is-charging" : ""}`}
               style={{
                 width: `${Math.min(100, vehicle.batteryPercent)}%`,
                 background: charging
                   ? speed === "quick"
-                    ? "linear-gradient(90deg, #d4924a, #e8b86d)"
-                    : "linear-gradient(90deg, #3da8a0, #5fe3c0)"
+                    ? "linear-gradient(90deg, #d4924a, #e8b86d, #d4924a)"
+                    : "linear-gradient(90deg, #3da8a0, #5fe3c0, #3da8a0)"
                   : "#3da8a0",
               }}
             />
@@ -101,6 +164,43 @@ export function ChargePanel({
         </div>
 
         <div className="space-y-3">
+          <div className="ui-surface grid grid-cols-2 gap-x-4 gap-y-4 px-4 py-4">
+            <Metric
+              label="Leistung"
+              value={formatKw(vehicle.chargePowerKw)}
+              hint={charging ? chargeSpeedHint(speed) : statusLabel[vehicle.chargeStatus]}
+            />
+            <Metric
+              label="Tempo"
+              value={formatRate(vehicle.chargeRateKmh)}
+              hint={charging ? chargeSpeedLabel(speed) : null}
+            />
+            {charging ? (
+              <Metric
+                label="Fertig gegen"
+                value={formatEta(vehicle.estimatedFullAt)}
+                hint="Schätzung vom Fahrzeug"
+              />
+            ) : (
+              <Metric
+                label="Reichweite"
+                value={`${vehicle.rangeKm} km`}
+                hint={statusLabel[vehicle.chargeStatus]}
+              />
+            )}
+            <Metric
+              label="Modus"
+              value={typeLabel ?? chargeSpeedLabel(speed)}
+              hint={
+                live
+                  ? vehicle.chargeLimitKnown
+                    ? `Fahrzeugziel ${Math.round(vehicle.chargeLimitPercent)}%`
+                    : "Fahrzeugziel unbekannt"
+                  : "Demo"
+              }
+            />
+          </div>
+
           <div
             className={`ui-surface flex items-center justify-between gap-4 px-4 py-4 ${eightyOn ? "ui-surface-active" : ""}`}
           >
@@ -162,38 +262,6 @@ export function ChargePanel({
               </a>
             )}
           </div>
-
-          {charging ? (
-            <div className="ui-surface px-4 py-4 text-center lg:text-left">
-              <p className="text-sm font-semibold text-[var(--accent-bright)]">
-                Ladevorgang aktiv
-              </p>
-              <p className="mt-1 text-xs text-[var(--fg-muted)]">
-                Fertig gegen {formatEta(vehicle.estimatedFullAt)}
-                {vehicle.chargePowerKw != null
-                  ? ` · ${vehicle.chargePowerKw.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kW`
-                  : ""}
-                {vehicle.chargeRateKmh != null && vehicle.chargeRateKmh > 0
-                  ? ` · +${Math.round(vehicle.chargeRateKmh)} km/h`
-                  : ""}
-              </p>
-            </div>
-          ) : (
-            <dl className="grid grid-cols-2 gap-3 text-sm">
-              <div className="ui-surface px-4 py-4">
-                <dt className="text-xs text-[var(--fg-muted)]">Fertig gegen</dt>
-                <dd className="mt-1 font-semibold tabular-nums">
-                  {formatEta(vehicle.estimatedFullAt)}
-                </dd>
-              </div>
-              <div className="ui-surface px-4 py-4">
-                <dt className="text-xs text-[var(--fg-muted)]">Reichweite</dt>
-                <dd className="mt-1 font-semibold tabular-nums">
-                  {vehicle.rangeKm} km
-                </dd>
-              </div>
-            </dl>
-          )}
         </div>
       </div>
 

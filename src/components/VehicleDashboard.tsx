@@ -20,6 +20,7 @@ import {
 } from "@/components/ControlBottomNav";
 import { ControlSideNav } from "@/components/ControlSideNav";
 import { ControlsPanel } from "@/components/ControlsPanel";
+import { DataFreshnessBadge } from "@/components/DataFreshnessBadge";
 import { DesktopPanel } from "@/components/DesktopPanel";
 import { InstantNavLink } from "@/components/InstantNavLink";
 import { LocationLink } from "@/components/LocationLink";
@@ -45,7 +46,8 @@ type ToastState = {
   retry?: "refresh" | "command";
 };
 
-const HARD_REFRESH_TIMEOUT_MS = 55_000;
+/** Hard refresh can wake + wait + re-pull (~10s + 8s) — don't abort early. */
+const HARD_REFRESH_TIMEOUT_MS = 75_000;
 const SOFT_REFRESH_TIMEOUT_MS = 25_000;
 const COMMAND_TIMEOUT_MS = 45_000;
 
@@ -54,6 +56,33 @@ const HARD_REFRESH_PHASES = [
   "Frage Peugeot ab…",
   "Warte auf Antwort…",
 ] as const;
+
+function RefreshIcon({ spinning }: { spinning?: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      className={`block origin-center ${spinning ? "animate-spin" : ""}`}
+    >
+      <path
+        d="M20 12a8 8 0 1 1-2.2-5.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M20 5v5h-5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 async function fetchWithTimeout(
   input: RequestInfo | URL,
@@ -363,7 +392,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         saveVehicleBundleCache(patched);
         const wasCharging = prevChargeStatus.current === "charging";
         prevChargeStatus.current = patched.vehicle.chargeStatus;
-        startTransition(() => setBundle(patched));
+        // User-visible refresh: commit immediately so the spinner doesn't stop
+        // before the new stand is on screen (startTransition can lag a beat).
+        if (showUi) {
+          setBundle(patched);
+        } else {
+          startTransition(() => setBundle(patched));
+        }
         setNowMs(Date.now());
         if (
           wasCharging &&
@@ -410,6 +445,63 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             });
           }
         }
+
+        // Wake can land after the HTTP response — one short follow-up while
+        // the spinner stays up, so the stand doesn't jump later in silence.
+        const beforeFollowAge = ageMinutes(patched.vehicle.lastUpdatedAt);
+        if (
+          showUi &&
+          opts?.hard &&
+          data.hardRefresh?.wakeAttempted &&
+          data.hardRefresh.wakeOk &&
+          !data.hardRefresh.improved
+        ) {
+          setRefreshPhase("Warte auf frischen Stand…");
+          await new Promise((r) => window.setTimeout(r, 8_000));
+          try {
+            const follow = await fetchWithTimeout(
+              "/api/vehicle?sync=1",
+              { cache: "no-store" },
+              SOFT_REFRESH_TIMEOUT_MS,
+            );
+            if (follow.ok) {
+              const followData = (await follow.json()) as VehicleBundle;
+              const followPatched: VehicleBundle = {
+                ...followData,
+                vehicle: {
+                  ...followData.vehicle,
+                  rangeKm:
+                    followData.vehicle.rangeKm > 0
+                      ? followData.vehicle.rangeKm
+                      : lastVehicleRef.current.rangeKm,
+                  mileageKm:
+                    followData.vehicle.mileageKm > 0
+                      ? followData.vehicle.mileageKm
+                      : lastVehicleRef.current.mileageKm,
+                  batteryPercent:
+                    followData.vehicle.batteryPercent > 0
+                      ? followData.vehicle.batteryPercent
+                      : lastVehicleRef.current.batteryPercent,
+                },
+              };
+              lastVehicleRef.current = followPatched.vehicle;
+              saveVehicleBundleCache(followPatched);
+              prevChargeStatus.current = followPatched.vehicle.chargeStatus;
+              setBundle(followPatched);
+              setNowMs(Date.now());
+              const followAge = ageMinutes(followPatched.vehicle.lastUpdatedAt);
+              if (followAge < beforeFollowAge) {
+                setToast({
+                  text: `Aktualisiert (${formatAge(followPatched.vehicle.lastUpdatedAt)}).`,
+                  ok: true,
+                });
+              }
+            }
+          } catch {
+            // Keep the earlier hard-refresh result / toast.
+          }
+        }
+
         return patched;
       } catch (error) {
         const timedOut = isAbortError(error);
@@ -423,7 +515,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         if (showUi) {
           setToast({
             text: timedOut
-              ? "Zeitüberschreitung — Peugeot antwortet nicht."
+              ? "Zeitüberschreitung — Peugeot antwortet nicht. Bitte kurz warten und noch einmal tippen."
               : "Offline — zeige letzten Stand.",
             ok: false,
             retry: "refresh",
@@ -487,17 +579,21 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       30,
       bundle.connection.syncIntervalSec || 60,
     );
-    // While charging, check a bit more often — server still throttles Peugeot.
+    const charging = bundle.vehicle.chargeStatus === "charging";
+    // Charge tab while charging: denser client polls; server still throttles.
     const intervalSec =
-      live && bundle.vehicle.chargeStatus === "charging"
-        ? Math.min(configuredSec, 30)
-        : configuredSec;
+      live && charging && tab === "charge"
+        ? Math.min(configuredSec, 20)
+        : live && charging
+          ? Math.min(configuredSec, 30)
+          : configuredSec;
     const intervalMs = live ? intervalSec * 1000 : 10_000;
 
     const tick = () => {
       if (document.visibilityState !== "visible") return;
       // Soft poll: server decides whether Peugeot is due (avoids hammering).
-      void refresh(false, { silent: true });
+      // On Laden while charging, ask for a sync more often.
+      void refresh(live && charging && tab === "charge", { silent: true });
     };
 
     const onVisible = () => {
@@ -522,6 +618,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     bundle.connection.syncIntervalSec,
     bundle.connection.lastSyncAt,
     bundle.vehicle.chargeStatus,
+    tab,
     refresh,
   ]);
 
@@ -727,9 +824,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </h1>
           <div className="mt-1.5 flex items-center gap-2 lg:mt-2">
             <div className="min-w-0">
-              <p className="text-xs text-[var(--fg-muted)] lg:text-sm">
-                Stand {formatAge(vehicle.lastUpdatedAt, nowMs)}
-              </p>
+              <DataFreshnessBadge
+                lastUpdatedAt={vehicle.lastUpdatedAt}
+                nowMs={nowMs}
+                mode={vehicle.mode}
+                offline={offline}
+                refreshing={refreshing}
+              />
               {refreshing && refreshPhase ? (
                 <p
                   className="mt-0.5 text-[11px] font-medium text-[var(--accent-bright)]"
@@ -748,35 +849,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               title="Fahrzeug wecken und Daten holen"
               aria-busy={refreshing}
             >
-              {refreshing ? (
-                <span
-                  className="block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                  aria-hidden
-                />
-              ) : (
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden
-                  className="block"
-                >
-                  <path
-                    d="M20 12a8 8 0 1 1-2.2-5.5"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M20 5v5h-5"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
+              <RefreshIcon spinning={refreshing} />
             </button>
           </div>
         </div>
@@ -868,7 +941,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               vehicle={vehicle}
               onOpenCharge={() => selectTab("charge")}
             />
-            <ChargeLiveStrip vehicle={vehicle} />
+            <ChargeLiveStrip vehicle={vehicle} nowMs={nowMs} />
 
             <div>
               <p className="eyebrow hidden lg:block">Schnellaktionen</p>
@@ -944,6 +1017,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               busy={busy}
               chargeCurve={bundle.chargeCurve}
               isPro={bundle.isPro}
+              nowMs={nowMs}
+              offline={offline}
+              refreshing={refreshing}
               onCommand={(command, opts) => void runCommand(command, opts)}
             />
           </DesktopPanel>
