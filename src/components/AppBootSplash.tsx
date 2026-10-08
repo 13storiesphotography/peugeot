@@ -7,38 +7,37 @@ const BOOT_CSS = `
 #app-boot-splash{
   position:fixed;inset:0;z-index:99999;
   display:flex;align-items:center;justify-content:center;
-  background:#071018;
-  transition:opacity .35s ease;
+  background:#071018;color:#eef6f8;
+  transition:opacity .4s ease;
 }
 #app-boot-splash[data-done="1"]{opacity:0;pointer-events:none}
-#app-boot-splash .boot-mark{
-  position:relative;width:72px;height:72px;
-  display:grid;place-items:center;
-}
-#app-boot-splash .boot-ring{
-  position:absolute;inset:0;border-radius:9999px;
-  border:1.5px solid rgba(95,227,192,.35);
-  animation:boot-pulse 1.4s ease-in-out infinite;
-}
-#app-boot-splash .boot-ring:nth-child(2){
-  inset:-10px;border-color:rgba(95,227,192,.18);
-  animation-delay:.2s;
-}
 #app-boot-splash .boot-copy{
-  margin-top:1.25rem;text-align:center;
+  text-align:center;
   font-family:system-ui,-apple-system,sans-serif;
 }
 #app-boot-splash .boot-label{
-  font-size:11px;font-weight:700;letter-spacing:.32em;
+  font-size:13px;font-weight:700;letter-spacing:.36em;
   text-transform:uppercase;color:#5fe3c0;
+  margin:0 0 0 -.36em; /* optical center with letter-spacing */
 }
 #app-boot-splash .boot-sub{
-  margin-top:.45rem;font-size:12px;color:rgba(143,168,181,.85);
+  margin-top:.7rem;font-size:13px;color:rgba(143,168,181,.9);
   letter-spacing:.02em;
 }
-@keyframes boot-pulse{
-  0%,100%{transform:scale(1);opacity:.9}
-  50%{transform:scale(1.06);opacity:.45}
+#app-boot-splash .boot-dots{
+  display:inline-block;min-width:1.1em;text-align:left;
+}
+#app-boot-splash .boot-dots span{
+  opacity:0;
+  animation:boot-dot 1.2s infinite;
+}
+#app-boot-splash .boot-dots span:nth-child(1){animation-delay:0s}
+#app-boot-splash .boot-dots span:nth-child(2){animation-delay:.2s}
+#app-boot-splash .boot-dots span:nth-child(3){animation-delay:.4s}
+@keyframes boot-dot{
+  0%,15%{opacity:0}
+  30%,70%{opacity:1}
+  85%,100%{opacity:0}
 }
 @media (max-width:1023.98px){
   .control-side-nav{display:none!important}
@@ -48,23 +47,31 @@ const BOOT_CSS = `
 }
 `.replace(/\n/g, "");
 
+/** Keep cover until load + fonts, min ~0.8s, safety 4s — reduces white flash. */
 const BOOT_SCRIPT = `
 (function(){
   var el=document.getElementById("app-boot-splash");
   if(!el)return;
   var done=false;
+  var shownAt=Date.now();
   function hide(){
     if(done)return;
     done=true;
-    el.setAttribute("data-done","1");
-    setTimeout(function(){try{el.remove()}catch(e){}},400);
+    var wait=Math.max(0,800-(Date.now()-shownAt));
+    setTimeout(function(){
+      el.setAttribute("data-done","1");
+      setTimeout(function(){try{el.remove()}catch(e){}},450);
+    },wait);
   }
   function go(){
-    requestAnimationFrame(function(){requestAnimationFrame(hide)});
+    var fonts=document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve();
+    fonts.then(function(){
+      requestAnimationFrame(function(){requestAnimationFrame(hide)});
+    }).catch(hide);
   }
   if(document.readyState==="complete")go();
   else window.addEventListener("load",go,{once:true});
-  setTimeout(hide,2500);
+  setTimeout(hide,4000);
 })();
 `.replace(/\n/g, "");
 
@@ -74,14 +81,15 @@ export function AppBootSplash() {
     <>
       <style dangerouslySetInnerHTML={{ __html: BOOT_CSS }} />
       <div id="app-boot-splash" aria-hidden="true">
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div className="boot-mark">
-            <span className="boot-ring" />
-            <span className="boot-ring" />
-          </div>
-          <div className="boot-copy">
-            <div className="boot-label">Peugeot</div>
-            <div className="boot-sub">wird geladen…</div>
+        <div className="boot-copy">
+          <div className="boot-label">Peugeot</div>
+          <div className="boot-sub">
+            wird geladen
+            <span className="boot-dots" aria-hidden="true">
+              <span>.</span>
+              <span>.</span>
+              <span>.</span>
+            </span>
           </div>
         </div>
       </div>
