@@ -15,7 +15,10 @@ import { getAuthorizeUrl } from "@/lib/stellantis/peugeot-config";
 import { extractOAuthCode } from "@/lib/stellantis/oauth-code";
 import { capturePeugeotOAuthCode } from "@/lib/stellantis/oauth-auto-login";
 import { capturePeugeotOAuthCodeRemote } from "@/lib/stellantis/oauth-remote";
-import { encryptPeugeotPassword } from "@/lib/stellantis/credential-vault";
+import {
+  decryptPeugeotPassword,
+  encryptPeugeotPassword,
+} from "@/lib/stellantis/credential-vault";
 import { assertOwnerSession } from "@/lib/auth/assert-owner";
 import { peugeotConnections } from "@/lib/supabase/peugeot-connections";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
@@ -331,13 +334,39 @@ export async function connectPeugeotWithPassword(
   }
 
   if (!password) {
-    const { decryptPeugeotPassword } = await import(
-      "@/lib/stellantis/credential-vault"
-    );
     password =
       decryptPeugeotPassword(
         String(existing?.mypeugeot_password_enc ?? ""),
       ) ?? "";
+  }
+
+  // First-time connect (no prior tokens): try headless login once.
+  // Reconnect after a dead refresh_token: Peugeot Captcha almost always
+  // blocks Puppeteer on Vercel — skip straight to the computer code path
+  // instead of hanging 20–60s on a doomed login.
+  const hadSession = Boolean(refreshToken || accessToken);
+  if (hadSession) {
+    const captchaMsg =
+      "Peugeot Captcha blockiert die Automatik. Bitte Login-Link am Computer öffnen und mymap://-Code manuell einlösen.";
+    await peugeotConnections()
+      .update({
+        mypeugeot_email: email,
+        ...(password.trim()
+          ? { mypeugeot_password_enc: encryptPeugeotPassword(password.trim()) }
+          : {}),
+        oauth_meta: {
+          ...oauthMeta,
+          needsReconnect: true,
+          authError: captchaMsg,
+          lastCaptchaSkipAt: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+    return {
+      error: captchaMsg,
+      manualCode: true,
+    };
   }
 
   if (!password) {
