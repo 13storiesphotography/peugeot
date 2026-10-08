@@ -124,11 +124,11 @@ export function AuthForm({
   return (
     <div className="panel mx-auto w-full max-w-md rounded-[1.75rem] p-6 sm:p-8 lg:mx-0">
       {mode !== "forgot" ? (
-        <div className="flex gap-1 rounded-full border border-[var(--line)] bg-black/20 p-1">
+        <div className="flex gap-1 rounded-xl border border-[var(--line)] bg-black/20 p-1">
           <button
             type="button"
             onClick={() => setMode("login")}
-            className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold transition ${
+            className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
               mode === "login"
                 ? "bg-[var(--accent-bright)] text-[#031016]"
                 : "text-[var(--fg-muted)]"
@@ -140,7 +140,7 @@ export function AuthForm({
             <button
               type="button"
               onClick={() => setMode("register")}
-              className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold transition ${
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
                 mode === "register"
                   ? "bg-[var(--accent-bright)] text-[#031016]"
                   : "text-[var(--fg-muted)]"
@@ -270,7 +270,7 @@ export function AuthForm({
         <button
           type="submit"
           disabled={pending}
-          className="action-btn w-full rounded-full px-5 py-3 text-sm font-semibold"
+          className="action-btn w-full rounded-xl px-5 py-3 text-sm font-semibold"
           style={{
             background: "linear-gradient(135deg, #5fe3c0, #3da8a0)",
             color: "#031016",
