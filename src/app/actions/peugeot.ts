@@ -228,13 +228,19 @@ export async function connectPeugeotWithPassword(
   const { supabase, userId } = session;
 
   const countryCode = String(formData.get("countryCode") ?? "DE").trim() || "DE";
-  // Prefer MyPeugeot field names (username/password) so password managers
-  // match idpcvs.peugeot.com credentials; keep legacy names as fallback.
+  // Prefer neutral mpAccount/mpSecret names — username/password field names
+  // trigger iOS Autofill and can leave Safari without a keyboard.
   const email = String(
-    formData.get("username") ?? formData.get("mypeugeotEmail") ?? "",
+    formData.get("mpAccount") ??
+      formData.get("mypeugeotEmail") ??
+      formData.get("username") ??
+      "",
   ).trim();
   let password = String(
-    formData.get("password") ?? formData.get("mypeugeotPassword") ?? "",
+    formData.get("mpSecret") ??
+      formData.get("mypeugeotPassword") ??
+      formData.get("password") ??
+      "",
   );
 
   if (!email) {

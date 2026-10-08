@@ -47,22 +47,12 @@ function formatSync(iso: string | null): string | null {
   }).format(new Date(iso));
 }
 
-function useIsIos(): [boolean, (next: boolean) => void] {
+function useIsIos(): boolean {
   const [ios, setIos] = useState(false);
   useEffect(() => {
     setIos(/iPhone|iPad|iPod/i.test(navigator.userAgent));
   }, []);
-  return [ios, setIos];
-}
-
-/** Desktop Safari: clear readOnly then re-focus so the keyboard can attach. */
-function unlockReadonlyForKeyboard(el: HTMLInputElement) {
-  if (!el.readOnly) return;
-  el.readOnly = false;
-  window.setTimeout(() => {
-    el.blur();
-    el.focus({ preventScroll: true });
-  }, 0);
+  return ios;
 }
 
 export function PeugeotConnectForm({
@@ -78,9 +68,13 @@ export function PeugeotConnectForm({
   initialOAuthCountry?: string | null;
   initialOAuthError?: string | null;
 }) {
-  const [isIos, setIos] = useIsIos();
+  const isIos = useIsIos();
   const [countryCode, setCountryCode] = useState(
     initialOAuthCountry || connection.countryCode || "DE",
+  );
+  /** Avoid mounting a password field until needed — iOS autofill steals the keyboard. */
+  const [showPasswordField, setShowPasswordField] = useState(
+    !connection.hasPasswordStored,
   );
   const [passwordState, passwordAction, passwordPending] = useActionState(
     connectPeugeotWithPassword,
@@ -269,16 +263,9 @@ export function PeugeotConnectForm({
               </select>
             </label>
 
-            {/* Desktop: honeypot + readonly-until-focus reduces wrong-site autofill.
-                iOS: those tricks steal focus / show „Automatisch ausfüllen“ and the
-                keyboard never comes back — keep fields normally editable there. */}
             <form
               autoComplete="off"
               className="relative grid gap-3"
-              onTouchStartCapture={() => {
-                // First paint is non-iOS (SSR/hydration). Unlock iOS path ASAP.
-                if (!isIos) setIos(true);
-              }}
               onSubmit={(event) => {
                 event.preventDefault();
                 const formData = new FormData(event.currentTarget);
@@ -288,105 +275,86 @@ export function PeugeotConnectForm({
               }}
             >
               <input type="hidden" name="countryCode" value={countryCode} />
-              {!isIos ? (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
-                >
-                  <input
-                    type="text"
-                    name="email"
-                    autoComplete="username"
-                    tabIndex={-1}
-                  />
-                  <input
-                    type="password"
-                    name="site-password"
-                    autoComplete="current-password"
-                    tabIndex={-1}
-                  />
-                </div>
-              ) : null}
               <p className="text-xs text-[var(--fg-muted)]">
                 MyPeugeot-Zugangsdaten (nicht peugeotcontrol.app).
-                {isIos
-                  ? " Tippe in ein Feld — die Tastatur sollte erscheinen. Passwort ggf. über Schlüsselanhänger → Andere Passwörter."
-                  : " Auf dem iPhone: Tastatur → Schlüssel → „Andere Passwörter…“ → nach Peugeot suchen."}
+                {connection.hasPasswordStored
+                  ? " Gespeichertes Passwort ist hinterlegt — „Verbinden“ reicht oft."
+                  : " E-Mail und Passwort von MyPeugeot (nicht von peugeotcontrol.app)."}
               </p>
               <label className="block text-sm">
                 <span className="text-[var(--fg-muted)]">MyPeugeot E-Mail</span>
+                {/* Neutral names + type=text: username/password fields make iOS
+                    show Autofill (yellow) and drop the keyboard. */}
                 <input
-                  id="mypeugeot-email"
-                  name="mypeugeotEmail"
-                  type="email"
+                  id="mp-account"
+                  name="mpAccount"
+                  type="text"
                   required
                   defaultValue={connection.mypeugeotEmail ?? ""}
                   className="mt-1 ui-field"
-                  autoComplete={isIos ? "username" : "off"}
+                  autoComplete="off"
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
                   inputMode="email"
                   enterKeyHint="next"
-                  data-1p-ignore={isIos ? undefined : "true"}
-                  data-lpignore={isIos ? undefined : "true"}
-                  data-bwignore={isIos ? undefined : "true"}
-                  data-form-type={isIos ? undefined : "other"}
-                  readOnly={!isIos}
-                  onFocus={
-                    isIos
-                      ? undefined
-                      : (e) => {
-                          unlockReadonlyForKeyboard(e.currentTarget);
-                        }
-                  }
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-bwignore="true"
+                  data-form-type="other"
                   disabled={passwordPending}
                 />
               </label>
-              <label className="block text-sm">
-                <span className="text-[var(--fg-muted)]">Passwort</span>
-                <input
-                  id="mypeugeot-secret"
-                  name="mypeugeotPassword"
-                  type={isIos ? "password" : "text"}
-                  required={!connection.hasPasswordStored}
-                  placeholder={
-                    connection.hasPasswordStored
-                      ? "Gespeichert — nur bei Wechsel neu eingeben"
-                      : undefined
-                  }
-                  className="mt-1 ui-field"
-                  style={
-                    isIos
-                      ? undefined
-                      : ({ WebkitTextSecurity: "disc" } as CSSProperties)
-                  }
-                  autoComplete={isIos ? "current-password" : "off"}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  enterKeyHint="go"
-                  data-1p-ignore={isIos ? undefined : "true"}
-                  data-lpignore={isIos ? undefined : "true"}
-                  data-bwignore={isIos ? undefined : "true"}
-                  data-form-type={isIos ? undefined : "other"}
-                  readOnly={!isIos}
-                  onFocus={
-                    isIos
-                      ? undefined
-                      : (e) => {
-                          unlockReadonlyForKeyboard(e.currentTarget);
-                        }
-                  }
-                  disabled={passwordPending}
-                />
-                {connection.hasPasswordStored ? (
-                  <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
-                    Passwort liegt verschlüsselt für Auto-Login vor. Feld leer
-                    lassen = gespeichertes Passwort nutzen.
+              {connection.hasPasswordStored && !showPasswordField ? (
+                <div className="rounded-2xl border border-[var(--line)] bg-white/[0.03] px-3 py-3">
+                  <p className="text-sm text-[var(--fg)]">
+                    Passwort gespeichert (verschlüsselt)
                   </p>
-                ) : null}
-              </label>
+                  <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
+                    Tippe „Verbinden“, oder nur bei Bedarf ein neues Passwort.
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-semibold text-[var(--accent-bright)] underline-offset-2 hover:underline"
+                    onClick={() => setShowPasswordField(true)}
+                  >
+                    Anderes Passwort eingeben
+                  </button>
+                </div>
+              ) : (
+                <label className="block text-sm">
+                  <span className="text-[var(--fg-muted)]">Passwort</span>
+                  {/* No type=password, no autocomplete=current-password, no
+                      programmatic focus — those leave iOS stuck without a keyboard. */}
+                  <input
+                    id="mp-secret"
+                    name="mpSecret"
+                    type="text"
+                    required={!connection.hasPasswordStored}
+                    className="mt-1 ui-field"
+                    style={{ WebkitTextSecurity: "disc" } as CSSProperties}
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="go"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                    data-bwignore="true"
+                    data-form-type="other"
+                    disabled={passwordPending}
+                  />
+                  {connection.hasPasswordStored ? (
+                    <button
+                      type="button"
+                      className="mt-2 text-xs font-semibold text-[var(--fg-muted)] underline-offset-2 hover:underline"
+                      onClick={() => setShowPasswordField(false)}
+                    >
+                      Gespeichertes Passwort behalten
+                    </button>
+                  ) : null}
+                </label>
+              )}
               {passwordPending ? (
                 <div
                   className="rounded-2xl border border-[var(--line)] bg-white/[0.04] px-3 py-3"
