@@ -286,8 +286,11 @@ async function recordChargeSample(
 
   // Close the curve when charging stops — otherwise the last point stays
   // "charging" forever and the UI said „Jetzt“ while unplugged.
+  // Only within 2h of the last sample so a late idle probe does not invent
+  // a new 1-point session at today's SoC and hide the real curve.
   const stoppingCharge =
     lastStatus === "charging" &&
+    ageMs <= 2 * 60 * 60 * 1000 &&
     (vehicle.chargeStatus === "idle" ||
       vehicle.chargeStatus === "plugged" ||
       vehicle.chargeStatus === "complete");
@@ -299,8 +302,11 @@ async function recordChargeSample(
   if (!interesting) return;
 
   // New session when starting to charge after a gap / different phase.
+  // Closing samples always stay on the open charging session.
   let sessionId = String(last?.session_id ?? crypto.randomUUID());
-  if (
+  if (stoppingCharge && last?.session_id) {
+    sessionId = String(last.session_id);
+  } else if (
     !last ||
     ageMs > 2 * 60 * 60 * 1000 ||
     (vehicle.chargeStatus === "charging" &&
@@ -353,15 +359,36 @@ async function loadChargeCurve(
   supabase: SupabaseClient,
   vehicleId: string,
 ): Promise<ChargeSample[]> {
-  const { data: latest } = await supabase
+  // Prefer the newest session that actually has a drawable speed curve
+  // (≥2 points with power). Skip 1-point orphans from late stop probes.
+  const { data: recent } = await supabase
     .from("charge_samples")
-    .select("session_id")
+    .select("session_id, recorded_at, charge_power_kw, charge_rate_kmh")
     .eq("vehicle_id", vehicleId)
     .order("recorded_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(400);
 
-  if (!latest?.session_id) return [];
+  if (!recent?.length) return [];
+
+  const powerCountBySession = new Map<string, number>();
+  const order: string[] = [];
+  for (const row of recent) {
+    const sid = String(row.session_id ?? "");
+    if (!sid) continue;
+    if (!powerCountBySession.has(sid)) {
+      powerCountBySession.set(sid, 0);
+      order.push(sid);
+    }
+    const kw = Number(row.charge_power_kw);
+    const rate = Number(row.charge_rate_kmh);
+    if ((Number.isFinite(kw) && kw > 0) || (Number.isFinite(rate) && rate > 0)) {
+      powerCountBySession.set(sid, (powerCountBySession.get(sid) ?? 0) + 1);
+    }
+  }
+
+  const sessionId =
+    order.find((sid) => (powerCountBySession.get(sid) ?? 0) >= 2) ?? order[0];
+  if (!sessionId) return [];
 
   const { data: rows } = await supabase
     .from("charge_samples")
@@ -369,7 +396,7 @@ async function loadChargeCurve(
       "id, session_id, recorded_at, battery_percent, charge_power_kw, charge_rate_kmh, charging_mode, charge_status",
     )
     .eq("vehicle_id", vehicleId)
-    .eq("session_id", latest.session_id)
+    .eq("session_id", sessionId)
     .order("recorded_at", { ascending: true })
     .limit(400);
 
