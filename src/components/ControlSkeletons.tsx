@@ -161,14 +161,14 @@ export function ControlHomeSkeleton() {
       </div>
 
       <div
-        className="control-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[rgba(7,16,24,0.92)] pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl lg:hidden"
+        className="control-bottom-nav control-glass-nav fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-2 lg:hidden"
         aria-hidden
       >
-        <div className="mx-auto flex max-w-lg justify-between gap-1 px-2 py-2 sm:max-w-xl sm:px-4">
+        <div className="control-glass-shell mx-auto flex max-w-lg justify-between sm:max-w-xl">
           {tabLabels.map((label) => (
             <div
               key={label}
-              className="flex flex-1 flex-col items-center gap-1 py-1.5 text-[10px] font-semibold text-[var(--fg-muted)]"
+              className="control-glass-item flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] font-semibold text-[var(--fg-muted)]"
             >
               <Pulse className="h-5 w-5 rounded-md" />
               <span>{label}</span>
