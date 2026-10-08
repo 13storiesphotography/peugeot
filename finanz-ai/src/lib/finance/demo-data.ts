@@ -23,11 +23,11 @@ export const DEMO_ACCOUNTS: Account[] = [
 const month = currentMonth();
 
 export const DEMO_BUDGETS: Budget[] = [
-  { id: "b1", category: "groceries", label: "Lebensmittel", limitCents: 450_00, month },
-  { id: "b2", category: "leisure", label: "Freizeit", limitCents: 180_00, month },
-  { id: "b3", category: "shopping", label: "Einkäufe", limitCents: 200_00, month },
-  { id: "b4", category: "transport", label: "Mobilität", limitCents: 120_00, month },
-  { id: "b5", category: "subscriptions", label: "Abos", limitCents: 65_00, month },
+  { id: "b1", category: "groceries", label: "Lebensmittel", limitCents: 800_00, month },
+  { id: "b2", category: "leisure", label: "Freizeit", limitCents: 400_00, month },
+  { id: "b3", category: "shopping", label: "Einkäufe", limitCents: 400_00, month },
+  { id: "b4", category: "transport", label: "Mobilität", limitCents: 200_00, month },
+  { id: "b5", category: "subscriptions", label: "Abos", limitCents: 150_00, month },
 ];
 
 /**
