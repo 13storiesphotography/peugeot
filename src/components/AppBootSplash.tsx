@@ -47,7 +47,11 @@ const BOOT_CSS = `
 }
 `.replace(/\n/g, "");
 
-/** Keep cover until load + fonts, min ~0.8s, safety 4s — reduces white flash. */
+/**
+ * Keep cover until load + fonts, min ~0.8s, safety 4s.
+ * If the document never finishes (offline / hung chunks), stay on the
+ * branded splash instead of revealing a white broken shell.
+ */
 const BOOT_SCRIPT = `
 (function(){
   var el=document.getElementById("app-boot-splash");
@@ -63,6 +67,14 @@ const BOOT_SCRIPT = `
       setTimeout(function(){try{el.remove()}catch(e){}},450);
     },wait);
   }
+  function holdOffline(){
+    if(done)return;
+    var sub=el.querySelector(".boot-sub");
+    if(sub) sub.textContent="Kein Netz — tippen zum erneuten Versuch";
+    el.style.cursor="pointer";
+    el.addEventListener("click",function(){location.reload()});
+    window.addEventListener("online",function(){location.reload()},{once:true});
+  }
   function go(){
     var fonts=document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve();
     fonts.then(function(){
@@ -71,7 +83,15 @@ const BOOT_SCRIPT = `
   }
   if(document.readyState==="complete")go();
   else window.addEventListener("load",go,{once:true});
-  setTimeout(hide,4000);
+  setTimeout(function(){
+    if(done)return;
+    var offline=typeof navigator!=="undefined"&&navigator.onLine===false;
+    if(offline&&document.readyState!=="complete"){
+      holdOffline();
+      return;
+    }
+    hide();
+  },4000);
 })();
 `.replace(/\n/g, "");
 
