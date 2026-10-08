@@ -1,10 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/refresh-peugeot-token",
-      "schedule": "*/10 * * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
