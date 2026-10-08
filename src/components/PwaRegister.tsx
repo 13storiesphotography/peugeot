@@ -8,13 +8,34 @@ export function PwaRegister() {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
       return;
     }
+
+    let registration: ServiceWorkerRegistration | undefined;
+
     const register = () => {
-      void navigator.serviceWorker.register("/sw.js").catch(() => {
-        // SW is best-effort (e.g. unsupported on some previews).
-      });
+      void navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          registration = reg;
+          void reg.update();
+        })
+        .catch(() => {
+          // SW is best-effort (e.g. unsupported on some previews).
+        });
     };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void registration?.update();
+      }
+    };
+
     if (document.readyState === "complete") register();
     else window.addEventListener("load", register, { once: true });
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   return null;
