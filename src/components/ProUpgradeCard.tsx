@@ -315,6 +315,19 @@ export function ProUpgradeCard({
                     zu gehen.
                   </p>
                 ) : null}
+                <p className="text-center text-[11px] leading-relaxed text-[var(--fg-muted)]">
+                  Verlängert sich automatisch um die gewählte Laufzeit. Kündigen
+                  kannst du danach jederzeit in den Einstellungen zum
+                  Periodenende (siehe{" "}
+                  <Link
+                    href="/agb"
+                    target="_blank"
+                    className="underline decoration-[var(--line)] underline-offset-2 hover:text-[var(--fg)]"
+                  >
+                    AGB
+                  </Link>
+                  ).
+                </p>
                 <p className="text-center text-[11px] text-[var(--fg-muted)]">
                   Preise inkl. MwSt. · 12× monatlich ={" "}
                   {formatEuroFromCents(PRO_YEAR_IF_MONTHLY_CENTS)} pro Jahr ·
