@@ -40,13 +40,21 @@ Optional:
 
 ## Eigenes Repo
 
-Dieser Ordner ist absichtlich vom Peugeot-Control-Root getrennt. Später:
-
 ```bash
-git subtree split -P finanz-ai -b kontura-main
-# in leeres GitHub-Repo pushen
+# vom Peugeot-Root:
+chmod +x finanz-ai/scripts/extract-kontura-repo.sh
+./finanz-ai/scripts/extract-kontura-repo.sh
+# danach gh repo create + Push laut Script-Ausgabe
 ```
+
+## finAPI Sandbox
+
+Siehe [docs/FINAPI_SANDBOX.md](./docs/FINAPI_SANDBOX.md).
+
+## iOS (Face ID)
+
+Siehe [ios/README.md](./ios/README.md) — SwiftUI-Shell mit LocalAuthentication + WKWebView.
 
 ## Stack
 
-Next.js 16 · React 19 · Tailwind 4 · AI SDK · Supabase (optional) · Open Banking stub
+Next.js 16 · React 19 · Tailwind 4 · AI SDK · finAPI Web Form · Supabase (optional) · SwiftUI iOS Shell

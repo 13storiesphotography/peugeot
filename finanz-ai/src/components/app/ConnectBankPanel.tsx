@@ -2,8 +2,10 @@
 
 import { useState, useTransition } from "react";
 import {
+  completeFinapiWebForm,
   connectDemoBank,
   disconnectDemoBank,
+  startFinapiWebForm,
   syncDemoBank,
 } from "@/app/actions/banking";
 import type { BankingConnection } from "@/lib/banking/open-banking";
@@ -11,9 +13,11 @@ import type { BankingConnection } from "@/lib/banking/open-banking";
 export function ConnectBankPanel({
   initial,
   notice,
+  finapiReady,
 }: {
   initial: BankingConnection;
   notice?: string | null;
+  finapiReady: boolean;
 }) {
   const [connection, setConnection] = useState(initial);
   const [message, setMessage] = useState<string | null>(notice ?? null);
@@ -39,24 +43,16 @@ export function ConnectBankPanel({
     });
   }
 
-  async function tryLive() {
+  async function startFinapi() {
     setLivePending(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/banking/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "live" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setMessage(data.error ?? "Live-Verbindung nicht möglich");
-        if (data.connection) setConnection(data.connection);
+      const result = await startFinapiWebForm();
+      if (!result.ok) {
+        setMessage(result.error);
         return;
       }
-      if (data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-      }
+      window.location.href = result.url;
     } catch {
       setMessage("Netzwerkfehler");
     } finally {
@@ -64,7 +60,24 @@ export function ConnectBankPanel({
     }
   }
 
+  function finishFinapi() {
+    setLivePending(true);
+    setMessage(null);
+    startTransition(async () => {
+      const result = await completeFinapiWebForm();
+      setLivePending(false);
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setConnection((c) => ({ ...c, status: "connected" }));
+      setMessage("finAPI-Verbindung übernommen.");
+      window.location.href = "/connect?connected=1";
+    });
+  }
+
   const connected = connection.status === "connected";
+  const pendingConsent = connection.status === "pending_consent";
 
   return (
     <section className="mt-8 max-w-xl animate-rise">
@@ -130,23 +143,54 @@ export function ConnectBankPanel({
             </button>
           </>
         )}
+
         <button
           type="button"
-          onClick={tryLive}
-          disabled={livePending}
-          className="rounded-md border border-[#10253a]/20 px-5 py-3 text-sm font-semibold text-ink-soft transition hover:bg-mist disabled:opacity-50"
+          onClick={startFinapi}
+          disabled={livePending || !finapiReady}
+          title={
+            finapiReady
+              ? "finAPI Web Form (Sandbox/Live)"
+              : "FINAPI_CLIENT_ID/SECRET + OPEN_BANKING_ENABLED setzen"
+          }
+          className="rounded-md border border-[#10253a]/20 px-5 py-3 text-sm font-semibold text-ink transition hover:bg-mist disabled:opacity-40"
         >
-          {livePending ? "…" : "Live finAPI/Tink"}
+          {livePending ? "…" : "finAPI Sandbox verbinden"}
         </button>
+
+        {pendingConsent && (
+          <button
+            type="button"
+            onClick={finishFinapi}
+            disabled={livePending || pending}
+            className="rounded-md border border-teal px-5 py-3 text-sm font-semibold text-teal transition hover:bg-mist disabled:opacity-50"
+          >
+            SCA abgeschlossen — Status prüfen
+          </button>
+        )}
       </div>
 
       {message && <p className="mt-4 text-sm text-ink-soft">{message}</p>}
 
       <ol className="mt-10 list-decimal space-y-2 pl-5 text-sm text-ink-soft">
-        <li>Demo-Consent simuliert SCA ohne echte Bank-Zugangsdaten</li>
-        <li>Live: OPEN_BANKING_ENABLED=true + Client-ID/Secret</li>
+        <li>
+          Sandbox-Credentials:{" "}
+          <a
+            className="text-teal underline"
+            href="https://www.finapi.io/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            finAPI
+          </a>{" "}
+          → Access Sandbox Client ID/Secret
+        </li>
+        <li>
+          Env: <code>FINAPI_CLIENT_ID</code>, <code>FINAPI_CLIENT_SECRET</code>,{" "}
+          <code>OPEN_BANKING_ENABLED=true</code>, <code>KONTURA_VAULT_KEY</code>
+        </li>
+        <li>Web Form 2.0 führt Bank-Login + SCA — nie in Kontura selbst</li>
         <li>Callback: /api/banking/callback</li>
-        <li>Tokens später nur verschlüsselt serverseitig speichern</li>
       </ol>
     </section>
   );

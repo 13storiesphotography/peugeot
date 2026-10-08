@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Syne } from "next/font/google";
+import { BiometricLock } from "@/components/BiometricLock";
 import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
 
@@ -52,7 +53,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${syne.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col text-ink">
-        {children}
+        <BiometricLock>{children}</BiometricLock>
         <PwaRegister />
       </body>
     </html>

@@ -7,7 +7,12 @@ import {
   getBankSession,
   setBankSession,
 } from "@/lib/banking/session";
-import { getBankingConfig, buildConsentUrl } from "@/lib/banking/open-banking";
+import {
+  beginFinapiWebForm,
+  finalizeFinapiWebForm,
+} from "@/lib/banking/finapi/connect";
+import { fetchAccounts, fetchTransactions } from "@/lib/banking/finapi/sync";
+import { open } from "@/lib/banking/vault";
 
 export async function connectDemoBank() {
   await requireDemoSession();
@@ -26,9 +31,32 @@ export async function connectDemoBank() {
 export async function syncDemoBank() {
   await requireDemoSession();
   const current = await getBankSession();
-  if (!current.connected) {
+  if (!current.connected && !current.finapiUserId) {
     redirect("/connect");
   }
+
+  if (
+    current.provider === "finapi" &&
+    current.finapiUserId &&
+    current.finapiPasswordSealed
+  ) {
+    try {
+      const password = open(current.finapiPasswordSealed);
+      const accounts = await fetchAccounts(current.finapiUserId, password);
+      await fetchTransactions(current.finapiUserId, password);
+      await setBankSession({
+        ...current,
+        connected: true,
+        accountsLinked: accounts.length || current.accountsLinked,
+        lastSyncAt: new Date().toISOString(),
+        bankLabel: accounts[0]?.bankName || current.bankLabel || "finAPI Bank",
+      });
+      redirect("/connect?synced=1");
+    } catch {
+      redirect("/connect?error=sync_failed");
+    }
+  }
+
   await setBankSession({
     ...current,
     lastSyncAt: new Date().toISOString(),
@@ -42,20 +70,12 @@ export async function disconnectDemoBank() {
   redirect("/connect?disconnected=1");
 }
 
-export async function startLiveConsent(): Promise<
-  { ok: true; url: string } | { ok: false; error: string }
-> {
+export async function startFinapiWebForm() {
   await requireDemoSession();
-  const config = getBankingConfig();
-  if (!config.enabled || !config.clientIdConfigured) {
-    return {
-      ok: false,
-      error: "Live Open Banking ist nicht konfiguriert.",
-    };
-  }
-  const consent = buildConsentUrl(crypto.randomUUID());
-  if (!consent.ok || !consent.url) {
-    return { ok: false, error: consent.error ?? "Consent-URL fehlt" };
-  }
-  return { ok: true, url: consent.url };
+  return beginFinapiWebForm();
+}
+
+export async function completeFinapiWebForm() {
+  await requireDemoSession();
+  return finalizeFinapiWebForm();
 }

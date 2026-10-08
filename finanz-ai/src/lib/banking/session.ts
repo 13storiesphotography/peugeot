@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { BANK_COOKIE } from "@/lib/auth/constants";
 import type { BankingConnection } from "./open-banking";
-import { getBankingConfig } from "./open-banking";
+import { isFinapiReady } from "./finapi/config";
 
 export type BankSession = {
   connected: boolean;
@@ -11,41 +11,44 @@ export type BankSession = {
   accountsLinked: number;
   lastSyncAt: string | null;
   connectedAt: string | null;
+  /** Encrypted finAPI user password (AES-GCM). */
+  finapiUserId?: string | null;
+  finapiPasswordSealed?: string | null;
+  webFormId?: string | null;
+  bankConnectionId?: number | null;
 };
 
 export async function getBankSession(): Promise<BankSession> {
   const jar = await cookies();
   const raw = jar.get(BANK_COOKIE)?.value;
   if (!raw) {
-    return {
-      connected: false,
-      provider: "mock",
-      bankLabel: "Sparkasse Demo",
-      accountsLinked: 0,
-      lastSyncAt: null,
-      connectedAt: null,
-    };
+    return emptySession();
   }
   try {
     const parsed = JSON.parse(raw) as BankSession;
     return {
+      ...emptySession(),
+      ...parsed,
       connected: Boolean(parsed.connected),
-      provider: parsed.provider ?? "mock",
-      bankLabel: parsed.bankLabel ?? "Sparkasse Demo",
-      accountsLinked: parsed.accountsLinked ?? 0,
-      lastSyncAt: parsed.lastSyncAt ?? null,
-      connectedAt: parsed.connectedAt ?? null,
     };
   } catch {
-    return {
-      connected: false,
-      provider: "mock",
-      bankLabel: "Sparkasse Demo",
-      accountsLinked: 0,
-      lastSyncAt: null,
-      connectedAt: null,
-    };
+    return emptySession();
   }
+}
+
+function emptySession(): BankSession {
+  return {
+    connected: false,
+    provider: "mock",
+    bankLabel: "Sparkasse Demo",
+    accountsLinked: 0,
+    lastSyncAt: null,
+    connectedAt: null,
+    finapiUserId: null,
+    finapiPasswordSealed: null,
+    webFormId: null,
+    bankConnectionId: null,
+  };
 }
 
 export async function setBankSession(session: BankSession) {
@@ -66,7 +69,6 @@ export async function clearBankSession() {
 
 export async function getConnectionView(): Promise<BankingConnection> {
   const session = await getBankSession();
-  const config = getBankingConfig();
 
   if (session.connected) {
     return {
@@ -76,18 +78,32 @@ export async function getConnectionView(): Promise<BankingConnection> {
       accountsLinked: session.accountsLinked,
       lastSyncAt: session.lastSyncAt,
       message:
-        "PSD2-Demo-Consent aktiv. Umsätze stammen aus dem lokalen Demo-Snapshot (kein Live-Bankzugriff).",
+        session.provider === "finapi"
+          ? "finAPI-Verbindung aktiv. Umsätze per Sync aktualisieren."
+          : "PSD2-Demo-Consent aktiv. Umsätze stammen aus dem lokalen Demo-Snapshot.",
     };
   }
 
-  if (config.enabled && config.clientIdConfigured) {
+  if (session.webFormId && !session.connected) {
     return {
-      provider: config.provider,
+      provider: "finapi",
       status: "pending_consent",
-      bankLabel: "Sparkasse",
+      bankLabel: "Sparkasse / finAPI",
       accountsLinked: 0,
       lastSyncAt: null,
-      message: "Live-Credentials erkannt — Consent-Flow kann gestartet werden.",
+      message: "Web Form läuft — Bank-Login und SCA abschließen.",
+    };
+  }
+
+  if (isFinapiReady()) {
+    return {
+      provider: "finapi",
+      status: "not_connected",
+      bankLabel: "finAPI Sandbox",
+      accountsLinked: 0,
+      lastSyncAt: null,
+      message:
+        "finAPI-Credentials erkannt. Starte den Web-Form-Consent (kein Passwort-Scraping).",
     };
   }
 
@@ -98,6 +114,6 @@ export async function getConnectionView(): Promise<BankingConnection> {
     accountsLinked: 0,
     lastSyncAt: null,
     message:
-      "Verbinde die Demo-Bank per simuliertem SCA-Consent. Später ersetzt das finAPI/Tink.",
+      "Verbinde die Demo-Bank oder setze FINAPI_CLIENT_ID/SECRET + OPEN_BANKING_ENABLED=true.",
   };
 }

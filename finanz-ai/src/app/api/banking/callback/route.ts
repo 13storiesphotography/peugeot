@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { getDemoSession } from "@/lib/auth/demo-session";
-import { setBankSession } from "@/lib/banking/session";
+import { getBankSession, setBankSession } from "@/lib/banking/session";
+import { getWebFormStatus } from "@/lib/banking/finapi/webform";
+import { fetchAccounts } from "@/lib/banking/finapi/sync";
+import { open } from "@/lib/banking/vault";
 
 /**
- * PSD2 OAuth callback placeholder.
- * Live: exchange ?code=… for tokens via finAPI/Tink, encrypt, store.
- * Demo: ?demo=1 completes simulated SCA.
+ * PSD2 / finAPI Web Form callback.
+ * Demo: ?demo=1
+ * finAPI: callback after Web Form (may include webFormId in query — vendor-specific)
  */
 export async function GET(request: Request) {
   const session = await getDemoSession();
@@ -15,24 +18,60 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const demo = url.searchParams.get("demo") === "1";
-  const code = url.searchParams.get("code");
 
-  if (!demo && !code) {
-    return NextResponse.redirect(
-      new URL("/connect?error=missing_code", request.url),
-    );
+  if (demo) {
+    const now = new Date().toISOString();
+    await setBankSession({
+      connected: true,
+      provider: "mock",
+      bankLabel: "Sparkasse Demo",
+      accountsLinked: 2,
+      lastSyncAt: now,
+      connectedAt: now,
+    });
+    return NextResponse.redirect(new URL("/connect?connected=1", request.url));
   }
 
-  // Live code exchange would happen here with OPEN_BANKING_CLIENT_SECRET.
-  const now = new Date().toISOString();
-  await setBankSession({
-    connected: true,
-    provider: demo ? "mock" : ((process.env.OPEN_BANKING_PROVIDER as "finapi" | "tink") ?? "finapi"),
-    bankLabel: "Sparkasse Demo",
-    accountsLinked: 2,
-    lastSyncAt: now,
-    connectedAt: now,
-  });
+  const bank = await getBankSession();
+  const webFormId =
+    url.searchParams.get("webFormId") ??
+    url.searchParams.get("id") ??
+    bank.webFormId;
 
-  return NextResponse.redirect(new URL("/connect?connected=1", request.url));
+  if (
+    webFormId &&
+    bank.finapiUserId &&
+    bank.finapiPasswordSealed
+  ) {
+    try {
+      const password = open(bank.finapiPasswordSealed);
+      const status = await getWebFormStatus(
+        bank.finapiUserId,
+        password,
+        webFormId,
+      );
+      const bankConnectionId = status.payload?.bankConnectionId ?? null;
+      const accounts = await fetchAccounts(bank.finapiUserId, password);
+      const now = new Date().toISOString();
+      await setBankSession({
+        ...bank,
+        connected: true,
+        provider: "finapi",
+        bankLabel: accounts[0]?.bankName || "finAPI Bank",
+        accountsLinked: accounts.length,
+        lastSyncAt: now,
+        connectedAt: now,
+        webFormId,
+        bankConnectionId,
+      });
+      return NextResponse.redirect(new URL("/connect?connected=1", request.url));
+    } catch {
+      return NextResponse.redirect(
+        new URL("/connect?error=callback_failed", request.url),
+      );
+    }
+  }
+
+  // Soft landing: user returns from web form — UI can poll "SCA abgeschlossen"
+  return NextResponse.redirect(new URL("/connect", request.url));
 }
