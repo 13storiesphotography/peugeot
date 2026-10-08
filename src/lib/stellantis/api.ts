@@ -54,6 +54,54 @@ function dig(obj: unknown, path: Array<string | number>): unknown {
   return cur;
 }
 
+/** Normalize Peugeot preconditioning status (string | nested | boolean). */
+function climateStatusToken(value: unknown): string {
+  if (typeof value === "boolean") return value ? "enabled" : "disabled";
+  if (typeof value === "number") return value > 0 ? "enabled" : "disabled";
+  if (typeof value === "string") return value.toLowerCase().trim();
+  const rec = asRecord(value);
+  if (rec) {
+    if ("status" in rec) return climateStatusToken(rec.status);
+    if ("state" in rec) return climateStatusToken(rec.state);
+    if ("value" in rec) return climateStatusToken(rec.value);
+  }
+  return "";
+}
+
+/**
+ * Map Peugeot AC preconditioning token → app climate.
+ * Unknown / finished / error → off (never keep a stuck optimistic "on").
+ */
+function mapPrecondTokenToClimate(
+  token: string,
+): VehicleState["climateStatus"] {
+  if (!token) return "off";
+  if (
+    /\bdisabled\b|\bdeactiv|\boff\b|\bstop|\bfinish|\bfail|\berror|\binactive\b/.test(
+      token,
+    )
+  ) {
+    return "off";
+  }
+  if (token === "heating" || /\bheat/.test(token)) return "heating";
+  if (token === "cooling" || /\bcool/.test(token)) return "cooling";
+  if (
+    token === "enabled" ||
+    token === "on" ||
+    token === "activated" ||
+    token === "active" ||
+    token === "inprogress" ||
+    token === "in_progress" ||
+    token === "progress" ||
+    token === "running" ||
+    /\benabled\b|\bactiv|\brun/.test(token)
+  ) {
+    return "preconditioning";
+  }
+  // Unrecognised token after a successful status pull → off (trust MyPeugeot).
+  return "off";
+}
+
 export { getAuthorizeUrl };
 
 export async function exchangeAuthorizationCode(
@@ -406,42 +454,16 @@ export function mapStatusToVehicleState(
 
   // Live preconditioning from Peugeot status (API spelling varies).
   // IMPORTANT: do not use includes("enabled") — "disabled".includes("enabled") is true.
-  const precondRaw = String(
+  // Prefer Peugeot over a stuck optimistic "on" from an earlier command.
+  const precondRaw = climateStatusToken(
     dig(status, ["preconditionning", "airConditioning", "status"]) ??
       dig(status, ["preconditioning", "airConditioning", "status"]) ??
       dig(status, ["preconditionning", "air_conditioning", "status"]) ??
       dig(status, ["preconditioning", "air_conditioning", "status"]) ??
-      "",
-  ).toLowerCase().trim();
-  let climateStatus: VehicleState["climateStatus"] = "off";
-  if (
-    precondRaw === "enabled" ||
-    precondRaw === "on" ||
-    precondRaw === "activated" ||
-    precondRaw === "active" ||
-    precondRaw === "inprogress" ||
-    precondRaw === "in_progress" ||
-    precondRaw === "progress"
-  ) {
-    climateStatus = "preconditioning";
-  } else if (
-    !precondRaw ||
-    precondRaw === "disabled" ||
-    precondRaw === "off" ||
-    precondRaw === "deactivated" ||
-    precondRaw === "inactive" ||
-    precondRaw === "stopped"
-  ) {
-    climateStatus = "off";
-  } else if (
-    /\benabled\b|\bactiv/.test(precondRaw) &&
-    !/\bdisabled\b|\bdeactiv|\boff\b/.test(precondRaw)
-  ) {
-    climateStatus = "preconditioning";
-  } else {
-    // Unknown token — keep previous rather than flipping UI spuriously.
-    climateStatus = base.climateStatus;
-  }
+      dig(status, ["preconditionning", "status"]) ??
+      dig(status, ["preconditioning", "status"]),
+  );
+  const climateStatus = mapPrecondTokenToClimate(precondRaw);
 
   const limitFromApi = Number(
     dig(chargingBlock, ["chargeLimit"]) ??
