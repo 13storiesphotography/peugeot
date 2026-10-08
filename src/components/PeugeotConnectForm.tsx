@@ -224,7 +224,14 @@ export function PeugeotConnectForm({
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
             MyPeugeot
           </h2>
-          <p className="mt-1 text-sm text-[var(--fg-muted)]">
+          <p
+            className={`mt-1 text-sm ${
+              connection.needsReconnect
+                ? "font-semibold text-[var(--danger)]"
+                : "text-[var(--fg-muted)]"
+            }`}
+            role={connection.needsReconnect ? "alert" : undefined}
+          >
             {connection.needsReconnect
               ? "Anmeldung abgelaufen — bitte neu verbinden."
               : connection.connected
@@ -245,14 +252,6 @@ export function PeugeotConnectForm({
           </button>
         ) : null}
       </div>
-
-      {connection.needsReconnect ? (
-        <div className="ui-alert mt-4" role="alert">
-          <p className="font-semibold text-[var(--danger)]">
-            Neu anmelden erforderlich
-          </p>
-        </div>
-      ) : null}
 
       {showForm ? (
         <>
