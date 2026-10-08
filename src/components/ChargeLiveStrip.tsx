@@ -1,6 +1,5 @@
 "use client";
 
-import { DataFreshnessBadge } from "@/components/DataFreshnessBadge";
 import type { VehicleState } from "@/lib/types";
 import {
   chargeSpeedLabel,
@@ -28,9 +27,9 @@ function formatRate(kmh: number | null): string | null {
 /** Compact live metrics while the car is charging — home overview. */
 export function ChargeLiveStrip({
   vehicle,
-  nowMs,
 }: {
   vehicle: VehicleState;
+  /** Kept for call-site compat; freshness lives on the Laden tab. */
   nowMs?: number;
 }) {
   if (vehicle.chargeStatus !== "charging") return null;
@@ -63,16 +62,9 @@ export function ChargeLiveStrip({
       }}
       role="status"
     >
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold" style={{ color: accent }}>
-          Lädt · {Math.round(vehicle.batteryPercent)}%
-        </p>
-        <DataFreshnessBadge
-          lastUpdatedAt={vehicle.lastUpdatedAt}
-          nowMs={nowMs}
-          mode={vehicle.mode}
-        />
-      </div>
+      <p className="text-sm font-semibold" style={{ color: accent }}>
+        Lädt · {Math.round(vehicle.batteryPercent)}%
+      </p>
       <p className="mt-1 text-xs text-[var(--fg-muted)]">
         {parts.join(" · ")}
         {` · Ziel ${Math.round(vehicle.chargeLimitPercent)}%`}

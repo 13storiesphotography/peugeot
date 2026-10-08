@@ -824,12 +824,14 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </h1>
           <div className="mt-1.5 flex items-center gap-2 lg:mt-2">
             <div className="min-w-0">
+              {/* Quiet age in header — colored live/stale badge lives on Laden. */}
               <DataFreshnessBadge
                 lastUpdatedAt={vehicle.lastUpdatedAt}
                 nowMs={nowMs}
                 mode={vehicle.mode}
                 offline={offline}
                 refreshing={refreshing}
+                variant="plain"
               />
               {refreshing && refreshPhase ? (
                 <p

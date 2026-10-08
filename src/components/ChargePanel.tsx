@@ -8,7 +8,6 @@ import type { ChargeSample } from "@/lib/vehicle/repository";
 import {
   chargeSpeedHint,
   chargeSpeedLabel,
-  chargeTypeLabel,
   effectiveChargeTargetPercent,
   isEightyPercentLimitActive,
   normalizeChargeSpeedMode,
@@ -87,9 +86,12 @@ export function ChargePanel({
   onCommand,
 }: ChargePanelProps) {
   const charging = vehicle.chargeStatus === "charging";
+  const pluggedIn =
+    vehicle.chargeStatus === "plugged" ||
+    vehicle.chargeStatus === "charging" ||
+    vehicle.chargeStatus === "complete";
   const live = vehicle.mode === "live";
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
-  const typeLabel = chargeTypeLabel(vehicle.chargingType);
   const eightyOn = isPro && isEightyPercentLimitActive(vehicle);
   const targetPercent = isPro
     ? effectiveChargeTargetPercent(vehicle)
@@ -115,13 +117,15 @@ export function ChargePanel({
     <section className="animate-rise space-y-6 pt-2 lg:pt-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <SectionHeader title="Laden" hint={statusLine} hideTitleOnDesktop />
+        {/* Colored badge only when on cable — idle stays quiet text. */}
         <DataFreshnessBadge
           lastUpdatedAt={vehicle.lastUpdatedAt}
           nowMs={nowMs}
           mode={vehicle.mode}
           offline={offline}
           refreshing={refreshing}
-          showDetail
+          showDetail={pluggedIn}
+          variant={pluggedIn ? "badge" : "plain"}
           className="lg:pt-1"
         />
       </div>
@@ -164,42 +168,25 @@ export function ChargePanel({
         </div>
 
         <div className="space-y-3">
-          <div className="ui-surface grid grid-cols-2 gap-x-4 gap-y-4 px-4 py-4">
-            <Metric
-              label="Leistung"
-              value={formatKw(vehicle.chargePowerKw)}
-              hint={charging ? chargeSpeedHint(speed) : statusLabel[vehicle.chargeStatus]}
-            />
-            <Metric
-              label="Tempo"
-              value={formatRate(vehicle.chargeRateKmh)}
-              hint={charging ? chargeSpeedLabel(speed) : null}
-            />
-            {charging ? (
+          {charging ? (
+            <div className="ui-surface grid grid-cols-2 gap-x-4 gap-y-4 px-4 py-4">
+              <Metric
+                label="Leistung"
+                value={formatKw(vehicle.chargePowerKw)}
+                hint={chargeSpeedHint(speed)}
+              />
+              <Metric
+                label="Tempo"
+                value={formatRate(vehicle.chargeRateKmh)}
+                hint={chargeSpeedLabel(speed)}
+              />
               <Metric
                 label="Fertig gegen"
                 value={formatEta(vehicle.estimatedFullAt)}
                 hint="Schätzung vom Fahrzeug"
               />
-            ) : (
-              <Metric
-                label="Reichweite"
-                value={`${vehicle.rangeKm} km`}
-                hint={statusLabel[vehicle.chargeStatus]}
-              />
-            )}
-            <Metric
-              label="Modus"
-              value={typeLabel ?? chargeSpeedLabel(speed)}
-              hint={
-                live
-                  ? vehicle.chargeLimitKnown
-                    ? `Fahrzeugziel ${Math.round(vehicle.chargeLimitPercent)}%`
-                    : "Fahrzeugziel unbekannt"
-                  : "Demo"
-              }
-            />
-          </div>
+            </div>
+          ) : null}
 
           <div
             className={`ui-surface flex items-center justify-between gap-4 px-4 py-4 ${eightyOn ? "ui-surface-active" : ""}`}
