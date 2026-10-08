@@ -180,17 +180,25 @@ export function PeugeotConnectForm({
       : codeState;
   const pending = passwordPending || codePending;
   const [loginPhase, setLoginPhase] = useState(0);
+  const [loginSlow, setLoginSlow] = useState(false);
 
   useEffect(() => {
     if (!passwordPending) {
       setLoginPhase(0);
+      setLoginSlow(false);
       return;
     }
     setLoginPhase(0);
+    setLoginSlow(false);
     const id = window.setInterval(() => {
       setLoginPhase((p) => Math.min(p + 1, LOGIN_PHASES.length - 1));
     }, 8_000);
-    return () => window.clearInterval(id);
+    // Every spinner needs an ending: after ~70s offer an exit path.
+    const slowId = window.setTimeout(() => setLoginSlow(true), 70_000);
+    return () => {
+      window.clearInterval(id);
+      window.clearTimeout(slowId);
+    };
   }, [passwordPending]);
 
   return (
@@ -327,17 +335,27 @@ export function PeugeotConnectForm({
                         {LOGIN_PHASES[loginPhase]}
                       </p>
                       <p className="mt-1 text-xs text-[var(--fg-muted)]">
-                        Seite nicht schließen — oft 20–60 Sekunden. Der Button
-                        hängt nicht, der Login läuft auf dem Server.
+                        {loginSlow
+                          ? "Dauert länger als erwartet. Wenn nichts passiert: Seite neu laden und erneut verbinden."
+                          : "Seite nicht schließen — oft 20–60 Sekunden. Der Button hängt nicht, der Login läuft auf dem Server."}
                       </p>
                       <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/10">
                         <div
                           className="h-full rounded-full bg-[var(--accent-bright)] transition-[width] duration-700 ease-out"
                           style={{
-                            width: `${18 + loginPhase * 22}%`,
+                            width: `${loginSlow ? 96 : 18 + loginPhase * 22}%`,
                           }}
                         />
                       </div>
+                      {loginSlow ? (
+                        <button
+                          type="button"
+                          className="mt-3 text-xs font-semibold text-[var(--accent-bright)] underline-offset-2 hover:underline"
+                          onClick={() => window.location.reload()}
+                        >
+                          Neu laden & erneut versuchen
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </div>

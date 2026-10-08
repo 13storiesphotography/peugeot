@@ -36,6 +36,44 @@ type ClimateJob = {
   startedAt: number;
 };
 
+type ToastState = {
+  text: string;
+  ok: boolean;
+  /** Offer a one-tap retry for hung/failed network actions. */
+  retry?: "refresh" | "command";
+};
+
+const HARD_REFRESH_TIMEOUT_MS = 55_000;
+const SOFT_REFRESH_TIMEOUT_MS = 25_000;
+const COMMAND_TIMEOUT_MS = 45_000;
+
+const HARD_REFRESH_PHASES = [
+  "Wecke Fahrzeug…",
+  "Frage Peugeot ab…",
+  "Warte auf Antwort…",
+] as const;
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError")
+  );
+}
+
 function climatePhase(job: ClimateJob, nowMs: number): {
   progress: number;
   phaseLabel: string;
@@ -106,11 +144,10 @@ function readTab(): ControlTab {
 
 export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const [bundle, setBundle] = useState(initial);
-  const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(
-    null,
-  );
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [, startTransition] = useTransition();
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshPhase, setRefreshPhase] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<ControlTab>("home");
@@ -126,6 +163,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const climateJobRef = useRef<ClimateJob | null>(null);
   const lastVehicleRef = useRef(initial.vehicle);
   const prevChargeStatus = useRef(initial.vehicle.chargeStatus);
+  const lastCommandRef = useRef<{
+    command: VehicleCommand;
+    opts?: { chargeLimitPercent?: number; targetTempC?: number };
+  } | null>(null);
 
   useEffect(() => {
     climateJobRef.current = climateJob;
@@ -196,11 +237,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
 
   useEffect(() => {
     if (!toast) return;
-    const ms = /neu verbinden|abgelaufen|Ruhemodus|Fernbedienung|Aufwecken|langsam/i.test(
-      toast.text,
-    )
-      ? 6500
-      : 2500;
+    const ms = toast.retry
+      ? 12_000
+      : /neu verbinden|abgelaufen|Ruhemodus|Fernbedienung|Aufwecken|langsam|Zeitüberschreitung/i.test(
+            toast.text,
+          )
+        ? 6500
+        : 2500;
     const id = window.setTimeout(() => setToast(null), ms);
     return () => window.clearTimeout(id);
   }, [toast]);
@@ -237,13 +280,35 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         return null;
       }
       refreshInFlight.current = true;
-      if (!opts?.silent) setRefreshing(true);
+      const showUi = !opts?.silent;
+      let phaseTimer: number | null = null;
+      if (showUi) {
+        setRefreshing(true);
+        if (opts?.hard || opts?.feedback) {
+          setRefreshPhase(HARD_REFRESH_PHASES[0]!);
+          let phaseIdx = 0;
+          phaseTimer = window.setInterval(() => {
+            phaseIdx = Math.min(phaseIdx + 1, HARD_REFRESH_PHASES.length - 1);
+            setRefreshPhase(HARD_REFRESH_PHASES[phaseIdx]!);
+          }, 12_000);
+        } else {
+          setRefreshPhase("Aktualisiere…");
+        }
+      }
       try {
         const params = new URLSearchParams();
         if (opts?.hard) params.set("hard", "1");
         else if (forceSync) params.set("sync", "1");
         const qs = params.toString() ? `?${params}` : "";
-        const res = await fetch(`/api/vehicle${qs}`, { cache: "no-store" });
+        const timeoutMs =
+          opts?.hard || opts?.feedback
+            ? HARD_REFRESH_TIMEOUT_MS
+            : SOFT_REFRESH_TIMEOUT_MS;
+        const res = await fetchWithTimeout(
+          `/api/vehicle${qs}`,
+          { cache: "no-store" },
+          timeoutMs,
+        );
         if (!res.ok) {
           if (!navigator.onLine) {
             setOffline(true);
@@ -252,12 +317,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               startTransition(() => setBundle(cached.bundle));
             }
           }
-          if (!opts?.silent) {
+          if (showUi) {
             setToast({
               text: navigator.onLine
                 ? "Aktualisierung fehlgeschlagen."
                 : "Offline — zeige letzten Stand.",
               ok: false,
+              retry: navigator.onLine ? "refresh" : undefined,
             });
           }
           return null;
@@ -336,28 +402,36 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           }
         }
         return patched;
-      } catch {
-        setOffline(true);
-        const cached = loadVehicleBundleCache();
-        if (cached) {
-          startTransition(() => setBundle(cached.bundle));
+      } catch (error) {
+        const timedOut = isAbortError(error);
+        if (!timedOut) {
+          setOffline(true);
+          const cached = loadVehicleBundleCache();
+          if (cached) {
+            startTransition(() => setBundle(cached.bundle));
+          }
         }
-        if (!opts?.silent) {
+        if (showUi) {
           setToast({
-            text: "Offline — zeige letzten Stand.",
+            text: timedOut
+              ? "Zeitüberschreitung — Peugeot antwortet nicht."
+              : "Offline — zeige letzten Stand.",
             ok: false,
+            retry: "refresh",
           });
         }
         return null;
       } finally {
+        if (phaseTimer !== null) window.clearInterval(phaseTimer);
         refreshInFlight.current = false;
         if (pendingHardRefresh.current) {
           pendingHardRefresh.current = false;
           setRefreshing(true);
           // Run user-requested hard refresh right after the silent poll.
           void refresh(true, { feedback: true, hard: true });
-        } else if (!opts?.silent) {
+        } else if (showUi) {
           setRefreshing(false);
+          setRefreshPhase(null);
         }
       }
     },
@@ -367,6 +441,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   const manualRefresh = useCallback(() => {
     setToast({ text: "Hole Fahrzeugdaten…", ok: true });
     setRefreshing(true);
+    setRefreshPhase(HARD_REFRESH_PHASES[0]!);
     void refresh(true, { feedback: true, hard: true });
   }, [refresh]);
 
@@ -447,6 +522,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
   ) => {
     const isClimate =
       command === "climate_start" || command === "climate_stop";
+    lastCommandRef.current = { command, opts };
     setBusy(true);
     setToast(null);
 
@@ -463,15 +539,19 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     }
 
     try {
-      const res = await fetch("/api/vehicle/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          command,
-          chargeLimitPercent: opts?.chargeLimitPercent,
-          targetTempC: opts?.targetTempC,
-        }),
-      });
+      const res = await fetchWithTimeout(
+        "/api/vehicle/command",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            command,
+            chargeLimitPercent: opts?.chargeLimitPercent,
+            targetTempC: opts?.targetTempC,
+          }),
+        },
+        COMMAND_TIMEOUT_MS,
+      );
       const data = (await res.json()) as {
         ok: boolean;
         message: string;
@@ -539,7 +619,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           hard: command === "wakeup",
         });
       }, command === "wakeup" ? 8_000 : isClimate ? 6_000 : 2_500);
-    } catch {
+    } catch (error) {
       if (isClimate) {
         setClimateJob(null);
         if (climatePollTimer.current) {
@@ -548,8 +628,11 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
         }
       }
       setToast({
-        text: "Befehl fehlgeschlagen – bitte erneut versuchen.",
+        text: isAbortError(error)
+          ? "Zeitüberschreitung — Befehl nicht bestätigt."
+          : "Befehl fehlgeschlagen – bitte erneut versuchen.",
         ok: false,
+        retry: "command",
       });
     } finally {
       setBusy(false);
@@ -634,9 +717,19 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
             <span className="hidden lg:inline">{pageTitle}</span>
           </h1>
           <div className="mt-1.5 flex items-center gap-2 lg:mt-2">
-            <p className="min-w-0 text-xs text-[var(--fg-muted)] lg:text-sm">
-              Stand {formatAge(vehicle.lastUpdatedAt, nowMs)}
-            </p>
+            <div className="min-w-0">
+              <p className="text-xs text-[var(--fg-muted)] lg:text-sm">
+                Stand {formatAge(vehicle.lastUpdatedAt, nowMs)}
+              </p>
+              {refreshing && refreshPhase ? (
+                <p
+                  className="mt-0.5 text-[11px] font-medium text-[var(--accent-bright)]"
+                  aria-live="polite"
+                >
+                  {refreshPhase}
+                </p>
+              ) : null}
+            </div>
             <button
               type="button"
               onClick={() => void manualRefresh()}
@@ -644,6 +737,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               className="nav-icon-btn grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--line)] text-[var(--fg-muted)] disabled:opacity-50"
               aria-label="Fahrzeugdaten aktualisieren"
               title="Fahrzeug wecken und Daten holen"
+              aria-busy={refreshing}
             >
               {refreshing ? (
                 <span
@@ -868,8 +962,10 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           role="status"
           className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 lg:bottom-10 lg:left-[15.5rem]"
         >
-          <p
-            className="control-toast max-w-sm rounded-full border px-4 py-2.5 text-center text-sm shadow-lg"
+          <div
+            className={`control-toast flex max-w-sm items-center gap-3 border px-4 py-2.5 text-sm shadow-lg ${
+              toast.retry ? "rounded-2xl" : "rounded-full"
+            }`}
             style={{
               background: "rgba(7, 16, 24, 0.94)",
               borderColor: toast.ok
@@ -878,8 +974,26 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               color: toast.ok ? "var(--accent-bright)" : "var(--danger)",
             }}
           >
-            {toast.text}
-          </p>
+            <p className="min-w-0 flex-1 text-left leading-snug">{toast.text}</p>
+            {toast.retry ? (
+              <button
+                type="button"
+                className="pointer-events-auto shrink-0 rounded-xl border border-[var(--line)] px-3 py-1.5 text-xs font-semibold text-[var(--fg)]"
+                onClick={() => {
+                  const kind = toast.retry;
+                  setToast(null);
+                  if (kind === "refresh") {
+                    void manualRefresh();
+                    return;
+                  }
+                  const last = lastCommandRef.current;
+                  if (last) void executeCommand(last.command, last.opts);
+                }}
+              >
+                Erneut
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
