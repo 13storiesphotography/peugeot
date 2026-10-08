@@ -517,13 +517,22 @@ body {
     background 0.18s ease;
 }
 
-.nav-icon-btn:hover:not(:disabled) {
-  border-color: rgba(95, 227, 192, 0.4);
-  color: var(--fg);
+/* Avoid sticky :hover green outline after tap on iOS/PWA. */
+@media (hover: hover) and (pointer: fine) {
+  .nav-icon-btn:hover:not(:disabled) {
+    border-color: rgba(95, 227, 192, 0.4);
+    color: var(--fg);
+  }
 }
 
 .nav-icon-btn:active:not(:disabled) {
   transform: scale(0.94);
+}
+
+.nav-icon-btn[aria-busy="true"],
+a[data-instant-nav][aria-busy="true"] {
+  border-color: rgba(95, 227, 192, 0.45);
+  color: var(--accent-bright);
 }
 
 .control-bottom-item {

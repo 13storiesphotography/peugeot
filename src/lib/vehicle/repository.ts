@@ -392,7 +392,34 @@ export async function getSettingsBundle(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<SettingsBundle> {
-  const { vehicleId, vehicle: base } = await ensureVehicle(supabase, userId);
+  // Fast path: vehicles row only — skip the heavy vehicle_state JSON blob.
+  const { data: existing, error: findError } = await supabase
+    .from("vehicles")
+    .select("id, nickname, model, color, vin")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (findError) throw new Error(findError.message);
+
+  let vehicleId: string;
+  let nickname: string;
+  let model: string;
+  let color: string;
+  let vin: string;
+
+  if (existing) {
+    vehicleId = existing.id;
+    nickname = existing.nickname;
+    model = existing.model;
+    color = existing.color;
+    vin = existing.vin ?? "VR3UKZKXZRJxxxxxx";
+  } else {
+    const bootstrapped = await ensureVehicle(supabase, userId);
+    vehicleId = bootstrapped.vehicleId;
+    nickname = bootstrapped.vehicle.nickname;
+    model = bootstrapped.vehicle.model;
+    color = bootstrapped.vehicle.color;
+    vin = bootstrapped.vehicle.vin;
+  }
 
   const [{ data: connection }, entitlement] = await Promise.all([
     peugeotConnections()
@@ -416,10 +443,10 @@ export async function getSettingsBundle(
   return {
     vehicle: {
       id: vehicleId,
-      nickname: base.nickname,
-      model: base.model,
-      color: base.color,
-      vin: base.vin,
+      nickname,
+      model,
+      color,
+      vin,
       mode: isLive ? "live" : "demo",
     },
     connection: {
