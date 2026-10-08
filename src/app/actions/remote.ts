@@ -91,7 +91,10 @@ export async function sendRemoteSmsAction(): Promise<RemotePinState> {
       accessToken,
       String(connection.country_code ?? "DE"),
     );
-    return { success: "SMS wurde gesendet." };
+    return {
+      success:
+        "SMS gesendet an die Handynummer deines MyPeugeot-Kontos (Fernbedienung / e-Remote). Keine SMS? Nummer in der MyPeugeot-App prüfen.",
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "SMS fehlgeschlagen.",
@@ -121,7 +124,7 @@ export async function activateRemotePinAction(
   if (!/^\d{4}$/.test(pin)) {
     return {
       error:
-        "MyPeugeot-PIN fehlt oder ist ungültig — bitte deine 4-stellige App-PIN (nicht den SMS-Code).",
+        "MyPeugeot-Sicherheits-PIN fehlt oder ist ungültig — 4 Ziffern aus der App (nicht den SMS-Code). Vergessen? In MyPeugeot zurücksetzen.",
     };
   }
 

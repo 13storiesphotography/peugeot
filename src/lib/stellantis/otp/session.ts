@@ -120,7 +120,7 @@ export function humanizeOtpError(message: string): string {
     lower.includes("otp defi") ||
     lower.includes("otp ms-finalize")
   ) {
-    return "Fernbedienung braucht neue Freischaltung — neue SMS anfordern und PIN erneut einrichten.";
+    return "Freischaltung fehlgeschlagen — SMS-Code und 4-stellige MyPeugeot-Sicherheits-PIN prüfen. PIN vergessen? In der MyPeugeot-App zurücksetzen, dann hier neue SMS + neue PIN.";
   }
   return message;
 }
