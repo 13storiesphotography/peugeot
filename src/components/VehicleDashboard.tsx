@@ -270,7 +270,12 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       window.clearInterval(climatePollTimer.current);
       climatePollTimer.current = null;
     }
-  }, [climateJob, nowMs]);
+    setToast({
+      text: "Keine klare Klima-Bestätigung vom Fahrzeug — Stand wie in MyPeugeot prüfen.",
+      ok: false,
+    });
+    void refresh(true, { silent: true });
+  }, [climateJob, nowMs, refresh]);
 
   useEffect(() => {
     if (!toast) return;
@@ -949,7 +954,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               <div className="mt-3 lg:mt-4">
                 <QuickActions
                   locked={vehicle.locked}
-                  climateOn={climateOn || climateJob?.action === "start"}
+                  climateOn={climateOn}
                   busy={climateBusy}
                   remoteReady={bundle.connection.remoteReady}
                   remoteSignalsOk={bundle.connection.remoteSignalsOk}
