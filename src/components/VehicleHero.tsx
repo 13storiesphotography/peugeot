@@ -5,6 +5,13 @@ import {
   normalizeChargeSpeedMode,
   type ChargeSpeedMode,
 } from "@/lib/stellantis/charge-mode";
+import {
+  batteryAccentColor,
+  batteryAccentBrightHex,
+  batteryAccentHex,
+  batteryHaloRgba,
+  isBatteryLow,
+} from "@/lib/vehicle/battery-tone";
 
 /** Side-profile SUV — tinted to live paint, with official Peugeot render when available. */
 export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
@@ -18,14 +25,12 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
   const body = vehicle.colorHex ?? "#1a3a48";
   const bodyLight = lighten(body, 0.18);
-  const accent =
-    charging && speed === "quick" ? "#e8b86d" : "var(--accent-bright)";
-  const halo =
-    charging && speed === "quick"
-      ? "rgba(232,184,109,0.38)"
-      : charging
-        ? "rgba(95,227,192,0.35)"
-        : hexAlpha(body, 0.28);
+  const percent = vehicle.batteryPercent;
+  const low = isBatteryLow(percent);
+  const accent = batteryAccentColor(percent);
+  const halo = charging
+    ? batteryHaloRgba(percent, true)
+    : hexAlpha(body, 0.28);
 
   const statusParts: string[] = [
     locked ? "Verriegelt" : "Entriegelt",
@@ -41,7 +46,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
         style={{
           background: `radial-gradient(ellipse at center, ${halo}, transparent 70%)`,
           animation: charging
-            ? speed === "quick"
+            ? low || speed === "quick"
               ? "charge-halo 1.6s ease-in-out infinite"
               : "charge-halo 2.8s ease-in-out infinite"
             : "soft-breathe 5s ease-in-out infinite",
@@ -160,6 +165,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
             charging={charging}
             complete={vehicle.chargeStatus === "complete"}
             speed={speed}
+            batteryPercent={percent}
           />
         ) : null}
       </div>
@@ -167,7 +173,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
       <div className="relative z-[2] -mt-1 px-1 lg:mx-auto lg:max-w-sm">
         <div className="flex items-end justify-between gap-4 lg:gap-10">
           <p className="battery-metric font-[family-name:var(--font-display)] text-5xl font-semibold tracking-tight tabular-nums leading-none">
-            {Math.round(vehicle.batteryPercent)}
+            {Math.round(percent)}
             <span className="text-2xl" style={{ color: accent }}>
               %
             </span>
@@ -191,12 +197,7 @@ export function VehicleHero({ vehicle }: { vehicle: VehicleState }) {
               {part === "Lädt" ? (
                 <span
                   className="font-semibold"
-                  style={{
-                    color:
-                      speed === "quick"
-                        ? "var(--warn)"
-                        : "var(--accent-bright)",
-                  }}
+                  style={{ color: accent }}
                 >
                   Lädt
                   {vehicle.chargePowerKw != null
@@ -223,15 +224,17 @@ function ChargeCableOverlay({
   charging,
   complete,
   speed,
+  batteryPercent,
 }: {
   charging: boolean;
   complete: boolean;
   speed: ChargeSpeedMode;
+  batteryPercent: number;
 }) {
   const active = charging;
   const quick = speed === "quick";
-  const energy = quick ? "#e8b86d" : "#5fe3c0";
-  const energyBright = quick ? "#ffe0a8" : "#a8fff0";
+  const energy = batteryAccentHex(batteryPercent);
+  const energyBright = batteryAccentBrightHex(batteryPercent);
   const cableColor = active
     ? energy
     : complete

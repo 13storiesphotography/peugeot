@@ -5,6 +5,12 @@ import {
   chargeSpeedLabel,
   normalizeChargeSpeedMode,
 } from "@/lib/stellantis/charge-mode";
+import {
+  batteryAccentColor,
+  batteryBarFill,
+  batteryStripBackground,
+  batteryStripBorder,
+} from "@/lib/vehicle/battery-tone";
 
 function formatEta(iso: string | null): string {
   if (!iso) return "—";
@@ -35,6 +41,7 @@ export function ChargeLiveStrip({
   if (vehicle.chargeStatus !== "charging") return null;
 
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
+  const percent = vehicle.batteryPercent;
   const parts = [
     chargeSpeedLabel(speed),
     formatKw(vehicle.chargePowerKw),
@@ -44,26 +51,20 @@ export function ChargeLiveStrip({
       : null,
   ].filter(Boolean);
 
-  const accent =
-    speed === "quick" ? "var(--warn)" : "var(--accent-bright)";
-
   return (
     <div
       className="animate-rise overflow-hidden rounded-2xl border px-4 py-3"
       style={{
-        borderColor:
-          speed === "quick"
-            ? "rgba(232,184,109,0.35)"
-            : "rgba(95,227,192,0.28)",
-        background:
-          speed === "quick"
-            ? "linear-gradient(135deg, rgba(232,184,109,0.12), rgba(14,28,40,0.55))"
-            : "linear-gradient(135deg, rgba(95,227,192,0.12), rgba(14,28,40,0.55))",
+        borderColor: batteryStripBorder(percent),
+        background: batteryStripBackground(percent),
       }}
       role="status"
     >
-      <p className="text-sm font-semibold" style={{ color: accent }}>
-        Lädt · {Math.round(vehicle.batteryPercent)}%
+      <p
+        className="text-sm font-semibold"
+        style={{ color: batteryAccentColor(percent) }}
+      >
+        Lädt · {Math.round(percent)}%
       </p>
       <p className="mt-1 text-xs text-[var(--fg-muted)]">
         {parts.join(" · ")}
@@ -76,11 +77,8 @@ export function ChargeLiveStrip({
         <div
           className="charge-progress-fill is-charging h-full rounded-full"
           style={{
-            width: `${Math.min(100, vehicle.batteryPercent)}%`,
-            background:
-              speed === "quick"
-                ? "linear-gradient(90deg, #d4924a, #e8b86d, #d4924a)"
-                : "linear-gradient(90deg, #3da8a0, #5fe3c0, #3da8a0)",
+            width: `${Math.min(100, percent)}%`,
+            background: batteryBarFill(percent, true),
           }}
         />
       </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { VehicleState } from "@/lib/types";
+import { batteryAccentColor } from "@/lib/vehicle/battery-tone";
 
 const STORAGE_KEY = "e3008.chargeComplete.dismissed";
 
@@ -55,7 +56,10 @@ export function ChargeCompleteBanner({
       role="status"
     >
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-[var(--accent-bright)]">
+        <p
+          className="text-sm font-semibold"
+          style={{ color: batteryAccentColor(vehicle.batteryPercent) }}
+        >
           Laden fertig · {Math.round(vehicle.batteryPercent)}%
         </p>
         <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
