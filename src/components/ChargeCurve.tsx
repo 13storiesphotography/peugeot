@@ -90,6 +90,7 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
         <div>
           <p className="text-sm font-semibold">Ladekurve</p>
           <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
+            {last.chargeStatus === "charging" ? "" : "Letzte Session · "}
             {formatTime(first.recordedAt)}–{formatTime(last.recordedAt)} ·{" "}
             {formatDuration(first.recordedAt, last.recordedAt)}
           </p>

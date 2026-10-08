@@ -173,19 +173,21 @@ export function ChargePanel({
             <Metric
               label="Tempo"
               value={formatRate(vehicle.chargeRateKmh)}
-              hint={chargeSpeedLabel(speed)}
+              hint={charging ? chargeSpeedLabel(speed) : null}
             />
-            <Metric
-              label="Fertig gegen"
-              value={formatEta(vehicle.estimatedFullAt)}
-              hint={
-                charging
-                  ? "Schätzung vom Fahrzeug"
-                  : vehicle.chargeStatus === "plugged"
-                    ? "Sobald Laden startet"
-                    : null
-              }
-            />
+            {charging ? (
+              <Metric
+                label="Fertig gegen"
+                value={formatEta(vehicle.estimatedFullAt)}
+                hint="Schätzung vom Fahrzeug"
+              />
+            ) : (
+              <Metric
+                label="Reichweite"
+                value={`${vehicle.rangeKm} km`}
+                hint={statusLabel[vehicle.chargeStatus]}
+              />
+            )}
             <Metric
               label="Modus"
               value={typeLabel ?? chargeSpeedLabel(speed)}
