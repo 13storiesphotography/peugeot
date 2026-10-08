@@ -85,11 +85,6 @@ export function ChargePanel({
   const targetPercent = isPro
     ? effectiveChargeTargetPercent(vehicle)
     : 100;
-  const vehicleReportsFull =
-    live &&
-    vehicle.chargeLimitKnown &&
-    vehicle.chargeLimitPercent >= 100 &&
-    eightyOn;
 
   const statusLine = charging
     ? [
@@ -181,9 +176,7 @@ export function ChargePanel({
                   ? "Ansehen frei — Umschalten mit Pro"
                   : live
                     ? eightyOn
-                      ? vehicleReportsFull
-                        ? "App begrenzt auf 80% — Fahrzeug meldet noch 100%"
-                        : "Aktiv — stoppt beim Erreichen von 80%"
+                      ? "Aktiv — App stoppt Laden bei 80%"
                       : "Aus — lädt bis 100%"
                     : "Schont die Batterie im Alltag"}
               </p>

@@ -1470,11 +1470,17 @@ function humanizeChargeLimitError(message: string): string {
   if (/no\.matching\.service\.key|authorization\.denied/i.test(message)) {
     return "Lade-Steuerung braucht e-Remote in MyPeugeot — bitte prüfen und PIN ggf. erneuern.";
   }
+  if (/Remote-Fehler 110|immediate\|delayed|must match/i.test(message)) {
+    return "Ladeziel konnte nicht am Fahrzeug gesetzt werden — Limit gilt in der App.";
+  }
   if (/Remote-Fehler 500/i.test(message)) {
     return "Fahrzeug antwortet gerade nicht — kurz warten und erneut versuchen.";
   }
   if (/Remote-Fehler 400/i.test(message)) {
     return "Lade-Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";
+  }
+  if (/Remote-Fehler/i.test(message)) {
+    return "Fahrzeug hat den Lade-Befehl abgelehnt — bitte erneut versuchen.";
   }
   return message;
 }
@@ -1587,75 +1593,12 @@ async function runLiveChargeLimitCommand(
   limitPercent: number,
 ): Promise<CommandResult> {
   const limit = Math.min(100, Math.max(50, Math.round(limitPercent)));
-  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
-  if (!remote.ok) {
-    return { ok: false, message: remote.message, vehicle: bundle.vehicle };
-  }
-
-  let status: unknown = null;
-  try {
-    if (bundle.connection.vehicleApiId && bundle.connection.hasAccessToken) {
-      const { data: connection } = await peugeotConnections()
-        .select(
-          "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
-        )
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (connection?.access_token && connection.vehicle_api_id) {
-        const accessToken = await ensurePeugeotAccessToken(supabase, userId, {
-          accessToken: String(connection.access_token),
-          refreshToken: connection.refresh_token
-            ? String(connection.refresh_token)
-            : null,
-          tokenExpiresAt: connection.token_expires_at
-            ? String(connection.token_expires_at)
-            : null,
-          countryCode: String(connection.country_code ?? "DE"),
-          oauthMeta: asOAuthMeta(connection.oauth_meta),
-          mypeugeotEmail: connection.mypeugeot_email
-            ? String(connection.mypeugeot_email)
-            : null,
-          mypeugeotPasswordEnc: connection.mypeugeot_password_enc
-            ? String(connection.mypeugeot_password_enc)
-            : null,
-        });
-        const { fetchVehicleStatus } = await import("@/lib/stellantis/api");
-        status = await fetchVehicleStatus(
-          accessToken,
-          String(connection.country_code ?? "DE"),
-          String(connection.vehicle_api_id),
-        );
-      }
-    }
-  } catch {
-    // Clock fallback is fine.
-  }
-
-  const { hour, minute } = chargeClockFromStatus(status);
   const limit80 = limit <= 80;
 
-  try {
-    const { sendChargeTargetType } = await import("@/lib/stellantis/remote");
-    await sendChargeTargetType({
-      customerId: remote.customerId,
-      vin: remote.vin,
-      remoteAccessToken: remote.remoteAccessToken,
-      limit80,
-      hour,
-      minute,
-    });
-  } catch (error) {
-    const raw =
-      error instanceof Error ? error.message : "Ladeziel konnte nicht gesetzt werden.";
-    if (!/Remote-Fehler 400|no\.matching\.service/i.test(raw)) {
-      return {
-        ok: false,
-        message: humanizeChargeLimitError(raw),
-        vehicle: bundle.vehicle,
-      };
-    }
-  }
-
+  // Peugeot MQTT /VehCharge only accepts type=immediate|delayed.
+  // There is no remote "partial/full" charge-limit command — sending those
+  // values returns Remote-Fehler 110 after a long wait. Store the preferred
+  // limit in-app; while charging, maybeEnforceChargeLimit stops at the target.
   let nextVehicle = applyCommandToState(bundle.vehicle, {
     command: "set_charge_limit",
     chargeLimitPercent: limit,
@@ -1667,6 +1610,45 @@ async function runLiveChargeLimitCommand(
     nextVehicle.batteryPercent + 0.4 >= limit;
 
   if (shouldStopNow) {
+    let status: unknown = null;
+    try {
+      if (bundle.connection.vehicleApiId && bundle.connection.hasAccessToken) {
+        const { data: connection } = await peugeotConnections()
+          .select(
+            "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
+          )
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (connection?.access_token && connection.vehicle_api_id) {
+          const accessToken = await ensurePeugeotAccessToken(supabase, userId, {
+            accessToken: String(connection.access_token),
+            refreshToken: connection.refresh_token
+              ? String(connection.refresh_token)
+              : null,
+            tokenExpiresAt: connection.token_expires_at
+              ? String(connection.token_expires_at)
+              : null,
+            countryCode: String(connection.country_code ?? "DE"),
+            oauthMeta: asOAuthMeta(connection.oauth_meta),
+            mypeugeotEmail: connection.mypeugeot_email
+              ? String(connection.mypeugeot_email)
+              : null,
+            mypeugeotPasswordEnc: connection.mypeugeot_password_enc
+              ? String(connection.mypeugeot_password_enc)
+              : null,
+          });
+          const { fetchVehicleStatus } = await import("@/lib/stellantis/api");
+          status = await fetchVehicleStatus(
+            accessToken,
+            String(connection.country_code ?? "DE"),
+            String(connection.vehicle_api_id),
+          );
+        }
+      }
+    } catch {
+      // Clock fallback is fine.
+    }
+
     try {
       nextVehicle = await stopChargeAtLimit(
         supabase,

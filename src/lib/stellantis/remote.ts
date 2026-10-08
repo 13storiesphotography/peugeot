@@ -652,10 +652,11 @@ export async function sendChargeControl(input: {
 }
 
 /**
- * MyPeugeot „Laden auf 80% begrenzen“ — chargingType Partial vs Full on `/VehCharge`.
- * Not all firmware accepts this; callers should fall back to delayed-stop enforcement.
+ * @deprecated Peugeot `/VehCharge` only accepts type=immediate|delayed.
+ * Sending partial/full returns Remote-Fehler 110. The app stores the preferred
+ * limit and enforces it by stopping charge (delayed) at the target SOC.
  */
-export async function sendChargeTargetType(input: {
+export async function sendChargeTargetType(_input: {
   customerId: string;
   vin: string;
   remoteAccessToken: string;
@@ -663,17 +664,9 @@ export async function sendChargeTargetType(input: {
   hour: number;
   minute: number;
 }): Promise<void> {
-  await publishRemoteCommand({
-    customerId: input.customerId,
-    vin: input.vin,
-    remoteAccessToken: input.remoteAccessToken,
-    topicSuffix: "/VehCharge",
-    reqParameters: {
-      program: { hour: input.hour, minute: input.minute },
-      type: input.limit80 ? "partial" : "full",
-    },
-    ackTimeoutMs: 18_000,
-  });
+  throw new Error(
+    'Remote-Fehler 110: type must match "^(immediate|delayed)$" — use app charge-limit enforcement instead.',
+  );
 }
 
 /** Lock or unlock doors via MQTT `/Doors`. */
