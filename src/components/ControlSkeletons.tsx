@@ -76,22 +76,42 @@ export function AccountPageSkeleton() {
         <div className="flex items-center justify-between gap-3">
           <Pulse className="h-10 w-10 shrink-0 rounded-full lg:invisible" />
           <div className="min-w-0 flex-1 space-y-2 text-center lg:text-left">
-            <Pulse className="mx-auto h-3 w-28 lg:mx-0" />
-            <Pulse className="mx-auto h-6 w-28 lg:mx-0 lg:h-8 lg:w-36" />
+            <p className="eyebrow mx-auto lg:mx-0">Peugeot Control</p>
+            <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight lg:text-3xl">
+              Konto
+            </h1>
           </div>
           <Pulse className="h-8 w-20 shrink-0 rounded-full" />
         </div>
 
-        <div className="mt-6 space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
-          <Pulse className="h-32 w-full rounded-2xl" />
-          <Pulse className="h-40 w-full rounded-2xl" />
-        </div>
+        <section className="mt-6 ui-surface space-y-3 p-4 sm:p-5 lg:max-w-xl">
+          <p className="eyebrow">Profil</p>
+          <Pulse className="h-5 w-20" />
+          <Pulse className="h-4 w-56 max-w-full" />
+          <Pulse className="h-3 w-full max-w-sm" />
+        </section>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
-          <Pulse className="h-64 w-full rounded-2xl" />
+          <div className="ui-surface space-y-3 p-4 sm:p-5">
+            <Pulse className="h-5 w-36" />
+            <Pulse className="h-4 w-48" />
+            <Pulse className="h-10 w-full rounded-xl" />
+            <Pulse className="h-10 w-full rounded-xl" />
+            <Pulse className="h-10 w-full rounded-xl" />
+            <Pulse className="mt-1 h-11 w-full rounded-full" />
+          </div>
           <div className="space-y-4">
-            <Pulse className="h-48 w-full rounded-2xl" />
-            <Pulse className="h-28 w-full rounded-2xl" />
+            <div className="ui-surface space-y-3 p-4 sm:p-5">
+              <Pulse className="h-5 w-28" />
+              <Pulse className="h-4 w-full" />
+              <Pulse className="h-10 w-40 rounded-full" />
+            </div>
+            <div className="ui-surface space-y-3 p-4 sm:p-5">
+              <Pulse className="h-5 w-32" />
+              <Pulse className="h-4 w-full" />
+              <Pulse className="h-10 w-full rounded-xl" />
+              <Pulse className="h-11 w-full rounded-full" />
+            </div>
           </div>
         </div>
       </div>

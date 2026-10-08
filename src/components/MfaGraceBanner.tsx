@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantNavLink } from "@/components/InstantNavLink";
 
 export function MfaGraceBanner({ daysLeft }: { daysLeft: number }) {
   if (daysLeft <= 0) return null;
@@ -20,12 +20,12 @@ export function MfaGraceBanner({ daysLeft }: { daysLeft: number }) {
           MFA noch nicht aktiv. Noch {daysLeft} Tag{daysLeft === 1 ? "" : "e"}{" "}
           Zeit — danach Pflicht.
         </span>{" "}
-        <Link
+        <InstantNavLink
           href="/control/account#mfa"
           className="font-semibold text-[var(--accent-bright)]"
         >
           Jetzt einrichten →
-        </Link>
+        </InstantNavLink>
       </div>
     </div>
   );
