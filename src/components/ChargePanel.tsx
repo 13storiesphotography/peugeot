@@ -176,7 +176,7 @@ export function ChargePanel({
                   ? "Ansehen frei — Umschalten mit Pro"
                   : live
                     ? eightyOn
-                      ? "Aktiv — wie in MyPeugeot (nativ + Absicherung)"
+                      ? "Aktiv — wie in MyPeugeot"
                       : "Aus — lädt bis 100%"
                     : "Schont die Batterie im Alltag"}
               </p>
