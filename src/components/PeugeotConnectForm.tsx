@@ -47,12 +47,22 @@ function formatSync(iso: string | null): string | null {
   }).format(new Date(iso));
 }
 
-function useIsIos(): boolean {
+function useIsIos(): [boolean, (next: boolean) => void] {
   const [ios, setIos] = useState(false);
   useEffect(() => {
     setIos(/iPhone|iPad|iPod/i.test(navigator.userAgent));
   }, []);
-  return ios;
+  return [ios, setIos];
+}
+
+/** Desktop Safari: clear readOnly then re-focus so the keyboard can attach. */
+function unlockReadonlyForKeyboard(el: HTMLInputElement) {
+  if (!el.readOnly) return;
+  el.readOnly = false;
+  window.setTimeout(() => {
+    el.blur();
+    el.focus({ preventScroll: true });
+  }, 0);
 }
 
 export function PeugeotConnectForm({
@@ -68,7 +78,7 @@ export function PeugeotConnectForm({
   initialOAuthCountry?: string | null;
   initialOAuthError?: string | null;
 }) {
-  const isIos = useIsIos();
+  const [isIos, setIos] = useIsIos();
   const [countryCode, setCountryCode] = useState(
     initialOAuthCountry || connection.countryCode || "DE",
   );
@@ -259,12 +269,16 @@ export function PeugeotConnectForm({
               </select>
             </label>
 
-            {/* Safari ignores autocomplete=off on username/password-looking fields.
-                Avoid login heuristics: non-credential names, text+masked password,
-                readonly until focus. */}
+            {/* Desktop: honeypot + readonly-until-focus reduces wrong-site autofill.
+                iOS: those tricks steal focus / show „Automatisch ausfüllen“ and the
+                keyboard never comes back — keep fields normally editable there. */}
             <form
               autoComplete="off"
               className="relative grid gap-3"
+              onTouchStartCapture={() => {
+                // First paint is non-iOS (SSR/hydration). Unlock iOS path ASAP.
+                if (!isIos) setIos(true);
+              }}
               onSubmit={(event) => {
                 event.preventDefault();
                 const formData = new FormData(event.currentTarget);
@@ -274,45 +288,58 @@ export function PeugeotConnectForm({
               }}
             >
               <input type="hidden" name="countryCode" value={countryCode} />
-              {/* Honeypot login fields — absorb iOS Autofill for peugeotcontrol.app */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
-              >
-                <input type="text" name="email" autoComplete="username" tabIndex={-1} />
-                <input
-                  type="password"
-                  name="site-password"
-                  autoComplete="current-password"
-                  tabIndex={-1}
-                />
-              </div>
+              {!isIos ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+                >
+                  <input
+                    type="text"
+                    name="email"
+                    autoComplete="username"
+                    tabIndex={-1}
+                  />
+                  <input
+                    type="password"
+                    name="site-password"
+                    autoComplete="current-password"
+                    tabIndex={-1}
+                  />
+                </div>
+              ) : null}
               <p className="text-xs text-[var(--fg-muted)]">
-                MyPeugeot-Zugangsdaten (nicht peugeotcontrol.app). Auf dem iPhone:
-                Tastatur → Schlüssel → „Andere Passwörter…“ → nach Peugeot suchen.
+                MyPeugeot-Zugangsdaten (nicht peugeotcontrol.app).
+                {isIos
+                  ? " Tippe in ein Feld — die Tastatur sollte erscheinen. Passwort ggf. über Schlüsselanhänger → Andere Passwörter."
+                  : " Auf dem iPhone: Tastatur → Schlüssel → „Andere Passwörter…“ → nach Peugeot suchen."}
               </p>
               <label className="block text-sm">
                 <span className="text-[var(--fg-muted)]">MyPeugeot E-Mail</span>
                 <input
                   id="mypeugeot-email"
                   name="mypeugeotEmail"
-                  type="text"
+                  type="email"
                   required
                   defaultValue={connection.mypeugeotEmail ?? ""}
                   className="mt-1 ui-field"
-                  autoComplete="off"
+                  autoComplete={isIos ? "username" : "off"}
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
                   inputMode="email"
-                  data-1p-ignore="true"
-                  data-lpignore="true"
-                  data-bwignore="true"
-                  data-form-type="other"
-                  readOnly
-                  onFocus={(e) => {
-                    e.currentTarget.readOnly = false;
-                  }}
+                  enterKeyHint="next"
+                  data-1p-ignore={isIos ? undefined : "true"}
+                  data-lpignore={isIos ? undefined : "true"}
+                  data-bwignore={isIos ? undefined : "true"}
+                  data-form-type={isIos ? undefined : "other"}
+                  readOnly={!isIos}
+                  onFocus={
+                    isIos
+                      ? undefined
+                      : (e) => {
+                          unlockReadonlyForKeyboard(e.currentTarget);
+                        }
+                  }
                   disabled={passwordPending}
                 />
               </label>
@@ -321,7 +348,7 @@ export function PeugeotConnectForm({
                 <input
                   id="mypeugeot-secret"
                   name="mypeugeotPassword"
-                  type="text"
+                  type={isIos ? "password" : "text"}
                   required={!connection.hasPasswordStored}
                   placeholder={
                     connection.hasPasswordStored
@@ -329,24 +356,34 @@ export function PeugeotConnectForm({
                       : undefined
                   }
                   className="mt-1 ui-field"
-                  style={{ WebkitTextSecurity: "disc" } as CSSProperties}
-                  autoComplete="off"
+                  style={
+                    isIos
+                      ? undefined
+                      : ({ WebkitTextSecurity: "disc" } as CSSProperties)
+                  }
+                  autoComplete={isIos ? "current-password" : "off"}
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  data-1p-ignore="true"
-                  data-lpignore="true"
-                  data-bwignore="true"
-                  data-form-type="other"
-                  readOnly
-                  onFocus={(e) => {
-                    e.currentTarget.readOnly = false;
-                  }}
+                  enterKeyHint="go"
+                  data-1p-ignore={isIos ? undefined : "true"}
+                  data-lpignore={isIos ? undefined : "true"}
+                  data-bwignore={isIos ? undefined : "true"}
+                  data-form-type={isIos ? undefined : "other"}
+                  readOnly={!isIos}
+                  onFocus={
+                    isIos
+                      ? undefined
+                      : (e) => {
+                          unlockReadonlyForKeyboard(e.currentTarget);
+                        }
+                  }
                   disabled={passwordPending}
                 />
                 {connection.hasPasswordStored ? (
                   <p className="mt-1 text-[11px] text-[var(--fg-muted)]">
-                    Passwort liegt verschlüsselt für Auto-Login vor.
+                    Passwort liegt verschlüsselt für Auto-Login vor. Feld leer
+                    lassen = gespeichertes Passwort nutzen.
                   </p>
                 ) : null}
               </label>
