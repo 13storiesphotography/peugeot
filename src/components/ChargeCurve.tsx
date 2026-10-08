@@ -34,7 +34,8 @@ export function ChargeCurve({ samples }: ChargeCurveProps) {
       <div className="ui-surface px-4 py-4">
         <p className="text-sm font-semibold">Ladekurve</p>
         <p className="mt-1 text-xs text-[var(--fg-muted)]">
-          Erscheint während des Ladens.
+          Wird beim Laden aufgezeichnet — auch wenn die App zu ist. Nach dem
+          nächsten Ladevorgang erscheint die Kurve hier.
         </p>
       </div>
     );
