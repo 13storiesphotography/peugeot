@@ -101,10 +101,9 @@ export function ClimatePanel({
           type="button"
           disabled={busy || pending || !climateRemoteOk}
           onClick={() => onCommand(active ? "climate_stop" : "climate_start")}
-          className={`action-btn w-full rounded-full px-5 py-4 text-sm font-semibold ${
+          className={`action-btn w-full rounded-2xl px-5 py-4 text-sm font-semibold ${
             active ? "btn-danger-soft" : "btn-primary"
           }`}
-          style={{ opacity: climateRemoteOk ? 1 : 0.55 }}
         >
           {pending
             ? "Bitte warten…"
@@ -121,7 +120,7 @@ export function ClimatePanel({
           </p>
           <a
             href="/control/settings#pro"
-            className="action-btn btn-primary inline-flex rounded-full px-5 py-3 text-sm font-semibold"
+            className="action-btn btn-primary inline-flex rounded-2xl px-5 py-3 text-sm font-semibold"
           >
             Pro ansehen
           </a>
@@ -158,7 +157,7 @@ export function ClimatePanel({
             hint={
               isPro
                 ? live
-                  ? "Wie in MyPeugeot — Speichern geht ans Fahrzeug."
+                  ? "Speichern geht ans Fahrzeug."
                   : "Demo: Pläne nur in der App."
                 : "Mit Pro Zeitpläne anlegen und ans Auto senden."
             }

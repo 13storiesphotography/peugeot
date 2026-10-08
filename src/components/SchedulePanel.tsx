@@ -222,7 +222,7 @@ export function SchedulePanel({
           type="button"
           disabled={importBusy}
           onClick={() => void onImportFromVehicle()}
-          className="action-btn w-full rounded-full border border-[var(--line)] px-4 py-3 text-sm font-semibold"
+          className="action-btn btn-secondary w-full rounded-2xl px-4 py-3 text-sm font-semibold"
         >
           {importBusy ? "Lade vom Fahrzeug…" : "Pläne vom Fahrzeug laden"}
         </button>
@@ -256,17 +256,9 @@ export function SchedulePanel({
               onClick={() =>
                 update(schedule.id, { enabled: !schedule.enabled })
               }
-              className="action-btn relative h-8 w-14 shrink-0 rounded-full transition disabled:opacity-55"
-              style={{
-                background: schedule.enabled
-                  ? "linear-gradient(135deg, #5fe3c0, #3da8a0)"
-                  : "rgba(143,168,181,0.25)",
-              }}
+              className={`action-btn ui-switch${schedule.enabled ? " ui-switch-on" : ""}`}
             >
-              <span
-                className="absolute top-1 h-6 w-6 rounded-full bg-white shadow transition"
-                style={{ left: schedule.enabled ? "1.75rem" : "0.25rem" }}
-              />
+              <span className="ui-switch-knob" />
             </button>
           </div>
 
@@ -278,28 +270,19 @@ export function SchedulePanel({
               onChange={(e) =>
                 update(schedule.id, { timeLocal: e.target.value })
               }
-              className="rounded-xl border border-[var(--line)] bg-black/25 px-3 py-2 text-sm disabled:opacity-55"
+              className="ui-field w-auto disabled:opacity-55"
             />
             <div className="flex flex-wrap gap-1">
               {DAY_LABELS.map((label, dayIndex) => {
                 const day = dayIndex + 1;
-                const active = schedule.daysOfWeek.includes(day);
+                const dayOn = schedule.daysOfWeek.includes(day);
                 return (
                   <button
                     key={label}
                     type="button"
                     disabled={!editable}
                     onClick={() => toggleDay(schedule, day)}
-                    className="rounded-full px-2.5 py-1 text-xs font-semibold disabled:opacity-55"
-                    style={{
-                      background: active
-                        ? "rgba(95,227,192,0.18)"
-                        : "transparent",
-                      border: `1px solid ${active ? "rgba(95,227,192,0.45)" : "var(--line)"}`,
-                      color: active
-                        ? "var(--accent-bright)"
-                        : "var(--fg-muted)",
-                    }}
+                    className={`action-btn ui-chip${dayOn ? " ui-chip-on" : ""} disabled:opacity-55`}
                   >
                     {label}
                   </button>
@@ -314,7 +297,7 @@ export function SchedulePanel({
                 type="button"
                 disabled={busyId === schedule.id}
                 onClick={() => void save(schedule)}
-                className="action-btn rounded-full border border-[var(--line)] px-4 py-2 text-xs font-semibold"
+                className="action-btn btn-secondary rounded-2xl px-4 py-2 text-xs font-semibold"
               >
                 {busyId === schedule.id ? "Speichern…" : "Speichern"}
               </button>
@@ -322,7 +305,7 @@ export function SchedulePanel({
                 type="button"
                 disabled={busyId === schedule.id}
                 onClick={() => void remove(schedule.id)}
-                className="action-btn btn-danger-soft rounded-full px-4 py-2 text-xs font-semibold"
+                className="action-btn btn-danger-soft rounded-2xl px-4 py-2 text-xs font-semibold"
               >
                 Löschen
               </button>
@@ -343,12 +326,7 @@ export function SchedulePanel({
                 type="button"
                 disabled={creating || atCap}
                 onClick={() => void add(kind)}
-                className="action-btn rounded-full border px-4 py-2.5 text-xs font-semibold disabled:opacity-45"
-                style={{
-                  background: "rgba(95,227,192,0.08)",
-                  borderColor: "rgba(95,227,192,0.35)",
-                  color: "var(--accent-bright)",
-                }}
+                className="action-btn btn-accent-soft rounded-2xl px-4 py-2.5 text-xs font-semibold"
               >
                 {creating
                   ? "…"
