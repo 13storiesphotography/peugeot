@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
   useTransition,
-  type CSSProperties,
 } from "react";
 import {
   activateRemotePinAction,
@@ -162,31 +161,14 @@ export function RemotePinForm({
             <p className="mt-2 text-xs text-[var(--fg-muted)]">{smsMsg}</p>
           ) : null}
 
-          {/* Safari/iOS treats type=password + nearby code fields as a site
-              login and offers peugeotcontrol.app credentials. Same evasion as
-              PeugeotConnectForm: absorb autofill, mask PIN without password. */}
+          {/* No password/honeypot fields here: they made iOS offer site
+              passwords on the SMS field. No readOnly / text-security on PIN:
+              that blocked the iOS keyboard. */}
           <form
             action={action}
             autoComplete="off"
-            className={`${compact ? "mt-1" : "mt-4"} relative grid gap-3 sm:grid-cols-2`}
+            className={`${compact ? "mt-1" : "mt-4"} grid gap-3 sm:grid-cols-2`}
           >
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
-            >
-              <input
-                type="text"
-                name="email"
-                autoComplete="username"
-                tabIndex={-1}
-              />
-              <input
-                type="password"
-                name="site-password"
-                autoComplete="current-password"
-                tabIndex={-1}
-              />
-            </div>
             <label className="block text-sm">
               <span className="text-[var(--fg-muted)]">
                 SMS-Code (vom MyPeugeot-Handy)
@@ -199,6 +181,7 @@ export function RemotePinForm({
                 }
                 type="text"
                 inputMode="numeric"
+                pattern="[0-9]*"
                 autoComplete="one-time-code"
                 autoCapitalize="none"
                 autoCorrect="off"
@@ -225,23 +208,20 @@ export function RemotePinForm({
                 }
                 type="text"
                 inputMode="numeric"
+                pattern="[0-9]*"
                 maxLength={4}
                 autoComplete="off"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
+                enterKeyHint="done"
                 data-1p-ignore="true"
                 data-lpignore="true"
                 data-bwignore="true"
                 data-form-type="other"
-                style={{ WebkitTextSecurity: "disc" } as CSSProperties}
-                className="mt-1 ui-field"
-                placeholder="••••"
+                className="mt-1 ui-field tracking-[0.35em]"
+                placeholder="1234"
                 required
-                readOnly
-                onFocus={(e) => {
-                  e.currentTarget.readOnly = false;
-                }}
               />
             </label>
             <button
