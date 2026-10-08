@@ -166,15 +166,15 @@ export function ChargePanel({
                   </span>
                 )}
               </p>
-              <p className="mt-1 text-xs text-[var(--fg-muted)]">
-                {!isPro
-                  ? "Ansehen frei — Umschalten mit Pro"
-                  : live
-                    ? eightyOn
-                      ? "Aktiv — wie in MyPeugeot"
-                      : "Aus — lädt bis 100%"
-                    : "Schont die Batterie im Alltag"}
-              </p>
+              {!isPro || !live || !eightyOn ? (
+                <p className="mt-1 text-xs text-[var(--fg-muted)]">
+                  {!isPro
+                    ? "Ansehen frei — Umschalten mit Pro"
+                    : live
+                      ? "Aus — lädt bis 100%"
+                      : "Schont die Batterie im Alltag"}
+                </p>
+              ) : null}
             </div>
             {isPro ? (
               <button
