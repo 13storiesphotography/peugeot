@@ -1508,11 +1508,17 @@ function humanizeChargeLimitError(message: string): string {
   if (/no\.matching\.service\.key|authorization\.denied/i.test(message)) {
     return "Lade-Steuerung braucht e-Remote in MyPeugeot — bitte prüfen und PIN ggf. erneuern.";
   }
+  if (/Remote-Fehler 110|immediate\|delayed|must match/i.test(message)) {
+    return "Ladeziel konnte nicht am Fahrzeug gesetzt werden — Limit gilt in der App.";
+  }
   if (/Remote-Fehler 500/i.test(message)) {
     return "Fahrzeug antwortet gerade nicht — kurz warten und erneut versuchen.";
   }
   if (/Remote-Fehler 400/i.test(message)) {
     return "Lade-Befehl abgelehnt — Fernbedienung erneuern (Einstellungen → PIN).";
+  }
+  if (/Remote-Fehler/i.test(message)) {
+    return "Fahrzeug hat den Lade-Befehl abgelehnt — bitte erneut versuchen.";
   }
   return message;
 }
@@ -1586,6 +1592,10 @@ async function maybeEnforceChargeLimit(
   if (!entitlement.isPro) return vehicle;
   const limit = vehicle.preferredChargeLimitPercent ?? 80;
   if (limit >= 100) return vehicle;
+  // Native MyPeugeot Partial limit is already on the car — no software stop.
+  if (/(partial|limited|eighty|care)/i.test(vehicle.chargingType ?? "")) {
+    return vehicle;
+  }
   if (vehicle.chargeStatus !== "charging") {
     if (vehicle.chargeLimitEnforcedAt) {
       return { ...vehicle, chargeLimitEnforcedAt: null };
@@ -1625,79 +1635,42 @@ async function runLiveChargeLimitCommand(
   limitPercent: number,
 ): Promise<CommandResult> {
   const limit = Math.min(100, Math.max(50, Math.round(limitPercent)));
-  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
-  if (!remote.ok) {
-    return { ok: false, message: remote.message, vehicle: bundle.vehicle };
-  }
-
-  let status: unknown = null;
-  try {
-    if (bundle.connection.vehicleApiId && bundle.connection.hasAccessToken) {
-      const { data: connection } = await peugeotConnections()
-        .select(
-          "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
-        )
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (connection?.access_token && connection.vehicle_api_id) {
-        const accessToken = await ensurePeugeotAccessToken(supabase, userId, {
-          accessToken: String(connection.access_token),
-          refreshToken: connection.refresh_token
-            ? String(connection.refresh_token)
-            : null,
-          tokenExpiresAt: connection.token_expires_at
-            ? String(connection.token_expires_at)
-            : null,
-          countryCode: String(connection.country_code ?? "DE"),
-          oauthMeta: asOAuthMeta(connection.oauth_meta),
-          mypeugeotEmail: connection.mypeugeot_email
-            ? String(connection.mypeugeot_email)
-            : null,
-          mypeugeotPasswordEnc: connection.mypeugeot_password_enc
-            ? String(connection.mypeugeot_password_enc)
-            : null,
-        });
-        const { fetchVehicleStatus } = await import("@/lib/stellantis/api");
-        status = await fetchVehicleStatus(
-          accessToken,
-          String(connection.country_code ?? "DE"),
-          String(connection.vehicle_api_id),
-        );
-      }
-    }
-  } catch {
-    // Clock fallback is fine.
-  }
-
-  const { hour, minute } = chargeClockFromStatus(status);
   const limit80 = limit <= 80;
 
-  try {
-    const { sendChargeTargetType } = await import("@/lib/stellantis/remote");
-    await sendChargeTargetType({
-      customerId: remote.customerId,
-      vin: remote.vin,
-      remoteAccessToken: remote.remoteAccessToken,
-      limit80,
-      hour,
-      minute,
-    });
-  } catch (error) {
-    const raw =
-      error instanceof Error ? error.message : "Ladeziel konnte nicht gesetzt werden.";
-    if (!/Remote-Fehler 400|no\.matching\.service/i.test(raw)) {
-      return {
-        ok: false,
-        message: humanizeChargeLimitError(raw),
-        vehicle: bundle.vehicle,
-      };
-    }
-  }
-
+  // Always remember the preference for software fallback / UI.
   let nextVehicle = applyCommandToState(bundle.vehicle, {
     command: "set_charge_limit",
     chargeLimitPercent: limit,
   }).vehicle;
+
+  // Native MyPeugeot toggle: MQTT `/VehCharge/limit` action daily|trip
+  // (not type=partial on `/VehCharge` — that returns Remote-Fehler 110).
+  let nativeOk = false;
+  const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
+  if (remote.ok) {
+    try {
+      const { sendChargeLimitNative } = await import("@/lib/stellantis/remote");
+      await sendChargeLimitNative({
+        customerId: remote.customerId,
+        vin: remote.vin,
+        remoteAccessToken: remote.remoteAccessToken,
+        limit80,
+      });
+      nativeOk = true;
+      nextVehicle = {
+        ...nextVehicle,
+        chargeLimitPercent: limit80 ? 80 : 100,
+        chargeLimitKnown: true,
+        chargingType: limit80 ? "Partial" : "Full",
+      };
+    } catch (error) {
+      console.warn(
+        "native charge limit:",
+        error instanceof Error ? error.message : error,
+      );
+      // Fall through — preferred limit stays stored; cron can still stop charge.
+    }
+  }
 
   const shouldStopNow =
     nextVehicle.chargeStatus === "charging" &&
@@ -1705,6 +1678,45 @@ async function runLiveChargeLimitCommand(
     nextVehicle.batteryPercent + 0.4 >= limit;
 
   if (shouldStopNow) {
+    let status: unknown = null;
+    try {
+      if (bundle.connection.vehicleApiId && bundle.connection.hasAccessToken) {
+        const { data: connection } = await peugeotConnections()
+          .select(
+            "access_token, refresh_token, token_expires_at, country_code, vehicle_api_id, oauth_meta, mypeugeot_email, mypeugeot_password_enc",
+          )
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (connection?.access_token && connection.vehicle_api_id) {
+          const accessToken = await ensurePeugeotAccessToken(supabase, userId, {
+            accessToken: String(connection.access_token),
+            refreshToken: connection.refresh_token
+              ? String(connection.refresh_token)
+              : null,
+            tokenExpiresAt: connection.token_expires_at
+              ? String(connection.token_expires_at)
+              : null,
+            countryCode: String(connection.country_code ?? "DE"),
+            oauthMeta: asOAuthMeta(connection.oauth_meta),
+            mypeugeotEmail: connection.mypeugeot_email
+              ? String(connection.mypeugeot_email)
+              : null,
+            mypeugeotPasswordEnc: connection.mypeugeot_password_enc
+              ? String(connection.mypeugeot_password_enc)
+              : null,
+          });
+          const { fetchVehicleStatus } = await import("@/lib/stellantis/api");
+          status = await fetchVehicleStatus(
+            accessToken,
+            String(connection.country_code ?? "DE"),
+            String(connection.vehicle_api_id),
+          );
+        }
+      }
+    } catch {
+      // Clock fallback is fine.
+    }
+
     try {
       nextVehicle = await stopChargeAtLimit(
         supabase,
@@ -1716,6 +1728,7 @@ async function runLiveChargeLimitCommand(
     } catch (error) {
       const raw =
         error instanceof Error ? error.message : "Laden stoppen fehlgeschlagen.";
+      // Native limit may already be set — still report stop failure.
       return {
         ok: false,
         message: humanizeChargeLimitError(raw),
@@ -1724,13 +1737,29 @@ async function runLiveChargeLimitCommand(
     }
   }
 
+  if (!nativeOk && !remote.ok) {
+    return {
+      ok: true,
+      message: limit80
+        ? "Limit gespeichert — stoppt im Hintergrund bei ca. 80% (Fernbedienung prüfen für natives Limit)."
+        : "Ladeziel 100% gespeichert.",
+      vehicle: nextVehicle,
+    };
+  }
+
   return {
     ok: true,
     message: limit80
       ? shouldStopNow
-        ? "Laden auf 80% begrenzt — Ladevorgang gestoppt."
-        : "Laden auf 80% begrenzt."
-      : "Ladeziel auf 100% gesetzt.",
+        ? nativeOk
+          ? "Laden auf 80% begrenzt — Ladevorgang gestoppt."
+          : "Limit gespeichert — Ladevorgang gestoppt."
+        : nativeOk
+          ? "Laden auf 80% begrenzt (wie in MyPeugeot)."
+          : "Limit gespeichert — stoppt im Hintergrund bei ca. 80%."
+      : nativeOk
+        ? "Ladeziel auf 100% gesetzt."
+        : "Ladeziel 100% gespeichert.",
     vehicle: nextVehicle,
   };
 }

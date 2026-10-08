@@ -85,11 +85,6 @@ export function ChargePanel({
   const targetPercent = isPro
     ? effectiveChargeTargetPercent(vehicle)
     : 100;
-  const vehicleReportsFull =
-    live &&
-    vehicle.chargeLimitKnown &&
-    vehicle.chargeLimitPercent >= 100 &&
-    eightyOn;
 
   const statusLine = charging
     ? [
@@ -181,9 +176,7 @@ export function ChargePanel({
                   ? "Ansehen frei — Umschalten mit Pro"
                   : live
                     ? eightyOn
-                      ? vehicleReportsFull
-                        ? "App begrenzt auf 80% — Fahrzeug meldet noch 100%"
-                        : "Aktiv — stoppt beim Erreichen von 80%"
+                      ? "Aktiv — wie in MyPeugeot (nativ + Absicherung)"
                       : "Aus — lädt bis 100%"
                     : "Schont die Batterie im Alltag"}
               </p>
@@ -194,7 +187,11 @@ export function ChargePanel({
                 role="switch"
                 aria-checked={eightyOn}
                 disabled={busy}
-                title={live ? "Ladeziel per Fernbedienung umschalten" : undefined}
+                title={
+                  live
+                    ? "Setzt das 80%-Limit am Fahrzeug (MyPeugeot)"
+                    : undefined
+                }
                 onClick={() =>
                   onCommand("set_charge_limit", {
                     chargeLimitPercent: eightyOn ? 100 : 80,
