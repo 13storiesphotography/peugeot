@@ -54,7 +54,9 @@ export function ClimatePanel({
         : vehicle.climateStatus === "cooling"
           ? "Vorklima · kühlt"
           : "Vorklima aktiv"
-      : "Fernstart und Pläne für Vorklima";
+      : climateRemoteOk
+        ? `Außen ${formatTemp(vehicle.outdoorTempC)}${live ? "" : " · Demo"}`
+        : "Fernbedienung einrichten";
 
   const importFromVehicle = async () => {
     setImportBusy(true);
@@ -78,8 +80,34 @@ export function ClimatePanel({
   };
 
   return (
-    <section className="animate-rise space-y-6 pt-2 lg:mx-auto lg:max-w-md lg:pt-0">
+    <section className="animate-rise space-y-6 pt-2 lg:pt-0">
       <SectionHeader title="Klima" hint={statusHint} hideTitleOnDesktop />
+
+      {!isPro ? (
+        <div className="rounded-2xl border border-[var(--line)] bg-white/[0.03] px-4 py-3 text-sm text-[var(--fg-muted)]">
+          Vorklima starten und planen ist in{" "}
+          <span className="font-semibold text-[var(--fg)]">Pro</span>.{" "}
+          <a
+            href="/control/settings#pro"
+            className="font-semibold text-[var(--accent-bright)] underline-offset-2 hover:underline"
+          >
+            Pro ansehen
+          </a>
+        </div>
+      ) : null}
+
+      {!climateRemoteOk && isPro ? (
+        <p className="text-sm text-[var(--fg-muted)]">
+          Einmal unter{" "}
+          <Link
+            href="/control/settings"
+            className="font-semibold text-[var(--accent-bright)] underline-offset-2 hover:underline"
+          >
+            Einstellungen
+          </Link>{" "}
+          die Fernbedienung einrichten.
+        </p>
+      ) : null}
 
       {climateJob ? (
         <ClimateProgressBanner
@@ -88,12 +116,6 @@ export function ClimatePanel({
           phaseLabel={climateJob.phaseLabel}
           detail={climateJob.detail}
         />
-      ) : active ? (
-        <div className="ui-surface px-4 py-4 text-center">
-          <p className="text-sm font-semibold text-[var(--accent-bright)]">
-            Vorklima läuft
-          </p>
-        </div>
       ) : null}
 
       {isPro ? (
@@ -111,55 +133,36 @@ export function ClimatePanel({
               ? "Vorklima stoppen"
               : "Vorklima starten"}
         </button>
-      ) : (
-        <div className="ui-surface space-y-3 px-4 py-4 text-center">
-          <p className="text-sm text-[var(--fg-muted)]">
-            Vorklima starten und planen ist in{" "}
-            <span className="font-semibold text-[var(--fg)]">Pro</span>{" "}
-            enthalten.
-          </p>
-          <a
-            href="/control/settings#pro"
-            className="action-btn btn-primary inline-flex rounded-2xl px-5 py-3 text-sm font-semibold"
-          >
-            Pro ansehen
-          </a>
-        </div>
-      )}
+      ) : null}
 
-      {!climateRemoteOk ? (
-        <p className="text-center text-xs text-[var(--fg-muted)]">
-          Einmal unter{" "}
-          <Link
-            href="/control/settings"
-            className="text-[var(--accent-bright)] underline-offset-2 hover:underline"
-          >
-            Einstellungen
-          </Link>{" "}
-          die Fernbedienung einrichten.
+      {active && !climateJob ? (
+        <div className="ui-surface ui-surface-active px-4 py-4">
+          <p className="font-semibold">Vorklima läuft</p>
+          <p className="mt-1 text-xs text-[var(--fg-muted)]">
+            Außen {formatTemp(vehicle.outdoorTempC)}
+          </p>
+        </div>
+      ) : null}
+
+      {pending ? (
+        <p className="text-sm text-[var(--fg-muted)]">
+          Nicht erneut tippen — das Auto bestätigt oft erst nach 30–60 Sekunden.
         </p>
-      ) : (
-        <p className="text-center text-xs text-[var(--fg-muted)]">
-          {pending
-            ? "Nicht erneut tippen — das Auto bestätigt oft erst nach 30–60 Sekunden."
-            : `Außen ${formatTemp(vehicle.outdoorTempC)}${live ? "" : " · Demo"}`}
-        </p>
-      )}
+      ) : null}
 
       {onSchedulesChanged ? (
-        <>
+        <div className="space-y-3">
           <SchedulePanel
             schedules={schedules}
             onChanged={onSchedulesChanged}
             kinds={["climate"]}
-            compact
-            title="Vorklima planen"
+            title="Vorklima-Pläne"
             hint={
               isPro
                 ? live
-                  ? "Speichern geht ans Fahrzeug."
-                  : "Demo: Pläne nur in der App."
-                : "Mit Pro Zeitpläne anlegen und ans Auto senden."
+                  ? "Änderungen gehen ans Fahrzeug."
+                  : "Demo: nur in der App."
+                : "Mit Pro Zeitpläne anlegen."
             }
             editable={isPro}
             onImportFromVehicle={
@@ -168,11 +171,9 @@ export function ClimatePanel({
             importBusy={importBusy}
           />
           {importMsg ? (
-            <p className="text-center text-xs text-[var(--fg-muted)]">
-              {importMsg}
-            </p>
+            <p className="text-sm text-[var(--fg-muted)]">{importMsg}</p>
           ) : null}
-        </>
+        </div>
       ) : null}
     </section>
   );
