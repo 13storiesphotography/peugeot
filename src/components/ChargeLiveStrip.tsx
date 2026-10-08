@@ -1,5 +1,6 @@
 "use client";
 
+import { DataFreshnessBadge } from "@/components/DataFreshnessBadge";
 import type { VehicleState } from "@/lib/types";
 import {
   chargeSpeedLabel,
@@ -25,7 +26,13 @@ function formatRate(kmh: number | null): string | null {
 }
 
 /** Compact live metrics while the car is charging — home overview. */
-export function ChargeLiveStrip({ vehicle }: { vehicle: VehicleState }) {
+export function ChargeLiveStrip({
+  vehicle,
+  nowMs,
+}: {
+  vehicle: VehicleState;
+  nowMs?: number;
+}) {
   if (vehicle.chargeStatus !== "charging") return null;
 
   const speed = normalizeChargeSpeedMode(vehicle.chargingMode);
@@ -60,11 +67,16 @@ export function ChargeLiveStrip({ vehicle }: { vehicle: VehicleState }) {
         <p className="text-sm font-semibold" style={{ color: accent }}>
           Lädt · {Math.round(vehicle.batteryPercent)}%
         </p>
-        <p className="text-xs tabular-nums text-[var(--fg-muted)]">
-          Ziel {Math.round(vehicle.chargeLimitPercent)}%
-        </p>
+        <DataFreshnessBadge
+          lastUpdatedAt={vehicle.lastUpdatedAt}
+          nowMs={nowMs}
+          mode={vehicle.mode}
+        />
       </div>
-      <p className="mt-1 text-xs text-[var(--fg-muted)]">{parts.join(" · ")}</p>
+      <p className="mt-1 text-xs text-[var(--fg-muted)]">
+        {parts.join(" · ")}
+        {` · Ziel ${Math.round(vehicle.chargeLimitPercent)}%`}
+      </p>
       <div
         className="mt-3 h-1 overflow-hidden rounded-full"
         style={{ background: "rgba(143,168,181,0.15)" }}

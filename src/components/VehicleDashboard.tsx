@@ -20,6 +20,7 @@ import {
 } from "@/components/ControlBottomNav";
 import { ControlSideNav } from "@/components/ControlSideNav";
 import { ControlsPanel } from "@/components/ControlsPanel";
+import { DataFreshnessBadge } from "@/components/DataFreshnessBadge";
 import { DesktopPanel } from "@/components/DesktopPanel";
 import { InstantNavLink } from "@/components/InstantNavLink";
 import { LocationLink } from "@/components/LocationLink";
@@ -487,17 +488,21 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       30,
       bundle.connection.syncIntervalSec || 60,
     );
-    // While charging, check a bit more often — server still throttles Peugeot.
+    const charging = bundle.vehicle.chargeStatus === "charging";
+    // Charge tab while charging: denser client polls; server still throttles.
     const intervalSec =
-      live && bundle.vehicle.chargeStatus === "charging"
-        ? Math.min(configuredSec, 30)
-        : configuredSec;
+      live && charging && tab === "charge"
+        ? Math.min(configuredSec, 20)
+        : live && charging
+          ? Math.min(configuredSec, 30)
+          : configuredSec;
     const intervalMs = live ? intervalSec * 1000 : 10_000;
 
     const tick = () => {
       if (document.visibilityState !== "visible") return;
       // Soft poll: server decides whether Peugeot is due (avoids hammering).
-      void refresh(false, { silent: true });
+      // On Laden while charging, ask for a sync more often.
+      void refresh(live && charging && tab === "charge", { silent: true });
     };
 
     const onVisible = () => {
@@ -522,6 +527,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
     bundle.connection.syncIntervalSec,
     bundle.connection.lastSyncAt,
     bundle.vehicle.chargeStatus,
+    tab,
     refresh,
   ]);
 
@@ -727,9 +733,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </h1>
           <div className="mt-1.5 flex items-center gap-2 lg:mt-2">
             <div className="min-w-0">
-              <p className="text-xs text-[var(--fg-muted)] lg:text-sm">
-                Stand {formatAge(vehicle.lastUpdatedAt, nowMs)}
-              </p>
+              <DataFreshnessBadge
+                lastUpdatedAt={vehicle.lastUpdatedAt}
+                nowMs={nowMs}
+                mode={vehicle.mode}
+                offline={offline}
+                refreshing={refreshing}
+              />
               {refreshing && refreshPhase ? (
                 <p
                   className="mt-0.5 text-[11px] font-medium text-[var(--accent-bright)]"
@@ -868,7 +878,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               vehicle={vehicle}
               onOpenCharge={() => selectTab("charge")}
             />
-            <ChargeLiveStrip vehicle={vehicle} />
+            <ChargeLiveStrip vehicle={vehicle} nowMs={nowMs} />
 
             <div>
               <p className="eyebrow hidden lg:block">Schnellaktionen</p>
@@ -944,6 +954,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               busy={busy}
               chargeCurve={bundle.chargeCurve}
               isPro={bundle.isPro}
+              nowMs={nowMs}
+              offline={offline}
+              refreshing={refreshing}
               onCommand={(command, opts) => void runCommand(command, opts)}
             />
           </DesktopPanel>
