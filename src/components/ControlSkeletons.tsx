@@ -161,10 +161,10 @@ export function ControlHomeSkeleton() {
       </div>
 
       <div
-        className="control-bottom-nav control-glass-nav fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-2 lg:hidden"
+        className="control-bottom-nav control-glass-nav fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 lg:hidden"
         aria-hidden
       >
-        <div className="control-glass-shell mx-auto flex max-w-lg justify-between sm:max-w-xl">
+        <div className="control-glass-shell mx-auto flex w-full max-w-[22.5rem] justify-between sm:max-w-md">
           {tabLabels.map((label) => (
             <div
               key={label}

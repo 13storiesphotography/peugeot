@@ -49,7 +49,7 @@ export function ControlBottomNav({
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const pillRef = useRef<HTMLSpanElement>(null);
   const animRef = useRef<Animation | null>(null);
-  const posRef = useRef({ x: 0, w: 0, ready: false });
+  const posRef = useRef({ x: 0, w: 0, top: 0, h: 0, ready: false });
   const scrubbingRef = useRef(false);
   const [pillReady, setPillReady] = useState(false);
   const [minimized, setMinimized] = useState(false);
@@ -60,12 +60,17 @@ export function ControlBottomNav({
     const btn = itemRefs.current[idx];
     if (!track || !btn || idx < 0) return null;
     const trackBox = track.getBoundingClientRect();
-    const btnBox = btn.getBoundingClientRect();
-    return {
-      x: btnBox.left - trackBox.left,
-      w: btnBox.width,
-    };
-  }, []);
+    // Instagram-style: soft glass blob hugs the icon, not the whole cell.
+    const icon = btn.querySelector(".control-glass-icon") as HTMLElement | null;
+    const target = icon?.getBoundingClientRect() ?? btn.getBoundingClientRect();
+    const padX = minimized ? 10 : 14;
+    const padY = minimized ? 8 : 10;
+    const w = target.width + padX * 2;
+    const x = target.left - trackBox.left - padX;
+    const top = target.top - trackBox.top - padY;
+    const h = target.height + padY * 2;
+    return { x, w, top, h };
+  }, [minimized]);
 
   const placePill = useCallback(
     (id: ControlTab, animate: boolean) => {
@@ -73,10 +78,24 @@ export function ControlBottomNav({
       const el = pillRef.current;
       if (!next || !el) return;
 
-      const prev = posRef.current;
+      const prev = posRef.current as {
+        x: number;
+        w: number;
+        top: number;
+        h: number;
+        ready: boolean;
+      };
       const fromX = prev.ready ? prev.x : next.x;
       const fromW = prev.ready ? prev.w : next.w;
-      posRef.current = { x: next.x, w: next.w, ready: true };
+      const fromTop = prev.ready ? prev.top : next.top;
+      const fromH = prev.ready ? prev.h : next.h;
+      posRef.current = {
+        x: next.x,
+        w: next.w,
+        top: next.top,
+        h: next.h,
+        ready: true,
+      };
       setPillReady(true);
 
       if (
@@ -84,32 +103,39 @@ export function ControlBottomNav({
         prefersReducedMotion() ||
         (fromX === next.x && fromW === next.w)
       ) {
-        el.style.transform = `translate3d(${next.x}px,0,0)`;
+        el.style.transform = `translate3d(${next.x}px,${next.top}px,0)`;
         el.style.width = `${next.w}px`;
+        el.style.height = `${next.h}px`;
         return;
       }
 
       animRef.current?.cancel();
       const dx = Math.abs(next.x - fromX);
-      const stretch = Math.min(1.65, 1 + dx / 180);
-      const duration = Math.min(560, 340 + dx * 0.4);
+      const stretch = Math.min(1.75, 1 + dx / 160);
+      const duration = Math.min(580, 360 + dx * 0.45);
       const midW = Math.max(fromW, next.w) * stretch;
+      const midX = (fromX + next.x) / 2 - (midW - next.w) / 4;
+      const midTop = (fromTop + next.top) / 2;
+      const midH = Math.max(fromH, next.h) * 0.92;
 
       animRef.current = el.animate(
         [
           {
-            transform: `translate3d(${fromX}px,0,0)`,
+            transform: `translate3d(${fromX}px,${fromTop}px,0)`,
             width: `${fromW}px`,
+            height: `${fromH}px`,
             offset: 0,
           },
           {
-            transform: `translate3d(${(fromX + next.x) / 2 - (midW - next.w) / 4}px,0,0)`,
+            transform: `translate3d(${midX}px,${midTop}px,0)`,
             width: `${midW}px`,
-            offset: 0.45,
+            height: `${midH}px`,
+            offset: 0.42,
           },
           {
-            transform: `translate3d(${next.x}px,0,0)`,
+            transform: `translate3d(${next.x}px,${next.top}px,0)`,
             width: `${next.w}px`,
+            height: `${next.h}px`,
             offset: 1,
           },
         ],
@@ -121,13 +147,15 @@ export function ControlBottomNav({
       );
       animRef.current.finished
         .then(() => {
-          el.style.transform = `translate3d(${next.x}px,0,0)`;
+          el.style.transform = `translate3d(${next.x}px,${next.top}px,0)`;
           el.style.width = `${next.w}px`;
+          el.style.height = `${next.h}px`;
           animRef.current = null;
         })
         .catch(() => {
-          el.style.transform = `translate3d(${next.x}px,0,0)`;
+          el.style.transform = `translate3d(${next.x}px,${next.top}px,0)`;
           el.style.width = `${next.w}px`;
+          el.style.height = `${next.h}px`;
           animRef.current = null;
         });
     },
@@ -242,14 +270,14 @@ export function ControlBottomNav({
 
   return (
     <nav
-      className={`control-bottom-nav control-glass-nav fixed inset-x-0 bottom-0 z-40 px-3.5 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 lg:hidden${
+      className={`control-bottom-nav control-glass-nav fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 lg:hidden${
         minimized ? " control-glass-nav-min" : ""
       }`}
       aria-label="Hauptnavigation"
     >
       <div
         ref={trackRef}
-        className="control-glass-shell relative mx-auto flex max-w-lg items-stretch justify-between sm:max-w-xl"
+        className="control-glass-shell relative mx-auto flex w-full max-w-[22.5rem] items-stretch justify-between sm:max-w-md"
       >
         <span className="control-glass-sheen" aria-hidden />
         <span
