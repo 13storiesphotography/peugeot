@@ -11,6 +11,10 @@ import {
   isEightyPercentLimitActive,
   normalizeChargeSpeedMode,
 } from "@/lib/stellantis/charge-mode";
+import {
+  batteryAccentColor,
+  batteryBarFill,
+} from "@/lib/vehicle/battery-tone";
 
 interface ChargePanelProps {
   vehicle: VehicleState;
@@ -107,12 +111,7 @@ export function ChargePanel({
             {Math.round(vehicle.batteryPercent)}
             <span
               className="text-2xl"
-              style={{
-                color:
-                  charging && speed === "quick"
-                    ? "var(--warn)"
-                    : "var(--accent-bright)",
-              }}
+              style={{ color: batteryAccentColor(vehicle.batteryPercent) }}
             >
               %
             </span>
@@ -125,11 +124,7 @@ export function ChargePanel({
               className={`h-full rounded-full transition-all duration-700 ${charging ? "charge-progress-fill is-charging" : ""}`}
               style={{
                 width: `${Math.min(100, vehicle.batteryPercent)}%`,
-                background: charging
-                  ? speed === "quick"
-                    ? "linear-gradient(90deg, #d4924a, #e8b86d, #d4924a)"
-                    : "linear-gradient(90deg, #3da8a0, #5fe3c0, #3da8a0)"
-                  : "#3da8a0",
+                background: batteryBarFill(vehicle.batteryPercent, charging),
               }}
             />
           </div>
