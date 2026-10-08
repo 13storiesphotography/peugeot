@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { ClimateProgressBanner } from "@/components/ClimateProgressBanner";
 import { SchedulePanel } from "@/components/SchedulePanel";
@@ -43,9 +42,6 @@ export function ClimatePanel({
   const active = vehicle.climateStatus !== "off";
   const climateRemoteOk = !live || remoteReady;
   const pending = Boolean(climateJob);
-  const [importBusy, setImportBusy] = useState(false);
-  const [importMsg, setImportMsg] = useState<string | null>(null);
-
   const statusHint = pending
     ? climateJob!.phaseLabel
     : active
@@ -57,27 +53,6 @@ export function ClimatePanel({
       : climateRemoteOk
         ? `Außen ${formatTemp(vehicle.outdoorTempC)}${live ? "" : " · Demo"}`
         : "Fernbedienung einrichten";
-
-  const importFromVehicle = async () => {
-    setImportBusy(true);
-    setImportMsg(null);
-    try {
-      const res = await fetch("/api/vehicle/schedules/import-climate", {
-        method: "POST",
-      });
-      const data = (await res.json()) as {
-        error?: string;
-        message?: string;
-      };
-      if (!res.ok) throw new Error(data.error ?? "Import fehlgeschlagen");
-      setImportMsg(data.message ?? "Übernommen.");
-      onSchedulesChanged?.();
-    } catch (err) {
-      setImportMsg(err instanceof Error ? err.message : "Fehler");
-    } finally {
-      setImportBusy(false);
-    }
-  };
 
   return (
     <section className="animate-rise space-y-6 pt-2 lg:pt-0">
@@ -156,14 +131,7 @@ export function ClimatePanel({
                 : "Mit Pro Zeitpläne anlegen."
             }
             editable={isPro}
-            onImportFromVehicle={
-              isPro && live ? importFromVehicle : undefined
-            }
-            importBusy={importBusy}
           />
-          {importMsg ? (
-            <p className="text-sm text-[var(--fg-muted)]">{importMsg}</p>
-          ) : null}
         </div>
       ) : null}
     </section>

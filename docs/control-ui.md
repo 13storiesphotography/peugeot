@@ -42,7 +42,7 @@ Always add `action-btn` for press feedback. Prefer classes over inline `style={}
 | Primary CTA | `action-btn btn-primary rounded-2xl …` | One main action per tab section (e.g. Vorklima starten) |
 | Destructive soft | `action-btn btn-danger-soft rounded-2xl …` | Stop |
 | Secondary | `action-btn btn-secondary rounded-2xl …` | Add plan, outline full-width |
-| Text link | `text-xs font-semibold text-[var(--accent-bright)] underline-offset-2 hover:underline` | Import / secondary inline (“Vom Auto”) |
+| Text link | `text-xs font-semibold text-[var(--accent-bright)] underline-offset-2 hover:underline` | Secondary inline actions |
 | Danger text | `text-xs font-semibold text-[var(--danger)] …` | Delete inside a row |
 | Icon tile | `action-btn ui-surface ui-tile` | Steuern / QuickActions |
 
@@ -72,6 +72,11 @@ switch/time/day can persist immediately (Limit 80% pattern).
 
 SoC accent follows `src/lib/vehicle/battery-tone.ts` (&lt; 12% warn, else teal).
 Do **not** tint % / bars by DC Quick charging.
+
+## Refresh
+
+- Manual update: header refresh **or** pull-to-refresh (same hard wake + sync).
+- Hard refresh also imports onboard Vorklima plans — no separate „Vom Auto“.
 
 ## Don’t
 

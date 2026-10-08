@@ -24,6 +24,7 @@ import { DesktopPanel } from "@/components/DesktopPanel";
 import { InstantNavLink } from "@/components/InstantNavLink";
 import { LocationLink } from "@/components/LocationLink";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { QuickActions } from "@/components/QuickActions";
 import { VehicleHero } from "@/components/VehicleHero";
 import type { VehicleCommand } from "@/lib/types";
@@ -818,6 +819,11 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       />
       <ControlBottomNav tab={tab} onChange={selectTab} />
 
+      <PullToRefresh
+        onRefresh={manualRefresh}
+        refreshing={refreshing}
+        disabled={busy || bundle.connection.needsReconnect}
+      >
       <div className="mx-auto flex w-full max-w-lg flex-col overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:max-w-xl sm:px-6 lg:ml-[15.5rem] lg:w-[calc(100%-15.5rem)] lg:max-w-none lg:px-10 lg:pb-12 lg:pt-8 xl:px-12">
       <header className="animate-rise flex items-start justify-between gap-3 py-3 lg:items-end lg:pb-5">
         <div className="min-w-0">
@@ -1046,6 +1052,8 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </DesktopPanel>
         </div>
       ) : null}
+      </div>
+      </PullToRefresh>
 
       {toast ? (
         <div
@@ -1134,7 +1142,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
           </div>
         </div>
       ) : null}
-      </div>
     </div>
   );
 }

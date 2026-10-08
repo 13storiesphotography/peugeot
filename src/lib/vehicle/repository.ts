@@ -958,6 +958,21 @@ async function hardRefreshVehicle(
       new Date(prevUpdatedAt).getTime();
   }
 
+  // Pull-to-refresh / hard refresh also syncs onboard Vorklima plans so the
+  // dedicated „Vom Auto“ control is unnecessary.
+  if (after.isPro && !after.syncError) {
+    try {
+      await importClimateSchedulesFromVehicle(supabase, userId, {
+        skipWake: true,
+      });
+      after = await loadVehicleBundle(supabase, userId, {
+        skipRemoteSync: true,
+      });
+    } catch {
+      // Status refresh already succeeded — keep that result.
+    }
+  }
+
   return {
     ...after,
     hardRefresh: {
@@ -2190,6 +2205,7 @@ async function replaceClimateSchedulesFromStatus(
 export async function importClimateSchedulesFromVehicle(
   supabase: SupabaseClient,
   userId: string,
+  options: { skipWake?: boolean } = {},
 ): Promise<{ schedules: VehicleSchedule[]; imported: number; message: string }> {
   const { vehicleId, vehicle } = await ensureVehicle(supabase, userId);
 
@@ -2232,7 +2248,13 @@ export async function importClimateSchedulesFromVehicle(
     });
 
     // Wake so Peugeot pushes a fresh preconditioning snapshot when possible.
-    if (connection.remote_ready && vehicle.vin && !/x{4,}/i.test(vehicle.vin)) {
+    // Skip when the caller already woke (hard refresh / pull-to-refresh).
+    if (
+      !options.skipWake &&
+      connection.remote_ready &&
+      vehicle.vin &&
+      !/x{4,}/i.test(vehicle.vin)
+    ) {
       try {
         const bundle = await getVehicleBundle(supabase, userId);
         const remote = await ensureLiveRemoteSession(supabase, userId, bundle);
