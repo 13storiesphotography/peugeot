@@ -19,9 +19,6 @@ interface SchedulePanelProps {
   kinds?: VehicleSchedule["kind"][];
   title?: string;
   hint?: string;
-  /** Pull onboard Peugeot Vorklima programs into the app. */
-  onImportFromVehicle?: () => Promise<void>;
-  importBusy?: boolean;
   editable?: boolean;
 }
 
@@ -31,8 +28,6 @@ export function SchedulePanel({
   kinds,
   title = "Vorklima-Pläne",
   hint,
-  onImportFromVehicle,
-  importBusy = false,
   editable = true,
 }: SchedulePanelProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -184,22 +179,10 @@ export function SchedulePanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">{title}</p>
-          {hint ? (
-            <p className="mt-0.5 text-xs text-[var(--fg-muted)]">{hint}</p>
-          ) : null}
-        </div>
-        {editable && onImportFromVehicle ? (
-          <button
-            type="button"
-            disabled={importBusy}
-            onClick={() => void onImportFromVehicle()}
-            className="action-btn shrink-0 text-xs font-semibold text-[var(--accent-bright)] underline-offset-2 hover:underline disabled:opacity-45"
-          >
-            {importBusy ? "Lädt…" : "Vom Auto"}
-          </button>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold">{title}</p>
+        {hint ? (
+          <p className="mt-0.5 text-xs text-[var(--fg-muted)]">{hint}</p>
         ) : null}
       </div>
 
