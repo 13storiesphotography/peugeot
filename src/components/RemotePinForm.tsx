@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   useTransition,
+  type CSSProperties,
 } from "react";
 import {
   activateRemotePinAction,
@@ -103,10 +104,31 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
             <p className="mt-2 text-xs text-[var(--fg-muted)]">{smsMsg}</p>
           ) : null}
 
+          {/* Safari/iOS treats type=password + nearby code fields as a site
+              login and offers peugeotcontrol.app credentials. Same evasion as
+              PeugeotConnectForm: absorb autofill, mask PIN without password. */}
           <form
             action={action}
-            className={`${compact ? "mt-1" : "mt-4"} grid gap-3 sm:grid-cols-2`}
+            autoComplete="off"
+            className={`${compact ? "mt-1" : "mt-4"} relative grid gap-3 sm:grid-cols-2`}
           >
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+            >
+              <input
+                type="text"
+                name="email"
+                autoComplete="username"
+                tabIndex={-1}
+              />
+              <input
+                type="password"
+                name="site-password"
+                autoComplete="current-password"
+                tabIndex={-1}
+              />
+            </div>
             <label className="block text-sm">
               <span className="text-[var(--fg-muted)]">SMS-Code</span>
               <input
@@ -115,32 +137,50 @@ export function RemotePinForm({ ready, compact = false, onReady }: Props) {
                 onChange={(e) =>
                   setSmsCode(e.target.value.replace(/[^\d\s-]/g, ""))
                 }
+                type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 enterKeyHint="next"
-            className="mt-1 ui-field"
-            placeholder="z. B. 123456"
-            required
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="text-[var(--fg-muted)]">PIN (4 Ziffern)</span>
-          <input
-            name="pin"
-            value={pin}
-            onChange={(e) =>
-              setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-            }
-            type="password"
-            inputMode="numeric"
-            maxLength={4}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            className="mt-1 ui-field"
-            placeholder="••••"
-            required
-          />
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-bwignore="true"
+                data-form-type="other"
+                className="mt-1 ui-field"
+                placeholder="z. B. 123456"
+                required
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="text-[var(--fg-muted)]">PIN (4 Ziffern)</span>
+              <input
+                name="pin"
+                value={pin}
+                onChange={(e) =>
+                  setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                }
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-bwignore="true"
+                data-form-type="other"
+                style={{ WebkitTextSecurity: "disc" } as CSSProperties}
+                className="mt-1 ui-field"
+                placeholder="••••"
+                required
+                readOnly
+                onFocus={(e) => {
+                  e.currentTarget.readOnly = false;
+                }}
+              />
             </label>
             <button
               type="submit"
