@@ -275,7 +275,9 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       ok: false,
     });
     void refresh(true, { silent: true });
-  }, [climateJob, nowMs, refresh]);
+    // refresh is stable enough; avoid re-toasting on identity churn
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [climateJob, nowMs]);
 
   useEffect(() => {
     if (!toast) return;
