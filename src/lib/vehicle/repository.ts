@@ -1796,37 +1796,37 @@ async function runLiveClimateCommand(
       }
     }
 
-    let vehicle = touchClimate(bundle.vehicle, activate);
-
-    // Poll Peugeot status until climate matches — cars often need 15–45s.
+    // Poll Peugeot until status matches. Do NOT persist optimistic climate —
+    // otherwise the UI can show "Vorklima an / Vorheizen" while MyPeugeot
+    // still reports off (command accepted ≠ preconditioning running).
+    const optimistic = touchClimate(bundle.vehicle, activate);
     const confirmed = await pollClimateConfirmation(
       supabase,
       userId,
       bundle,
       activate,
-      vehicle,
+      optimistic,
     );
     if (confirmed) {
-      vehicle = confirmed.vehicle;
-      await saveState(supabase, userId, bundle.vehicleId, vehicle);
+      await saveState(supabase, userId, bundle.vehicleId, confirmed.vehicle);
       return {
         ok: true,
         message: activate
           ? "Vorklima bestätigt — läuft."
           : "Vorklima bestätigt — aus.",
-        vehicle,
+        vehicle: confirmed.vehicle,
         climateConfirmed: true,
         climatePending: false,
       };
     }
 
-    await saveState(supabase, userId, bundle.vehicleId, vehicle);
+    // Keep last Peugeot-reported climate; client shows a pending banner only.
     return {
       ok: true,
       message: activate
-        ? "Befehl gesendet — Auto braucht oft noch 30–60 Sekunden."
-        : "Stopp gesendet — Bestätigung folgt oft mit Verzögerung.",
-      vehicle,
+        ? "Befehl gesendet — warten auf Bestätigung vom Fahrzeug…"
+        : "Stopp gesendet — warten auf Bestätigung vom Fahrzeug…",
+      vehicle: bundle.vehicle,
       climatePending: true,
       climateConfirmed: false,
     };

@@ -270,6 +270,13 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
       window.clearInterval(climatePollTimer.current);
       climatePollTimer.current = null;
     }
+    setToast({
+      text: "Keine klare Klima-Bestätigung vom Fahrzeug — Stand wie in MyPeugeot prüfen.",
+      ok: false,
+    });
+    void refresh(true, { silent: true });
+    // refresh is stable enough; avoid re-toasting on identity churn
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [climateJob, nowMs]);
 
   useEffect(() => {
@@ -949,7 +956,7 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               <div className="mt-3 lg:mt-4">
                 <QuickActions
                   locked={vehicle.locked}
-                  climateOn={climateOn || climateJob?.action === "start"}
+                  climateOn={climateOn}
                   busy={climateBusy}
                   remoteReady={bundle.connection.remoteReady}
                   remoteSignalsOk={bundle.connection.remoteSignalsOk}
