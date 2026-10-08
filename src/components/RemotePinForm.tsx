@@ -132,9 +132,11 @@ export function RemotePinForm({
 
       {showSetup ? (
         <>
-          <div className={`${compact ? "mt-3" : "mt-4"}`}>
-            <RemoteHelp email={mypeugeotEmail} />
-          </div>
+          {!ready ? (
+            <div className={`${compact ? "mt-3" : "mt-4"}`}>
+              <RemoteHelp email={mypeugeotEmail} />
+            </div>
+          ) : null}
 
           <div className={`${compact ? "mt-3" : "mt-4"} flex flex-wrap gap-2`}>
             <button
@@ -241,11 +243,7 @@ export function RemotePinForm({
             </button>
           </form>
         </>
-      ) : (
-        <div className="mt-4">
-          <RemoteHelp email={mypeugeotEmail} />
-        </div>
-      )}
+      ) : null}
 
       {state.error ? (
         <p role="alert" className="mt-3 text-sm text-[var(--danger)]">
