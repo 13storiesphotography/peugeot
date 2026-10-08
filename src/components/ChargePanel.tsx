@@ -176,7 +176,7 @@ export function ChargePanel({
                   ? "Ansehen frei — Umschalten mit Pro"
                   : live
                     ? eightyOn
-                      ? "Aktiv — App stoppt Laden bei 80%"
+                      ? "Aktiv — stoppt im Hintergrund bei ca. 80%"
                       : "Aus — lädt bis 100%"
                     : "Schont die Batterie im Alltag"}
               </p>
@@ -187,7 +187,11 @@ export function ChargePanel({
                 role="switch"
                 aria-checked={eightyOn}
                 disabled={busy}
-                title={live ? "Ladeziel per Fernbedienung umschalten" : undefined}
+                title={
+                  live
+                    ? "App-Limit: stoppt Laden im Hintergrund bei ca. 80%"
+                    : undefined
+                }
                 onClick={() =>
                   onCommand("set_charge_limit", {
                     chargeLimitPercent: eightyOn ? 100 : 80,
