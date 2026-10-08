@@ -203,15 +203,6 @@ export function SchedulePanel({
         ) : null}
       </div>
 
-      {visible.length === 0 ? (
-        <div className="ui-surface px-4 py-4">
-          <p className="text-sm text-[var(--fg-muted)]">
-            Noch kein Plan
-            {editable ? " — vom Auto laden oder neu anlegen." : "."}
-          </p>
-        </div>
-      ) : null}
-
       {visible.map((schedule) => {
         const busy = busyId === schedule.id;
         return (
