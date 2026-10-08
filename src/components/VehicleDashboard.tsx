@@ -1019,9 +1019,6 @@ export function VehicleDashboard({ initial }: { initial: VehicleBundle }) {
               busy={busy}
               chargeCurve={bundle.chargeCurve}
               isPro={bundle.isPro}
-              nowMs={nowMs}
-              offline={offline}
-              refreshing={refreshing}
               onCommand={(command, opts) => void runCommand(command, opts)}
             />
           </DesktopPanel>
