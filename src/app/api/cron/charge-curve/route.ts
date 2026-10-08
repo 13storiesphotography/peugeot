@@ -1,7 +1,4 @@
-import {
-  assertCronRequestAuth,
-  requireCronSecret,
-} from "@/lib/auth/cron-secret";
+import { assertCronRequestAuth } from "@/lib/auth/cron-secret";
 import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 import { getVehicleBundle } from "@/lib/vehicle/repository";
 
@@ -85,11 +82,9 @@ function nearChargeLimit(state: unknown): boolean {
  * delayed mode without the UI open.
  */
 async function run(request: Request) {
-  if (!assertCronRequestAuth(request)) {
+  if (!(await assertCronRequestAuth(request))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  requireCronSecret();
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || !getServiceRoleKey()) {
     return Response.json(

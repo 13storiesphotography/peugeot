@@ -10,7 +10,7 @@ import {
 import type { OtpPersistedState } from "@/lib/stellantis/otp/session";
 import {
   assertCronRequestAuth,
-  requireCronSecret,
+  resolveCronRpcSecret,
 } from "@/lib/auth/cron-secret";
 import { createAdminClient, getServiceRoleKey } from "@/lib/supabase/admin";
 
@@ -161,7 +161,7 @@ async function fireRow(
   });
 
   await supabase.rpc("cron_mark_climate_fired", {
-    p_secret: requireCronSecret(),
+    p_secret: await resolveCronRpcSecret(),
     p_schedule_id: row.schedule_id,
     p_fired_key: firedKey,
   });
@@ -185,7 +185,7 @@ export async function POST(request: Request) {
 }
 
 async function run(request: Request) {
-  if (!assertCronRequestAuth(request)) {
+  if (!(await assertCronRequestAuth(request))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -196,7 +196,7 @@ async function run(request: Request) {
     );
   }
 
-  const cronSecret = requireCronSecret();
+  const cronSecret = await resolveCronRpcSecret();
   const supabase = createAdminClient() as any;
   const { key: firedKey } = berlinStamp();
 
