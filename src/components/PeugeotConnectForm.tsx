@@ -78,7 +78,7 @@ export function PeugeotConnectForm({
   initialOAuthCountry?: string | null;
   initialOAuthError?: string | null;
 }) {
-  const isIos = useIsIos();
+  const [isIos, setIos] = useIsIos();
   const [countryCode, setCountryCode] = useState(
     initialOAuthCountry || connection.countryCode || "DE",
   );
