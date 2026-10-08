@@ -151,7 +151,7 @@ export function ClimatePanel({
             hint={
               isPro
                 ? live
-                  ? "Änderungen gehen ans Fahrzeug."
+                  ? undefined
                   : "Demo: nur in der App."
                 : "Mit Pro Zeitpläne anlegen."
             }
