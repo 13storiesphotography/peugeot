@@ -84,7 +84,7 @@ export function PullToRefresh({
   useEffect(() => {
     if (disabled) return;
 
-    const onTouchStart = (e: TouchEvent) => {
+    const begin = (clientY: number) => {
       if (busyRef.current || refreshing) return;
       // Must start at the absolute top — mid-scroll overshoot must not arm.
       if (scrollTop() > TOP_EPS_PX) {
@@ -92,17 +92,16 @@ export function PullToRefresh({
         startY.current = null;
         return;
       }
-      startY.current = e.touches[0]?.clientY ?? null;
-      tracking.current = startY.current != null;
+      startY.current = clientY;
+      tracking.current = true;
       engaged.current = false;
     };
 
-    const onTouchMove = (e: TouchEvent) => {
+    const move = (clientY: number, cancelableEvent?: Event) => {
       if (!tracking.current || startY.current == null) return;
       if (busyRef.current || refreshing) return;
 
-      const y = e.touches[0]?.clientY ?? startY.current;
-      const raw = y - startY.current;
+      const raw = clientY - startY.current;
 
       // Finger moved up, or page left the top → abandon gesture.
       if (raw <= 0 || scrollTop() > TOP_EPS_PX) {
@@ -128,10 +127,10 @@ export function PullToRefresh({
       const dampened = dampen(raw - DEADZONE_PX);
       setPull(dampened);
       setArmedBoth(dampened >= THRESHOLD_PX);
-      if (e.cancelable) e.preventDefault();
+      if (cancelableEvent?.cancelable) cancelableEvent.preventDefault();
     };
 
-    const onTouchEnd = () => {
+    const end = () => {
       if (!tracking.current) return;
       const shouldRefresh =
         engaged.current &&
@@ -147,16 +146,50 @@ export function PullToRefresh({
       }
     };
 
+    const onTouchStart = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY;
+      if (y == null) return;
+      begin(y);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY;
+      if (y == null) return;
+      move(y, e);
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      // Touch is handled above; this covers mouse / pen for desktop QA.
+      if (e.pointerType === "touch") return;
+      if (e.button !== 0) return;
+      begin(e.clientY);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return;
+      if (!tracking.current) return;
+      move(e.clientY, e);
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return;
+      end();
+    };
+
     document.addEventListener("touchstart", onTouchStart, { passive: true });
     document.addEventListener("touchmove", onTouchMove, { passive: false });
-    document.addEventListener("touchend", onTouchEnd, { passive: true });
-    document.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    document.addEventListener("touchend", end, { passive: true });
+    document.addEventListener("touchcancel", end, { passive: true });
+    document.addEventListener("pointerdown", onPointerDown, { passive: true });
+    document.addEventListener("pointermove", onPointerMove, { passive: false });
+    document.addEventListener("pointerup", onPointerUp, { passive: true });
+    document.addEventListener("pointercancel", onPointerUp, { passive: true });
 
     return () => {
       document.removeEventListener("touchstart", onTouchStart);
       document.removeEventListener("touchmove", onTouchMove);
-      document.removeEventListener("touchend", onTouchEnd);
-      document.removeEventListener("touchcancel", onTouchEnd);
+      document.removeEventListener("touchend", end);
+      document.removeEventListener("touchcancel", end);
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
     };
   }, [disabled, refreshing, reset, setArmedBoth]);
 
