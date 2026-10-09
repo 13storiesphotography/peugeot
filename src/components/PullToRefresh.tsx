@@ -8,8 +8,13 @@ import {
   type ReactNode,
 } from "react";
 
-const THRESHOLD_PX = 72;
-const MAX_PULL_PX = 120;
+/** Ignore small rubber-band / scroll overshoot before the gesture engages. */
+const DEADZONE_PX = 36;
+/** Must pull at least this far past the deadzone to arm refresh on release. */
+const THRESHOLD_PX = 88;
+const MAX_PULL_PX = 132;
+/** Only start when the page is truly at rest at the top. */
+const TOP_EPS_PX = 0.5;
 
 function scrollTop(): number {
   return (
@@ -18,6 +23,14 @@ function scrollTop(): number {
     document.body.scrollTop ||
     0
   );
+}
+
+/** Rubber-band: linear to threshold, then heavy resistance. */
+function dampen(rawPastDeadzone: number): number {
+  if (rawPastDeadzone <= 0) return 0;
+  if (rawPastDeadzone <= THRESHOLD_PX) return rawPastDeadzone;
+  const extra = rawPastDeadzone - THRESHOLD_PX;
+  return Math.min(MAX_PULL_PX, THRESHOLD_PX + extra * 0.28);
 }
 
 interface PullToRefreshProps {
@@ -29,8 +42,8 @@ interface PullToRefreshProps {
 }
 
 /**
- * iOS-style pull-to-refresh on the document scroll. Triggers the same hard
- * refresh path as the header control.
+ * Safari-like pull-to-refresh on document scroll.
+ * Growing arrow until a clear threshold — then refresh on release only.
  */
 export function PullToRefresh({
   onRefresh,
@@ -39,7 +52,8 @@ export function PullToRefresh({
   children,
 }: PullToRefreshProps) {
   const startY = useRef<number | null>(null);
-  const pulling = useRef(false);
+  const tracking = useRef(false);
+  const engaged = useRef(false);
   const armedRef = useRef(false);
   const busyRef = useRef(false);
   const onRefreshRef = useRef(onRefresh);
@@ -61,7 +75,8 @@ export function PullToRefresh({
 
   const reset = useCallback(() => {
     startY.current = null;
-    pulling.current = false;
+    tracking.current = false;
+    engaged.current = false;
     setPull(0);
     setArmedBoth(false);
   }, [setArmedBoth]);
@@ -71,34 +86,58 @@ export function PullToRefresh({
 
     const onTouchStart = (e: TouchEvent) => {
       if (busyRef.current || refreshing) return;
-      if (scrollTop() > 2) return;
+      // Must start at the absolute top — mid-scroll overshoot must not arm.
+      if (scrollTop() > TOP_EPS_PX) {
+        tracking.current = false;
+        startY.current = null;
+        return;
+      }
       startY.current = e.touches[0]?.clientY ?? null;
-      pulling.current = true;
+      tracking.current = startY.current != null;
+      engaged.current = false;
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (!pulling.current || startY.current == null) return;
+      if (!tracking.current || startY.current == null) return;
       if (busyRef.current || refreshing) return;
+
       const y = e.touches[0]?.clientY ?? startY.current;
       const raw = y - startY.current;
-      if (raw <= 0 || scrollTop() > 2) {
-        setPull(0);
-        setArmedBoth(false);
+
+      // Finger moved up, or page left the top → abandon gesture.
+      if (raw <= 0 || scrollTop() > TOP_EPS_PX) {
+        if (engaged.current) {
+          setPull(0);
+          setArmedBoth(false);
+          engaged.current = false;
+        }
         return;
       }
-      const dampened = Math.min(
-        MAX_PULL_PX,
-        raw < THRESHOLD_PX ? raw : THRESHOLD_PX + (raw - THRESHOLD_PX) * 0.35,
-      );
+
+      // Deadzone: treat as normal scroll rubber-band, do not hijack.
+      if (raw < DEADZONE_PX) {
+        if (engaged.current) {
+          setPull(0);
+          setArmedBoth(false);
+          engaged.current = false;
+        }
+        return;
+      }
+
+      engaged.current = true;
+      const dampened = dampen(raw - DEADZONE_PX);
       setPull(dampened);
       setArmedBoth(dampened >= THRESHOLD_PX);
-      if (raw > 8 && e.cancelable) e.preventDefault();
+      if (e.cancelable) e.preventDefault();
     };
 
     const onTouchEnd = () => {
-      if (!pulling.current) return;
+      if (!tracking.current) return;
       const shouldRefresh =
-        armedRef.current && !busyRef.current && !refreshing;
+        engaged.current &&
+        armedRef.current &&
+        !busyRef.current &&
+        !refreshing;
       reset();
       if (shouldRefresh) {
         busyRef.current = true;
@@ -122,49 +161,119 @@ export function PullToRefresh({
   }, [disabled, refreshing, reset, setArmedBoth]);
 
   const showIndicator = pull > 0 || refreshing;
-  const indicatorPull = refreshing ? THRESHOLD_PX * 0.7 : pull;
+  const indicatorPull = refreshing ? Math.round(THRESHOLD_PX * 0.55) : pull;
+  const progress = Math.min(1, pull / THRESHOLD_PX);
 
   return (
     <div className="relative">
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center"
         style={{
-          height: indicatorPull,
-          opacity: showIndicator ? Math.min(1, indicatorPull / 40) : 0,
+          height: Math.max(indicatorPull, showIndicator ? 28 : 0),
+          opacity: showIndicator
+            ? refreshing
+              ? 1
+              : Math.min(1, 0.2 + progress * 0.8)
+            : 0,
           transition:
-            pull === 0 && !refreshing ? "opacity 160ms ease" : undefined,
+            pull === 0 && !refreshing
+              ? "opacity 200ms ease, height 200ms ease"
+              : undefined,
         }}
         aria-hidden
       >
         <div
-          className={`mt-2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--bg-deep)]/90 text-[var(--accent-bright)] shadow-sm ${
-            refreshing || armed ? "animate-spin" : ""
-          }`}
+          className="mt-1.5 flex h-9 w-9 items-center justify-center text-[var(--accent-bright)]"
           style={{
-            transform: `translateY(${Math.max(0, indicatorPull - 36)}px) rotate(${
-              armed || refreshing ? 0 : (pull / THRESHOLD_PX) * 180
-            }deg)`,
+            transform: `translateY(${Math.max(0, indicatorPull - 40)}px)`,
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 5v10M12 15l-3.5-3.5M12 15l3.5-3.5"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          {refreshing ? (
+            <RefreshSpinner />
+          ) : (
+            <GrowingArrow progress={progress} armed={armed} />
+          )}
         </div>
       </div>
       <div
         style={{
-          transform: pull > 0 ? `translateY(${pull * 0.45}px)` : undefined,
-          transition: pull === 0 ? "transform 180ms ease" : undefined,
+          transform: pull > 0 ? `translateY(${pull * 0.42}px)` : undefined,
+          transition: pull === 0 ? "transform 220ms ease" : undefined,
         }}
       >
         {children}
       </div>
     </div>
+  );
+}
+
+/** Stem lengthens with pull; flips once past the arm threshold. */
+function GrowingArrow({
+  progress,
+  armed,
+}: {
+  progress: number;
+  armed: boolean;
+}) {
+  const stem = 5 + progress * 11;
+  const head = 3.2 + progress * 0.6;
+  const tipY = 4 + stem;
+  const color = armed ? "var(--accent-bright)" : "currentColor";
+
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      style={{
+        transform: `rotate(${armed ? 180 : 0}deg) scale(${0.85 + progress * 0.2})`,
+        transition: "transform 160ms ease",
+        opacity: 0.35 + progress * 0.65,
+      }}
+    >
+      <path
+        d={`M12 4 V${tipY}`}
+        stroke={color}
+        strokeWidth={1.6 + progress * 0.4}
+        strokeLinecap="round"
+      />
+      <path
+        d={`M12 ${tipY} L${12 - head} ${tipY - head} M12 ${tipY} L${12 + head} ${tipY - head}`}
+        stroke={color}
+        strokeWidth={1.6 + progress * 0.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Discrete spinner after release — not a looping bounce arrow. */
+function RefreshSpinner() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="animate-spin"
+      style={{ animationDuration: "0.85s" }}
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="8"
+        stroke="currentColor"
+        strokeOpacity="0.22"
+        strokeWidth="2"
+      />
+      <path
+        d="M20 12a8 8 0 0 0-8-8"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
