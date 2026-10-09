@@ -7,6 +7,7 @@ import { RECOVERY_COOKIE } from "@/lib/auth/recovery-cookie";
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   // Public legal pages — no auth cookies needed.
+  // /dev/* QA harness only in local/dev — never exposed in production.
   if (
     path === "/impressum" ||
     path.startsWith("/impressum/") ||
@@ -15,7 +16,8 @@ export async function proxy(request: NextRequest) {
     path === "/agb" ||
     path.startsWith("/agb/") ||
     path === "/widerruf" ||
-    path.startsWith("/widerruf/")
+    path.startsWith("/widerruf/") ||
+    (process.env.NODE_ENV !== "production" && path.startsWith("/dev/"))
   ) {
     return NextResponse.next();
   }

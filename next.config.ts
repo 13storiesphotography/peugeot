@@ -1,13 +1,19 @@
 import type { NextConfig } from "next";
 
 /** Keep in sync with vercel.json — browsers enforce every CSP header present. */
+const scriptSrc =
+  process.env.NODE_ENV === "production"
+    ? "script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com"
+    : // React/Next dev tooling needs eval; production CSP stays strict.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self' https://checkout.stripe.com https://billing.stripe.com",
-  "script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com",
+  scriptSrc,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",

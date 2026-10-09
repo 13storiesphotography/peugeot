@@ -76,6 +76,8 @@ Do **not** tint % / bars by DC Quick charging.
 ## Refresh
 
 - Manual update: header refresh **or** pull-to-refresh (same hard wake + sync).
+- Pull-to-refresh is Safari-like: deadzone + higher threshold, growing arrow,
+  refresh only on release past the arm point (not on every overscroll).
 - Hard refresh also imports onboard Vorklima plans — no separate „Vom Auto“.
 
 ## Don’t
